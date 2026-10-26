@@ -37,6 +37,8 @@ interactive full-screen program needs direct keyboard input.
   state between commands.
 - **Conventional terminal mode.** Pass text, common keys, and control characters through to interactive programs.
 - **ANSI terminal grid.** A mature Rust terminal engine handles colors, cursor movement, screen buffers, and scrollback.
+- **Copy and paste.** Select visible terminal text with the mouse; copy it with `⌘C` or `Ctrl+Shift+C`, and paste
+  using the terminal's bracketed-paste mode when enabled.
 - **Dark and light themes.** A restrained, original visual system with a high-contrast terminal canvas.
 - **Cross-platform foundation.** macOS, Windows, and Linux builds are checked in CI.
 - **Private by default.** No accounts, network service, telemetry, or cloud sync.

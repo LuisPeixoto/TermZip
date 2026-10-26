@@ -9,7 +9,7 @@ use eframe::egui::{
 };
 use termzip_core::{Rgb, Settings, Theme, ThemeKind};
 use termzip_pty::{PtyOptions, PtySession};
-use termzip_terminal::{TerminalGrid, TerminalSnapshot};
+use termzip_terminal::{CellSelection, TerminalGrid, TerminalSnapshot};
 
 use crate::terminal_view::{self, TerminalViewport};
 
@@ -31,6 +31,7 @@ pub struct TermZipApp {
     command: String,
     command_history: VecDeque<String>,
     history_selection: Option<usize>,
+    selection: Option<CellSelection>,
     input_mode: InputMode,
     settings_open: bool,
     terminal_focus: bool,
@@ -54,6 +55,7 @@ impl TermZipApp {
             command: String::new(),
             command_history: VecDeque::new(),
             history_selection: None,
+            selection: None,
             input_mode: InputMode::Composer,
             settings_open: false,
             terminal_focus: false,
@@ -243,6 +245,7 @@ impl TermZipApp {
             terminal_view::show_terminal(
                 ui,
                 snapshot,
+                self.selection,
                 theme,
                 self.settings.font_size,
                 self.cursor_phase && !self.child_exited,
@@ -252,7 +255,30 @@ impl TermZipApp {
         let viewport = inner.inner;
         if viewport.response.clicked() {
             self.terminal_focus = self.input_mode == InputMode::Terminal;
+            if !snapshot.mouse_reporting {
+                self.selection = None;
+            }
             context.memory_mut(|memory| memory.surrender_focus(Id::unique("command-composer")));
+        }
+
+        if viewport.response.drag_started() {
+            context.memory_mut(|memory| memory.surrender_focus(Id::unique("command-composer")));
+        }
+
+        if (viewport.response.drag_started() || viewport.response.dragged())
+            && !snapshot.mouse_reporting
+            && let Some(point) = context
+                .input(|input| input.pointer.interact_pos())
+                .and_then(|position| viewport.cell_at(position))
+        {
+            if viewport.response.drag_started() || self.selection.is_none() {
+                self.selection = Some(CellSelection {
+                    anchor: point,
+                    focus: point,
+                });
+            } else if let Some(selection) = self.selection.as_mut() {
+                selection.focus = point;
+            }
         }
         self.resize_terminal(&viewport);
 
@@ -481,16 +507,70 @@ impl TermZipApp {
         for event in events {
             match event {
                 egui::Event::Text(text) => self.write_input(text.as_bytes()),
+                egui::Event::Paste(text) => {
+                    let snapshot = self.terminal.snapshot(self.theme());
+                    if snapshot.bracketed_paste {
+                        let mut paste = String::with_capacity(text.len() + 24);
+                        paste.push_str("\x1b[200~");
+                        paste.push_str(&text);
+                        paste.push_str("\x1b[201~");
+                        self.write_input(paste.as_bytes());
+                    } else {
+                        self.write_input(text.as_bytes());
+                    }
+                }
+                egui::Event::Copy => self.copy_selection(context),
                 egui::Event::Key {
                     key,
                     pressed: true,
                     modifiers,
                     ..
                 } => {
+                    if key == egui::Key::C
+                        && clipboard_shortcut(modifiers)
+                        && self.selection.is_some()
+                    {
+                        self.copy_selection(context);
+                        continue;
+                    }
                     if let Some(bytes) = key_bytes(key, modifiers) {
                         self.write_input(&bytes);
                     }
                 }
+                _ => {}
+            }
+        }
+    }
+
+    fn copy_selection(&mut self, context: &egui::Context) {
+        if let Some(text) = self.selection.and_then(|selection| {
+            self.terminal
+                .snapshot(self.theme())
+                .selected_text(selection)
+        }) {
+            context.copy_text(text);
+            self.status_message = Some("Selection copied".to_owned());
+        }
+    }
+
+    fn handle_composer_copy(&mut self, context: &egui::Context) {
+        if self.input_mode != InputMode::Composer
+            || context.memory(|memory| memory.has_focus(Id::unique("command-composer")))
+            || self.selection.is_none()
+        {
+            return;
+        }
+
+        let events = context.input(|input| input.events.clone());
+        for event in events {
+            match event {
+                egui::Event::Copy => self.copy_selection(context),
+                egui::Event::Key {
+                    key: egui::Key::C,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if clipboard_shortcut(modifiers) => self.copy_selection(context),
                 _ => {}
             }
         }
@@ -555,6 +635,7 @@ impl eframe::App for TermZipApp {
 
         self.show_settings(&context);
         self.handle_terminal_input(&context);
+        self.handle_composer_copy(&context);
 
         if context.input(|input| input.time - self.last_output_at > 0.45) {
             self.cursor_phase = !self.cursor_phase;
@@ -615,6 +696,10 @@ fn key_bytes(key: egui::Key, modifiers: egui::Modifiers) -> Option<Vec<u8>> {
         _ => return None,
     };
     Some(sequence.to_vec())
+}
+
+fn clipboard_shortcut(modifiers: egui::Modifiers) -> bool {
+    modifiers.mac_cmd || (modifiers.ctrl && modifiers.shift)
 }
 
 fn current_directory(settings: &Settings) -> String {

@@ -32,7 +32,8 @@ not establish runtime performance or reconstruct proprietary source code.
 - ✅ ANSI colors, cursor movement, alternate screen, scrollback, and terminal resize are handled by the VT engine.
 - ✅ Persistent theme/font preferences and bounded shell-output transport.
 - [ ] Add shell integration markers and first-class command/output blocks.
-- [ ] Add reliable terminal selection, clipboard actions, bracketed paste, and fuller keyboard/mouse protocols.
+- ✅ Visible-screen selection, copy shortcuts, paste, and bracketed-paste wrapping.
+- [ ] Add scrollback selection, mouse-reporting clicks, and fuller keyboard/mouse protocols.
 - [ ] Test Zsh, Bash, Fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, and tmux by operating system.
 - [ ] Fix the status/cursor behavior and publish compatibility results for each supported platform.
 

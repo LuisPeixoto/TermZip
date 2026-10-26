@@ -14,6 +14,7 @@ const READ_BUFFER_BYTES: usize = 8192;
 #[derive(Debug, Clone)]
 pub struct PtyOptions {
     pub shell: Option<PathBuf>,
+    pub args: Vec<String>,
     pub working_directory: Option<PathBuf>,
     pub rows: u16,
     pub columns: u16,
@@ -24,6 +25,7 @@ impl Default for PtyOptions {
     fn default() -> Self {
         Self {
             shell: None,
+            args: Vec::new(),
             working_directory: None,
             rows: 24,
             columns: 80,
@@ -55,6 +57,7 @@ impl PtySession {
             .context("could not open a native pseudo-terminal")?;
         let shell = options.shell.unwrap_or_else(default_shell);
         let mut command = CommandBuilder::new(&shell);
+        command.args(&options.args);
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
         command.env("TERM_PROGRAM", "TermZip");
@@ -189,8 +192,23 @@ mod tests {
 
     #[test]
     fn shell_output_round_trips_through_the_native_pty() {
-        let (session, output) = PtySession::spawn(PtyOptions::default(), || {}).unwrap();
-        session.write(b"echo termzip_pty_smoke_marker\r").unwrap();
+        #[cfg(unix)]
+        let (_session, output) = {
+            let (session, output) = PtySession::spawn(PtyOptions::default(), || {}).unwrap();
+            session.write(b"echo termzip_pty_smoke_marker\r").unwrap();
+            (session, output)
+        };
+
+        #[cfg(windows)]
+        let (_session, output) = PtySession::spawn(
+            PtyOptions {
+                shell: Some("cmd.exe".into()),
+                args: vec!["/C".to_owned(), "echo termzip_pty_smoke_marker".to_owned()],
+                ..PtyOptions::default()
+            },
+            || {},
+        )
+        .unwrap();
 
         let deadline = Instant::now() + Duration::from_secs(10);
         let mut received = Vec::new();
