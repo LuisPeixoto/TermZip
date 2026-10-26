@@ -193,14 +193,14 @@ mod tests {
     #[test]
     fn shell_output_round_trips_through_the_native_pty() {
         #[cfg(unix)]
-        let (_session, output) = {
+        let (mut session, output) = {
             let (session, output) = PtySession::spawn(PtyOptions::default(), || {}).unwrap();
             session.write(b"echo termzip_pty_smoke_marker\r").unwrap();
             (session, output)
         };
 
         #[cfg(windows)]
-        let (_session, output) = PtySession::spawn(
+        let (mut session, output) = PtySession::spawn(
             PtyOptions {
                 shell: Some("cmd.exe".into()),
                 args: vec!["/C".to_owned(), "echo termzip_pty_smoke_marker".to_owned()],
@@ -224,6 +224,14 @@ mod tests {
             }
         }
 
-        panic!("shell output did not arrive over the PTY before the test timed out");
+        let exit_code = session
+            .try_wait()
+            .ok()
+            .flatten()
+            .map(|status| status.exit_code());
+        panic!(
+            "shell output did not arrive over the PTY before the test timed out; exit code: {exit_code:?}; received: {:?}",
+            String::from_utf8_lossy(&received)
+        );
     }
 }
