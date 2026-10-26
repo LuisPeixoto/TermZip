@@ -35,6 +35,7 @@ function createAppStore() {
   let version = $state("0.1.0");
   let ready = $state(false);
   let shells = $state<ShellOption[]>([]);
+  let title = $state<string | null>(null);
 
   function applyTheme(theme: Settings["theme"]): void {
     document.documentElement.dataset.theme = theme;
@@ -85,6 +86,7 @@ function createAppStore() {
     session = info;
     exited = false;
     exitCode = null;
+    title = null;
     blocks = [];
   }
 
@@ -136,6 +138,12 @@ function createAppStore() {
     },
     get shells() {
       return shells;
+    },
+    get title() {
+      return title;
+    },
+    setTitle(value: string | null) {
+      title = value;
     },
     init,
     toggleTheme,

@@ -114,6 +114,7 @@
     fit();
     terminal.onData(onTerminalData);
     terminal.attachCustomKeyEventHandler(onCustomKey);
+    terminal.onTitleChange((title) => app.setTitle(title.trim() || null));
 
     const observer = new ResizeObserver(() => fit());
     observer.observe(container!);

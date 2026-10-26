@@ -32,9 +32,10 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - ✅ Command blocks with command, exit code, duration, cwd, ANSI output preview, copy, output copy, and re-run.
 - ✅ Interactive programs keep working: alternate screen, bracketed paste, selection, clipboard, resize.
 - ✅ Preferences: theme, font size/family, scrollback, shell path, working directory — persisted and clamped.
-- [ ] Manual compatibility matrix: zsh, bash, fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, tmux per platform.
+- [ ] Manual compatibility matrix: zsh, bash, fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, tmux per platform
+  (current evidence is in [compatibility-matrix.md](compatibility-matrix.md)).
 - [ ] Scrollback selection alongside visible-screen selection; mouse-report clicks forwarded to the shell.
-- [ ] Session lifecycle polish: exit detection status, restart affordance in the toolbar, tab title updates.
+- ✅ Session lifecycle: exit status, restart action, and the shell-provided window title.
 
 ## 📋 Phase 3: Everyday productivity · v0.2
 

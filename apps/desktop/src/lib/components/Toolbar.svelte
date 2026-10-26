@@ -18,9 +18,20 @@
     <span class="text-[12.5px] font-semibold tracking-tight" data-tauri-drag-region>TermZip</span>
   </div>
 
-  <span class="ml-1 rounded-full border border-line bg-panel-2 px-2 py-0.5 text-[10.5px] text-muted">
-    {app.session ? app.session.shell : "starting…"}
+  <span class="ml-1 max-w-[280px] truncate rounded-full border border-line bg-panel-2 px-2 py-0.5 text-[10.5px] text-muted">
+    {app.title || app.session?.shell || "starting…"}
   </span>
+
+  {#if app.exited}
+    <button
+      type="button"
+      class="flex h-7 items-center gap-1.5 rounded-md border border-warn/40 bg-warn/10 px-2 text-[11px] text-warn transition-colors hover:bg-warn/20"
+      onclick={() => window.dispatchEvent(new CustomEvent("termzip:restart"))}
+      title="Restart the shell (⌘R)"
+    >
+      Restart
+    </button>
+  {/if}
 
   <div class="flex-1" data-tauri-drag-region></div>
 
