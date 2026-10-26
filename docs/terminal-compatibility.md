@@ -13,6 +13,7 @@ TermZip is at the first terminal-emulation milestone. It currently uses the VT p
 - **Selection and clipboard:** drag across visible cells to select text; copy with `⌘C` on macOS or `Ctrl+Shift+C` on
   Windows/Linux, and paste using bracketed-paste delimiters when the running program enables them.
 - **Resize:** terminal rows and columns follow the available canvas size.
+- **Terminal queries:** standard device-status and device-attribute requests are answered through the PTY.
 
 ## Known limitations
 

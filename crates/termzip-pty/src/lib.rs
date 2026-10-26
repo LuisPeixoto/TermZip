@@ -215,6 +215,13 @@ mod tests {
         while Instant::now() < deadline {
             if let Ok(bytes) = output.recv_timeout(Duration::from_millis(250)) {
                 received.extend(bytes);
+                #[cfg(windows)]
+                if received
+                    .windows(b"\x1b[6n".len())
+                    .any(|window| window == b"\x1b[6n")
+                {
+                    session.write(b"\x1b[1;1R").unwrap();
+                }
                 if received
                     .windows(b"termzip_pty_smoke_marker".len())
                     .any(|window| window == b"termzip_pty_smoke_marker")

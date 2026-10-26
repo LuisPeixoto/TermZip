@@ -100,6 +100,17 @@ impl TermZipApp {
             }
         }
 
+        let responses = self.terminal.drain_pty_responses();
+        if let Some(session) = &self.session {
+            for response in responses {
+                if let Err(error) = session.write(response.as_bytes()) {
+                    self.status_message =
+                        Some(format!("Could not answer a terminal query: {error:#}"));
+                    break;
+                }
+            }
+        }
+
         if !self.child_exited
             && let Some(session) = self.session.as_mut()
             && let Ok(Some(status)) = session.try_wait()

@@ -1,4 +1,7 @@
-use alacritty_terminal::event::VoidListener;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+
+use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::{Column, Line};
 use alacritty_terminal::term::cell::{Cell, Flags};
@@ -23,6 +26,19 @@ impl Dimensions for TerminalSize {
 
     fn columns(&self) -> usize {
         self.columns
+    }
+}
+
+#[derive(Clone, Default)]
+struct TerminalEventProxy(Arc<Mutex<VecDeque<String>>>);
+
+impl EventListener for TerminalEventProxy {
+    fn send_event(&self, event: Event) {
+        if let Event::PtyWrite(response) = event
+            && let Ok(mut pending) = self.0.lock()
+        {
+            pending.push_back(response);
+        }
     }
 }
 
@@ -132,8 +148,9 @@ impl TerminalSnapshot {
 }
 
 pub struct TerminalGrid {
-    term: Term<VoidListener>,
+    term: Term<TerminalEventProxy>,
     parser: ansi::Processor,
+    pending_responses: Arc<Mutex<VecDeque<String>>>,
 }
 
 impl TerminalGrid {
@@ -147,14 +164,23 @@ impl TerminalGrid {
             ..Config::default()
         };
 
+        let pending_responses = Arc::new(Mutex::new(VecDeque::new()));
         Self {
-            term: Term::new(config, &size, VoidListener),
+            term: Term::new(config, &size, TerminalEventProxy(pending_responses.clone())),
             parser: ansi::Processor::new(),
+            pending_responses,
         }
     }
 
     pub fn feed(&mut self, bytes: &[u8]) {
         self.parser.advance(&mut self.term, bytes);
+    }
+
+    pub fn drain_pty_responses(&mut self) -> Vec<String> {
+        self.pending_responses
+            .lock()
+            .map(|mut pending| pending.drain(..).collect())
+            .unwrap_or_default()
     }
 
     pub fn resize(&mut self, rows: usize, columns: usize) {
@@ -450,5 +476,13 @@ mod tests {
         terminal.feed(b"\x1b[?2004h");
 
         assert!(terminal.snapshot(ThemeKind::Dark.palette()).bracketed_paste);
+    }
+
+    #[test]
+    fn device_status_cursor_queries_are_answered() {
+        let mut terminal = TerminalGrid::new(3, 12, 100);
+        terminal.feed(b"\x1b[2;4H\x1b[6n");
+
+        assert_eq!(terminal.drain_pty_responses(), ["\x1b[2;4R"]);
     }
 }
