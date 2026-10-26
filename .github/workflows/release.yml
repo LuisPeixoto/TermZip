@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag such as v0.1.0 to build portable desktop binaries and a draft release.
+# Push a tag such as v0.1.0 to build desktop bundles and a draft release.
 on:
   push:
     tags: ["v*"]
@@ -22,50 +22,51 @@ jobs:
           fi
 
   desktop:
-    name: Desktop binary (${{ matrix.target }})
+    name: Desktop bundle (${{ matrix.name }})
     needs: draft
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { target: aarch64-apple-darwin, os: macos-latest, archive: tar.gz }
-          - { target: x86_64-apple-darwin, os: macos-latest, archive: tar.gz }
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-24.04, archive: tar.gz }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
+          - { name: macOS (Apple silicon), os: macos-latest, args: "--target aarch64-apple-darwin" }
+          - { name: macOS (Intel), os: macos-latest, args: "--target x86_64-apple-darwin" }
+          - { name: Linux, os: ubuntu-24.04, args: "" }
+          - { name: Windows, os: windows-latest, args: "" }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - name: Install Linux window-system dependencies
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libx11-dev libxkbcommon-dev libxkbcommon-x11-0 libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libwayland-dev libwayland-cursor0 libwayland-egl1 libgl1-mesa-dev
-      - name: Build
-        run: cargo build --release --locked -p termzip-desktop --target ${{ matrix.target }}
-      - name: Package
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install frontend dependencies
+        working-directory: apps/desktop
+        run: npm ci
+      - name: Build bundles
+        working-directory: apps/desktop
+        run: npm run tauri build -- ${{ matrix.args }}
+      - name: Collect artifacts
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          name="termzip-${version}-${{ matrix.target }}"
-          mkdir "$name"
-          exe=termzip
-          if [ "${{ runner.os }}" = "Windows" ]; then exe=termzip.exe; fi
-          cp "target/${{ matrix.target }}/release/$exe" LICENSE README.md "$name/"
-          if [ "${{ matrix.archive }}" = "zip" ]; then
-            7z a "$name.zip" "$name" > /dev/null
-          else
-            tar -czf "$name.tar.gz" "$name"
-          fi
-          echo "ARCHIVE=$name.${{ matrix.archive }}" >> "$GITHUB_ENV"
+          mkdir -p artifacts
+          find apps/desktop/src-tauri/target -maxdepth 4 \
+            \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.msi' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
+            -exec cp {} artifacts/ \;
+          ls -la artifacts
       - name: Attach to the release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
+        run: gh release upload "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" --clobber
+
   checksums:
     name: Release checksums
     needs: desktop
@@ -74,9 +75,9 @@ jobs:
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern 'termzip-*'
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
       - name: Create SHA-256 manifest
-        run: sha256sum termzip-* > SHA256SUMS
+        run: sha256sum * > SHA256SUMS
       - name: Upload SHA-256 manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

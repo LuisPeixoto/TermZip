@@ -1,9 +1,10 @@
 /target/
-/.idea/
-/.vscode/
-*.swp
-*.swo
+node_modules/
+dist/
+/apps/desktop/src-tauri/gen/
 .DS_Store
 Thumbs.db
 *.log
 *.dmp
+*.swp
+*.swo

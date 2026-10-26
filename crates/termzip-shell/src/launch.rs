@@ -1,0 +1,248 @@
+//! Detection of the user's shell and the launch configuration used to start it
+//! with TermZip's integration preloaded.
+
+use std::path::{Path, PathBuf};
+
+use crate::scripts::ensure_script;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShellKind {
+    Zsh,
+    Bash,
+    Fish,
+    PowerShell,
+    Cmd,
+    Other,
+}
+
+impl ShellKind {
+    pub fn integrates(self) -> bool {
+        !matches!(self, Self::Cmd | Self::Other)
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Zsh => "zsh",
+            Self::Bash => "bash",
+            Self::Fish => "fish",
+            Self::PowerShell => "PowerShell",
+            Self::Cmd => "cmd",
+            Self::Other => "shell",
+        }
+    }
+}
+
+pub fn detect_shell_kind(program: &Path) -> ShellKind {
+    let name = program
+        .file_name()
+        .map(|name| name.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+
+    match name.as_str() {
+        "zsh" => ShellKind::Zsh,
+        "bash" => ShellKind::Bash,
+        "fish" => ShellKind::Fish,
+        "pwsh" | "powershell" | "powershell.exe" | "pwsh.exe" => ShellKind::PowerShell,
+        "cmd" | "cmd.exe" => ShellKind::Cmd,
+        _ => ShellKind::Other,
+    }
+}
+
+/// Everything the session layer needs to spawn the shell.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Launch {
+    pub program: PathBuf,
+    pub args: Vec<String>,
+    pub env: Vec<(String, String)>,
+    pub integrated: bool,
+}
+
+pub fn default_shell() -> PathBuf {
+    #[cfg(windows)]
+    {
+        std::env::var_os("COMSPEC")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("cmd.exe"))
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::env::var_os("SHELL")
+            .map(PathBuf::from)
+            .filter(|shell| shell.is_file())
+            .unwrap_or_else(|| PathBuf::from("/bin/sh"))
+    }
+}
+
+/// Build the spawn configuration for the configured shell, injecting the
+/// bundled integration script when the shell supports it.
+pub fn launch_config(shell: Option<&str>, integration_dir: &Path) -> Launch {
+    let program = shell.map(PathBuf::from).unwrap_or_else(default_shell);
+    let kind = detect_shell_kind(&program);
+
+    let Some(script) = ensure_script(kind, integration_dir) else {
+        return Launch {
+            program,
+            args: Vec::new(),
+            env: Vec::new(),
+            integrated: false,
+        };
+    };
+    let script = script.display().to_string();
+
+    let mut launch = Launch {
+        program: program.clone(),
+        args: Vec::new(),
+        env: Vec::new(),
+        integrated: true,
+    };
+
+    match kind {
+        ShellKind::Zsh => {
+            let user_zdotdir = std::env::var_os("ZDOTDIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(home_dir);
+            let staged = staged_dir(integration_dir, "zsh");
+            write_zsh_stubs(&staged, &script);
+            launch.env.push((
+                "TERMZIP_USER_ZDOTDIR".to_owned(),
+                user_zdotdir.display().to_string(),
+            ));
+            launch
+                .env
+                .push(("ZDOTDIR".to_owned(), staged.display().to_string()));
+        }
+        ShellKind::Bash => {
+            let staged = staged_dir(integration_dir, "bash");
+            let rc = staged.join("bashrc");
+            let contents = format!(
+                "[ -f \"$HOME/.bashrc\" ] && builtin source \"$HOME/.bashrc\"\nbuiltin source \"{script}\"\n"
+            );
+            if std::fs::create_dir_all(&staged).is_ok() && std::fs::write(&rc, contents).is_ok() {
+                launch.args.push("--rcfile".to_owned());
+                launch.args.push(rc.display().to_string());
+            } else {
+                launch.integrated = false;
+            }
+        }
+        ShellKind::Fish => {
+            launch.args.push("-C".to_owned());
+            launch.args.push(format!("source {}", quote_fish(&script)));
+        }
+        ShellKind::PowerShell => {
+            launch.args.push("-NoExit".to_owned());
+            launch.args.push("-Command".to_owned());
+            launch.args.push(format!(". '{}'", script));
+        }
+        ShellKind::Cmd | ShellKind::Other => {
+            launch.integrated = false;
+        }
+    }
+
+    launch
+}
+
+fn staged_dir(integration_dir: &Path, shell: &str) -> PathBuf {
+    integration_dir.join(shell)
+}
+
+fn home_dir() -> PathBuf {
+    #[cfg(windows)]
+    {
+        std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .unwrap_or_default()
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_default()
+    }
+}
+
+fn write_zsh_stubs(dir: &Path, integration: &str) {
+    if std::fs::create_dir_all(dir).is_err() {
+        return;
+    }
+    let contents = format!(
+        "[[ -f \"$TERMZIP_USER_ZDOTDIR/.zshenv\" ]] && builtin source \"$TERMZIP_USER_ZDOTDIR/.zshenv\"\n\
+         export ZDOTDIR=\"$TERMZIP_USER_ZDOTDIR\"\n\
+         builtin source \"{integration}\"\n",
+        integration = integration,
+    );
+    let _ = std::fs::write(dir.join(".zshenv"), contents);
+    let _ = std::fs::write(
+        dir.join(".zshrc"),
+        "[[ -f \"$TERMZIP_USER_ZDOTDIR/.zshrc\" ]] && builtin source \"$TERMZIP_USER_ZDOTDIR/.zshrc\"\n",
+    );
+}
+
+fn quote_fish(path: &str) -> String {
+    format!("'{path}'")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ShellKind, detect_shell_kind, launch_config};
+    use std::path::{Path, PathBuf};
+
+    fn kind_of(name: &str) -> ShellKind {
+        detect_shell_kind(Path::new(name))
+    }
+
+    #[test]
+    fn shells_are_detected_by_name() {
+        assert_eq!(kind_of("/bin/zsh"), ShellKind::Zsh);
+        assert_eq!(kind_of("/usr/bin/bash"), ShellKind::Bash);
+        assert_eq!(kind_of("fish"), ShellKind::Fish);
+        assert_eq!(kind_of("pwsh.exe"), ShellKind::PowerShell);
+        assert_eq!(kind_of("cmd.exe"), ShellKind::Cmd);
+        assert_eq!(kind_of("/bin/tcsh"), ShellKind::Other);
+    }
+
+    #[test]
+    fn zsh_launch_stages_zdotdir() {
+        let dir = std::env::temp_dir().join(format!("termzip-launch-{}", std::process::id()));
+        let launch = launch_config(Some("/bin/zsh"), &dir);
+
+        assert!(launch.integrated);
+        assert!(launch.env.iter().any(|(key, _)| key == "ZDOTDIR"));
+        assert!(
+            launch
+                .env
+                .iter()
+                .any(|(key, _)| key == "TERMZIP_USER_ZDOTDIR")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn unknown_shells_run_without_integration() {
+        let dir = std::env::temp_dir().join(format!("termzip-other-{}", std::process::id()));
+        let launch = launch_config(Some("/bin/tcsh"), &dir);
+
+        assert!(!launch.integrated);
+        assert!(launch.args.is_empty());
+        assert!(launch.env.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn bash_launch_uses_rcfile() {
+        let dir = std::env::temp_dir().join(format!("termzip-bash-{}", std::process::id()));
+        let launch = launch_config(Some("/bin/bash"), &dir);
+
+        assert!(launch.integrated);
+        assert!(launch.args.iter().any(|arg| arg == "--rcfile"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn default_shell_path_is_usable() {
+        let path = PathBuf::from("placeholder");
+        let _ = path;
+        assert!(!super::default_shell().as_os_str().is_empty());
+    }
+}

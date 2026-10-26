@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "apps/*"]
-default-members = ["crates/*", "apps/*"]
+members = ["crates/*", "apps/desktop/src-tauri"]
+default-members = ["crates/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,17 +11,23 @@ repository = "https://github.com/LuisPeixoto/TermZip"
 homepage = "https://github.com/LuisPeixoto/TermZip"
 readme = "README.md"
 authors = ["Luis Peixoto <nandopeixotolfpc@gmail.com>"]
-rust-version = "1.95"
+rust-version = "1.90"
 
 [workspace.dependencies]
-alacritty_terminal = { version = "0.26", default-features = false }
 anyhow = "1"
+base64 = "0.22"
 dirs = "6"
-eframe = "0.37"
 portable-pty = "0.9"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-build = "2"
+tauri-plugin-clipboard-manager = "2"
 thiserror = "2"
 toml = "0.9"
+termzip-core = { path = "crates/termzip-core" }
+termzip-pty = { path = "crates/termzip-pty" }
+termzip-shell = { path = "crates/termzip-shell" }
 
 [profile.release]
 lto = "thin"

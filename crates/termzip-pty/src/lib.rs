@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use anyhow::{Context, Result};
-use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system};
+use portable_pty::{CommandBuilder, native_pty_system};
+
+pub use portable_pty::{Child, ExitStatus, MasterPty, PtySize};
 
 const OUTPUT_BUFFER_CHUNKS: usize = 128;
 const READ_BUFFER_BYTES: usize = 8192;
@@ -32,6 +34,14 @@ impl Default for PtyOptions {
             environment: BTreeMap::new(),
         }
     }
+}
+
+/// The long-lived pieces of a spawned session: the PTY master (resize), a
+/// shared writer, and the child process handle.
+pub struct PtyParts {
+    pub master: Box<dyn MasterPty + Send>,
+    pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    pub child: Box<dyn Child + Send + Sync>,
 }
 
 pub struct PtySession {
@@ -96,6 +106,15 @@ impl PtySession {
         ))
     }
 
+    /// Consumes the session, returning its parts for long-lived session state.
+    pub fn into_parts(self) -> PtyParts {
+        PtyParts {
+            master: self.master,
+            writer: self.writer,
+            child: self.child,
+        }
+    }
+
     pub fn write(&self, bytes: &[u8]) -> Result<()> {
         let mut writer = self
             .writer
@@ -124,18 +143,10 @@ impl PtySession {
             .context("could not resize the shell PTY")
     }
 
-    pub fn try_wait(&mut self) -> Result<Option<portable_pty::ExitStatus>> {
+    pub fn try_wait(&mut self) -> Result<Option<ExitStatus>> {
         self.child
             .try_wait()
             .context("could not check the shell process")
-    }
-}
-
-impl Drop for PtySession {
-    fn drop(&mut self) {
-        if self.child.try_wait().ok().flatten().is_none() {
-            let _ = self.child.kill();
-        }
     }
 }
 
@@ -162,7 +173,7 @@ fn spawn_reader(
         });
 }
 
-fn default_shell() -> PathBuf {
+pub fn default_shell() -> PathBuf {
     #[cfg(windows)]
     {
         std::env::var_os("COMSPEC")

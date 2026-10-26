@@ -11,21 +11,26 @@ focused features are welcome. Please follow the [Code of Conduct](CODE_OF_CONDUC
 
 ## Development setup
 
-Install stable Rust with `rustfmt` and `clippy`. Linux developers also need the native window-system and graphics
-dependencies used by eframe/winit.
+Install stable Rust with `rustfmt` and `clippy`, plus Node.js 20 or newer. Linux developers also need the WebKitGTK
+development packages (`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`).
 
 ```bash
 git clone https://github.com/LuisPeixoto/TermZip.git
-cd TermZip
-cargo run -p termzip-desktop
+cd TermZip/apps/desktop
+npm install
+npm run tauri dev
 ```
+
+The app icon is generated from `assets/icon.png` with `npm run icon` (only needed when the icon changes).
 
 Before opening a pull request, run:
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace --all-targets
+cargo clippy --workspace --exclude termzip-desktop --all-targets -- -D warnings
+cargo clippy -p termzip-desktop --all-targets -- -D warnings
+cargo test --workspace --exclude termzip-desktop
+cd apps/desktop && npm run check && npm run test && npm run build
 ```
 
 ## Branches and commits
@@ -58,5 +63,6 @@ trailers unless every named contributor explicitly requests them.
 - Keep PTY reads off the UI thread and bound cross-thread buffering.
 - Treat shell input, environment variables, OSC, and clipboard sequences as untrusted data.
 - Do not log terminal contents, commands, environment values, or child-process output.
-- Test VT behavior with captured fixtures instead of relying only on screenshots.
-- Preserve a direct-input mode for full-screen and interactive terminal applications.
+- Keep marker parsing tolerant: split sequences across reads, BEL and ST terminators, unknown parameters.
+- Integration scripts must never alter the user's prompt, aliases, or network access.
+- Preserve direct terminal input for full-screen and interactive applications.

@@ -1,54 +1,52 @@
 # Roadmap
 
-Items are prioritized within each phase. TermZip is early-stage; features move to complete only after their acceptance
-checks pass. Open an issue before beginning a larger architectural change.
+Items are prioritized within each phase. Features move to complete only after their acceptance checks pass. Open an
+issue before beginning a larger architectural change.
 
 ## ✅ Phase 0: Research and feasibility
 
 - ✅ Static REA inspection of the supplied Warp, Ghostty, and Terminal.app binaries and macOS bundle metadata.
 - ✅ Review of ProxyZip's repository structure, roadmap, CI, contribution workflow, and Rust workspace conventions.
-- ✅ Select an original visual direction: minimal premium, with a bottom-anchored composer and a separate conventional
-  terminal mode.
-- ✅ Build the first cross-platform PTY and VT-emulator prototype.
+- ✅ Original visual direction chosen: minimal premium, bottom-anchored composer, zinc & blue palette.
+- ✅ Cross-platform PTY and VT prototype validated on macOS with CI coverage on all three platforms.
 - [ ] Measure cold launch, idle CPU, memory, scrollback, and rendering with reproducible workloads.
-- [ ] Validate keyboard input, accessibility, and shell behavior on real macOS, Windows, and Linux systems.
+- [ ] Validate keyboard input, accessibility, and shell behavior on real Windows and Linux systems.
 
-The static observations and their limits are summarized in the project plan and architecture. Binary inspection does
-not establish runtime performance or reconstruct proprietary source code.
+Binary inspection does not establish runtime performance or reconstruct proprietary source code.
 
-## 🚧 Phase 1: Project foundation
+## ✅ Phase 1: Project foundation
 
-- ✅ Rust workspace split into shared core, terminal emulation, PTY, and desktop packages.
-- ✅ Dark and light theme tokens, preferences file, and first-run defaults.
-- ✅ README, architecture, configuration, security, contributing, and community files.
-- ✅ GitHub Actions for formatting, Clippy, tests, and builds on macOS, Windows, and Linux.
-- [ ] Observe the first full three-platform CI run and fix any platform-specific failures.
-- [ ] Add release/build metadata only after package targets are verified.
+- ✅ Rust workspace: shared core, PTY, shell integration, and the Tauri desktop shell.
+- ✅ Interface rebuilt on Tauri 2 + Svelte 5 + Tailwind 4 + xterm.js, replacing the first egui prototype.
+- ✅ Zinc & blue design tokens with complete dark and light themes.
+- ✅ README, architecture, configuration, shell integration, security, and community files.
+- ✅ GitHub Actions: Rust matrix plus desktop job (svelte-check, vitest, vite build, clippy) on three platforms.
+- ✅ Release workflow building desktop bundles and checksums; Dependabot for cargo, npm, and Actions.
+- [ ] First end-to-end CI run of the new workflows on all three platforms.
 
 ## 🚧 Phase 2: Usable terminal MVP · v0.1
 
-- ✅ Native shell starts in a PTY; output is parsed off the shell's read thread and rendered in the desktop window.
-- ✅ Bottom-anchored command composer and basic direct-input mode for interactive programs.
-- ✅ ANSI colors, cursor movement, alternate screen, scrollback, and terminal resize are handled by the VT engine.
-- ✅ Device-status and device-attribute queries are answered back to the shell.
-- ✅ Persistent theme/font preferences and bounded shell-output transport.
-- [ ] Add shell integration markers and first-class command/output blocks.
-- ✅ Visible-screen selection, copy shortcuts, paste, and bracketed-paste wrapping.
-- [ ] Add scrollback selection, mouse-reporting clicks, and fuller keyboard/mouse protocols.
-- [ ] Test Zsh, Bash, Fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, and tmux by operating system.
-- [ ] Fix the status/cursor behavior and publish compatibility results for each supported platform.
+- ✅ Native shell in a PTY; raw output streamed to xterm.js off the read thread.
+- ✅ Bottom-anchored composer with multiline input, local history, and Enter-to-run.
+- ✅ Shell integration (OSC 133) for zsh, bash, fish, and partial PowerShell; cmd.exe runs plain.
+- ✅ Command blocks with command, exit code, duration, cwd, copy, and re-run.
+- ✅ Interactive programs keep working: alternate screen, bracketed paste, selection, clipboard, resize.
+- ✅ Preferences: theme, font size/family, scrollback, shell path, working directory — persisted and clamped.
+- [ ] Manual compatibility matrix: zsh, bash, fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, tmux per platform.
+- [ ] Scrollback selection alongside visible-screen selection; mouse-report clicks forwarded to the shell.
+- [ ] Session lifecycle polish: exit detection status, restart affordance in the toolbar, tab title updates.
 
 ## 📋 Phase 3: Everyday productivity · v0.2
 
 - [ ] Multiple tabs and split panes.
-- [ ] Search terminal history and output; command history navigation and working-directory actions.
-- [ ] Session restore, profiles, links, shell integration, and keyboard customization.
-- [ ] Large-output virtualization and incremental/damage-based redraw.
+- [ ] Search terminal history and output; block filtering.
+- [ ] Session restore, profiles, links, and keyboard customization.
+- [ ] Large-output virtualization and incremental rendering budgets.
 
 ## 📋 Phase 4: Personalization · v0.3
 
 - [ ] Theme import/export and a gallery of audited themes.
-- [ ] Font families, cursor styles, opacity, spacing, and per-profile shell settings.
+- [ ] Cursor styles, opacity, spacing, per-profile shell settings.
 - [ ] A complete keyboard shortcut editor and discoverable command palette.
 
 ## 📋 Phase 5: Extensions · v0.4
