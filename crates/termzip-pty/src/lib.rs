@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use anyhow::{Context, Result};
-use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system};
+use portable_pty::{CommandBuilder, native_pty_system};
+
+pub use portable_pty::{Child, ExitStatus, MasterPty, PtySize};
 
 const OUTPUT_BUFFER_CHUNKS: usize = 128;
 const READ_BUFFER_BYTES: usize = 8192;
@@ -32,6 +34,14 @@ impl Default for PtyOptions {
             environment: BTreeMap::new(),
         }
     }
+}
+
+/// The long-lived pieces of a spawned session: the PTY master (resize), a
+/// shared writer, and the child process handle.
+pub struct PtyParts {
+    pub master: Box<dyn MasterPty + Send>,
+    pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    pub child: Box<dyn Child + Send + Sync>,
 }
 
 pub struct PtySession {
@@ -96,6 +106,15 @@ impl PtySession {
         ))
     }
 
+    /// Consumes the session, returning its parts for long-lived session state.
+    pub fn into_parts(self) -> PtyParts {
+        PtyParts {
+            master: self.master,
+            writer: self.writer,
+            child: self.child,
+        }
+    }
+
     pub fn write(&self, bytes: &[u8]) -> Result<()> {
         let mut writer = self
             .writer
@@ -124,18 +143,10 @@ impl PtySession {
             .context("could not resize the shell PTY")
     }
 
-    pub fn try_wait(&mut self) -> Result<Option<portable_pty::ExitStatus>> {
+    pub fn try_wait(&mut self) -> Result<Option<ExitStatus>> {
         self.child
             .try_wait()
             .context("could not check the shell process")
-    }
-}
-
-impl Drop for PtySession {
-    fn drop(&mut self) {
-        if self.child.try_wait().ok().flatten().is_none() {
-            let _ = self.child.kill();
-        }
     }
 }
 
@@ -162,7 +173,7 @@ fn spawn_reader(
         });
 }
 
-fn default_shell() -> PathBuf {
+pub fn default_shell() -> PathBuf {
     #[cfg(windows)]
     {
         std::env::var_os("COMSPEC")
@@ -240,5 +251,176 @@ mod tests {
             "shell output did not arrive over the PTY before the test timed out; exit code: {exit_code:?}; received: {:?}",
             String::from_utf8_lossy(&received)
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn zsh_integration_emits_semantic_prompt_markers() {
+        use std::collections::BTreeMap;
+        use std::path::Path;
+
+        use termzip_shell::{Marker, OscParser};
+
+        if !Path::new("/bin/zsh").exists() {
+            return;
+        }
+
+        let dir = std::env::temp_dir().join(format!("termzip-zsh-{}", std::process::id()));
+        let launch = termzip_shell::launch_config(Some("/bin/zsh"), &dir);
+        assert!(launch.integrated);
+        let environment: BTreeMap<String, String> = launch.env.into_iter().collect();
+        let (session, output) = PtySession::spawn(
+            PtyOptions {
+                shell: Some(launch.program),
+                args: launch.args,
+                environment,
+                rows: 24,
+                columns: 100,
+                ..PtyOptions::default()
+            },
+            || {},
+        )
+        .unwrap();
+
+        session.write(b"echo termzip_block_marker\r").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(15);
+        let mut received = Vec::new();
+        let mut text_seen_at: Option<Instant> = None;
+        while Instant::now() < deadline {
+            if let Ok(bytes) = output.recv_timeout(Duration::from_millis(250)) {
+                received.extend(bytes);
+                if text_seen_at.is_none()
+                    && received
+                        .windows(b"termzip_block_marker".len())
+                        .any(|window| window == b"termzip_block_marker")
+                {
+                    text_seen_at = Some(Instant::now());
+                }
+                if text_seen_at.is_some_and(|seen| seen.elapsed() > Duration::from_secs(2)) {
+                    break;
+                }
+            }
+        }
+
+        let markers = OscParser::new().feed(&received);
+        assert!(
+            markers
+                .iter()
+                .any(|marker| matches!(marker, Marker::ExecStart)),
+            "no exec-start marker: {:?}",
+            String::from_utf8_lossy(&received)
+        );
+        assert!(
+            markers
+                .iter()
+                .any(|marker| matches!(marker, Marker::ExecEnd(Some(0)))),
+            "no successful exec-end marker: {:?}",
+            String::from_utf8_lossy(&received)
+        );
+
+        let mut parser = OscParser::new();
+        let mut tracker = termzip_shell::BlockTracker::new();
+        let hits = parser.feed_ranges(&received);
+        let mut cursor = 0;
+        for hit in hits {
+            if hit.start > cursor {
+                tracker.on_region_bytes(&received[cursor..hit.start]);
+            }
+            tracker.on_marker(&hit.marker);
+            cursor = hit.end;
+        }
+        if cursor < received.len() {
+            tracker.on_region_bytes(&received[cursor..]);
+        }
+        let block = tracker.blocks().front().expect("a completed block");
+        assert_eq!(block.command.as_deref(), Some("echo termzip_block_marker"));
+        assert!(
+            !block
+                .output
+                .as_deref()
+                .unwrap_or_default()
+                .contains('\u{1b}'),
+            "raw ANSI leaked into the block output: {:?}",
+            block.output
+        );
+        assert!(
+            !block
+                .output
+                .as_deref()
+                .unwrap_or_default()
+                .trim_end()
+                .ends_with('%'),
+            "zsh PROMPT_SP marker leaked into the block output: {:?}",
+            block.output
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bash_integration_emits_semantic_prompt_markers() {
+        use std::collections::BTreeMap;
+        use std::path::Path;
+
+        use termzip_shell::{Marker, OscParser};
+
+        if !Path::new("/bin/bash").exists() {
+            return;
+        }
+
+        let dir = std::env::temp_dir().join(format!("termzip-bash-it-{}", std::process::id()));
+        let launch = termzip_shell::launch_config(Some("/bin/bash"), &dir);
+        assert!(launch.integrated);
+        let environment: BTreeMap<String, String> = launch.env.into_iter().collect();
+        let (session, output) = PtySession::spawn(
+            PtyOptions {
+                shell: Some(launch.program),
+                args: launch.args,
+                environment,
+                rows: 24,
+                columns: 100,
+                ..PtyOptions::default()
+            },
+            || {},
+        )
+        .unwrap();
+
+        session.write(b"echo termzip_bash_marker\r").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(15);
+        let mut received = Vec::new();
+        let mut text_seen_at: Option<Instant> = None;
+        while Instant::now() < deadline {
+            if let Ok(bytes) = output.recv_timeout(Duration::from_millis(250)) {
+                received.extend(bytes);
+                if text_seen_at.is_none()
+                    && received
+                        .windows(b"termzip_bash_marker".len())
+                        .any(|window| window == b"termzip_bash_marker")
+                {
+                    text_seen_at = Some(Instant::now());
+                }
+                if text_seen_at.is_some_and(|seen| seen.elapsed() > Duration::from_secs(2)) {
+                    break;
+                }
+            }
+        }
+
+        let markers = OscParser::new().feed(&received);
+        assert!(
+            markers
+                .iter()
+                .any(|marker| matches!(marker, Marker::ExecStart)),
+            "no exec-start marker: {:?}",
+            String::from_utf8_lossy(&received)
+        );
+        assert!(
+            markers
+                .iter()
+                .any(|marker| matches!(marker, Marker::ExecEnd(Some(0)))),
+            "no successful exec-end marker: {:?}",
+            String::from_utf8_lossy(&received)
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

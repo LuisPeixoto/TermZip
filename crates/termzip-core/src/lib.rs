@@ -1,5 +1,5 @@
 mod settings;
 mod theme;
 
-pub use settings::{Settings, SettingsError, settings_path};
-pub use theme::{Rgb, Theme, ThemeKind};
+pub use settings::{Settings, SettingsError, integration_dir, settings_path};
+pub use theme::ThemeKind;
