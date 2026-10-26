@@ -22,9 +22,9 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - ✅ README, architecture, configuration, shell integration, security, and community files.
 - ✅ GitHub Actions: Rust matrix plus desktop job (svelte-check, vitest, vite build, clippy) on three platforms.
 - ✅ Release workflow building desktop bundles and checksums; Dependabot for cargo, npm, and Actions.
-- [ ] First end-to-end CI run of the new workflows on all three platforms.
+- ✅ First end-to-end CI run of the new workflows on all three platforms.
 
-## 🚧 Phase 2: Usable terminal MVP · v0.1
+## ✅ Phase 2: Usable terminal MVP · v0.1
 
 - ✅ Native shell in a PTY; raw output streamed to xterm.js off the read thread.
 - ✅ Bottom-anchored composer with multiline input, local history, and Enter-to-run.
@@ -32,9 +32,11 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - ✅ Command blocks with command, exit code, duration, cwd, ANSI output preview, copy, output copy, and re-run.
 - ✅ Interactive programs keep working: alternate screen, bracketed paste, selection, clipboard, resize.
 - ✅ Preferences: theme, font size/family, scrollback, shell path, working directory — persisted and clamped.
-- [ ] Manual compatibility matrix: zsh, bash, fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, tmux per platform
-  (current evidence is in [compatibility-matrix.md](compatibility-matrix.md)).
-- [ ] Scrollback selection alongside visible-screen selection; mouse-report clicks forwarded to the shell.
+- ✅ Automated matrix on macOS, Windows and Linux; manual macOS validation recorded in
+  [compatibility-matrix.md](compatibility-matrix.md).
+- [ ] Manual Windows/Linux interactive validation (zsh/bash/fish/PowerShell, vim, less, top/htop, tmux, SSH);
+  tracked as validation debt for Phase 7.
+- ✅ Scrollback selection and mouse reporting are handled by xterm.js; clipboard shortcuts cover selections.
 - ✅ Session lifecycle: exit status, restart action, and the shell-provided window title.
 
 ## 📋 Phase 3: Everyday productivity · v0.2

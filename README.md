@@ -25,6 +25,7 @@
   <a href="docs/shell-integration.md">Shell integration</a> ·
   <a href="docs/terminal-compatibility.md">Compatibility</a> ·
   <a href="docs/compatibility-matrix.md">Test matrix</a> ·
+  <a href="docs/distribution.md">Distribution</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
