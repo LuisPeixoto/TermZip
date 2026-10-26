@@ -20,6 +20,7 @@ pub struct Block {
     pub duration_ms: Option<u64>,
     pub output_chars: usize,
     pub truncated: bool,
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +118,13 @@ impl BlockTracker {
                     (!text.is_empty()).then_some(text)
                 });
                 let started_at_ms = running.started_at_ms;
+                let output = if running.output_head.is_empty() {
+                    None
+                } else {
+                    let raw = String::from_utf8_lossy(&running.output_head).into_owned();
+                    let cleaned = trim_prompt_eol_marker(raw);
+                    (!cleaned.is_empty()).then_some(cleaned)
+                };
                 self.blocks.push_back(Block {
                     index: self.next_index,
                     command,
@@ -127,6 +135,7 @@ impl BlockTracker {
                     output_chars: running.output_bytes,
                     truncated: running.output_bytes > MAX_CAPTURED_BYTES
                         || running.output_head.len() >= MAX_STORED_OUTPUT_CHARS,
+                    output,
                 });
                 self.next_index += 1;
                 while self.blocks.len() > MAX_STORED_BLOCKS {
@@ -183,10 +192,39 @@ fn now_ms() -> u64 {
         .unwrap_or_default()
 }
 
+/// zsh's `PROMPT_SP` appends a `%` end-of-line marker before `precmd`; it is a
+/// prompt artifact, not command output. Remove it only when it is the final
+/// line by itself, so real `%` output is preserved.
+fn trim_prompt_eol_marker(output: String) -> String {
+    let trimmed = output.trim_end_matches([' ', '\r', '\n', '\t']);
+    let last_line_start = trimmed.rfind('\n').map(|index| index + 1).unwrap_or(0);
+    let last_line = &trimmed[last_line_start..];
+    if strip_ansi(last_line.as_bytes()).trim() == "%" {
+        output[..last_line_start].to_owned()
+    } else {
+        output
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::BlockTracker;
     use crate::marker::{Marker, OscParser};
+
+    fn feed(parser: &mut OscParser, tracker: &mut BlockTracker, chunk: &[u8]) {
+        let hits = parser.feed_ranges(chunk);
+        let mut cursor = 0;
+        for hit in hits {
+            if hit.start > cursor {
+                tracker.on_region_bytes(&chunk[cursor..hit.start]);
+            }
+            tracker.on_marker(&hit.marker);
+            cursor = hit.end;
+        }
+        if cursor < chunk.len() {
+            tracker.on_region_bytes(&chunk[cursor..]);
+        }
+    }
 
     #[test]
     fn complete_command_produces_a_block() {
@@ -194,11 +232,7 @@ mod tests {
         let mut tracker = BlockTracker::new();
 
         let bytes = b"\x1b]133;A\x07\x1b]1337;CurrentDir=/tmp\x07$ \x1b]133;B\x07\x1b]1337;CommandB64=Y2QgL2V0Yw==\x07\x1b]133;C\x07log out\x1b]133;D;0\x07";
-        let markers = parser.feed(bytes);
-        for marker in &markers {
-            tracker.on_region_bytes(bytes);
-            tracker.on_marker(marker);
-        }
+        feed(&mut parser, &mut tracker, bytes);
 
         let blocks: Vec<_> = tracker.blocks().iter().cloned().collect();
         assert_eq!(blocks.len(), 1);
@@ -206,6 +240,7 @@ mod tests {
         assert_eq!(blocks[0].cwd.as_deref(), Some("/tmp"));
         assert_eq!(blocks[0].exit_code, Some(0));
         assert!(blocks[0].duration_ms.is_some());
+        assert_eq!(blocks[0].output.as_deref(), Some("log out"));
     }
 
     #[test]
@@ -214,15 +249,43 @@ mod tests {
         let mut tracker = BlockTracker::new();
 
         let bytes = b"\x1b]133;A\x07\x1b]133;B\x07ls -la\x1b]133;C\x07\x1b]133;D;2\x07";
-        let markers = parser.feed(bytes);
-        for marker in &markers {
-            tracker.on_region_bytes(bytes);
-            tracker.on_marker(marker);
-        }
+        feed(&mut parser, &mut tracker, bytes);
 
         let blocks: Vec<_> = tracker.blocks().iter().cloned().collect();
         assert_eq!(blocks[0].command.as_deref(), Some("ls -la"));
         assert_eq!(blocks[0].exit_code, Some(2));
+        assert!(blocks[0].output.is_none());
+    }
+
+    #[test]
+    fn output_capture_stops_at_the_next_prompt() {
+        let mut parser = OscParser::new();
+        let mut tracker = BlockTracker::new();
+
+        feed(
+            &mut parser,
+            &mut tracker,
+            b"\x1b]133;A\x07\x1b]133;B\x07echo hi\x1b]133;C\x07hi\r\n\x1b]133;D;0\x07\x1b]133;A\x07prompt",
+        );
+
+        let blocks: Vec<_> = tracker.blocks().iter().cloned().collect();
+        assert_eq!(blocks[0].command.as_deref(), Some("echo hi"));
+        assert_eq!(blocks[0].output.as_deref(), Some("hi\r\n"));
+    }
+
+    #[test]
+    fn zsh_prompt_eol_marker_is_trimmed() {
+        let mut parser = OscParser::new();
+        let mut tracker = BlockTracker::new();
+
+        feed(
+            &mut parser,
+            &mut tracker,
+            b"\x1b]133;A\x07\x1b]133;B\x07echo hi\x1b]133;C\x07hi\r\n\x1b[1m\x1b[7m%\x1b[27m\r\n\x1b]133;D;0\x07",
+        );
+
+        let blocks: Vec<_> = tracker.blocks().iter().cloned().collect();
+        assert_eq!(blocks[0].output.as_deref(), Some("hi\r\n"));
     }
 
     #[test]

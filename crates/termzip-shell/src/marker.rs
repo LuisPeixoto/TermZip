@@ -21,6 +21,16 @@ pub enum Marker {
     Command(Option<String>),
 }
 
+/// A marker with the byte range it occupied inside the chunk passed to
+/// [`OscParser::feed_ranges`]. Offsets are relative to the current chunk; a
+/// marker that began in an earlier chunk starts at 0.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MarkerHit {
+    pub start: usize,
+    pub end: usize,
+    pub marker: Marker,
+}
+
 /// Incremental OSC marker scanner. Bytes are never consumed for output — the
 /// session forwards the raw PTY stream to the terminal as-is; this type only
 /// reports the markers it finds.
@@ -37,13 +47,23 @@ impl OscParser {
     /// Feed bytes and return every complete marker found. Incomplete trailing
     /// sequences are kept for the next call.
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<Marker> {
+        self.feed_ranges(bytes)
+            .into_iter()
+            .map(|hit| hit.marker)
+            .collect()
+    }
+
+    /// Like [`Self::feed`], but also reports where each marker started and ended
+    /// in `bytes`, so callers can attribute the non-marker bytes to regions.
+    pub fn feed_ranges(&mut self, bytes: &[u8]) -> Vec<MarkerHit> {
+        let prior_len = self.pending.len();
         self.pending.extend_from_slice(bytes);
         if self.pending.len() > MAX_PENDING_BYTES {
             let overflow = self.pending.len() - MAX_PENDING_BYTES;
             self.pending.drain(..overflow);
         }
 
-        let mut markers = Vec::new();
+        let mut hits = Vec::new();
         let mut search_from = 0;
         while let Some(start) = find_intro(&self.pending, search_from) {
             let Some(end) = find_terminator(&self.pending, start) else {
@@ -51,16 +71,27 @@ impl OscParser {
             };
 
             let body = &self.pending[start + INTRO_LEN..end];
+            let terminator = terminator_len(&self.pending, end);
+            let marker_end = end + terminator;
             if let Some(marker) = parse_body(body) {
-                markers.push(marker);
+                // Only markers whose terminator arrived in this chunk can affect
+                // the current chunk's byte ranges.
+                if marker_end > prior_len {
+                    let start_in_chunk = start.saturating_sub(prior_len);
+                    hits.push(MarkerHit {
+                        start: start_in_chunk,
+                        end: marker_end - prior_len,
+                        marker,
+                    });
+                }
             }
-            search_from = end + terminator_len(&self.pending, end);
+            search_from = marker_end;
         }
 
         if search_from > 0 {
             self.pending.drain(..search_from);
         }
-        markers
+        hits
     }
 }
 
@@ -179,7 +210,7 @@ pub fn strip_ansi(bytes: &[u8]) -> String {
 mod tests {
     use base64::Engine as _;
 
-    use super::{Marker, OscParser, strip_ansi};
+    use super::{Marker, MarkerHit, OscParser, strip_ansi};
 
     fn feed_all(parser: &mut OscParser, chunks: &[&[u8]]) -> Vec<Marker> {
         let mut markers = Vec::new();
@@ -216,6 +247,38 @@ mod tests {
         );
 
         assert_eq!(markers, vec![Marker::ExecStart, Marker::ExecEnd(Some(0))]);
+    }
+
+    #[test]
+    fn marker_ranges_split_output_regions() {
+        let mut parser = OscParser::new();
+        let chunk = b"prompt\x1b]133;C\x07output\x1b]133;D;0\x07";
+        let hits = parser.feed_ranges(chunk);
+
+        assert_eq!(
+            hits[0],
+            MarkerHit {
+                start: 6,
+                end: 14,
+                marker: Marker::ExecStart,
+            }
+        );
+        assert_eq!(hits[1].start, 20);
+        assert_eq!(hits[1].end, chunk.len());
+        // Bytes between the two markers are exactly the output region.
+        assert_eq!(&chunk[hits[0].end..hits[1].start], b"output");
+    }
+
+    #[test]
+    fn markers_starting_in_a_previous_chunk_start_at_zero() {
+        let mut parser = OscParser::new();
+        let first = parser.feed_ranges(b"\x1b]133;");
+        assert!(first.is_empty());
+        let hits = parser.feed_ranges(b"C\x07data");
+
+        assert_eq!(hits[0].start, 0);
+        assert_eq!(hits[0].end, 2);
+        assert_eq!(&b"C\x07data"[2..], b"data");
     }
 
     #[test]

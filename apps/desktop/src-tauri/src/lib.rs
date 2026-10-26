@@ -14,6 +14,7 @@ pub fn run() {
             commands::get_settings,
             commands::save_settings,
             commands::app_info,
+            commands::detect_shells,
             commands::create_session,
             commands::destroy_session,
             commands::write_session,

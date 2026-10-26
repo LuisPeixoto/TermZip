@@ -273,16 +273,23 @@ fn handle_chunk(app: &AppHandle, handle: &Arc<SessionHandle>, chunk: &[u8]) {
     let markers = handle
         .parser
         .lock()
-        .map(|mut parser| parser.feed(chunk))
+        .map(|mut parser| parser.feed_ranges(chunk))
         .unwrap_or_default();
 
     let Ok(mut tracker) = handle.tracker.lock() else {
         return;
     };
-    tracker.on_region_bytes(chunk);
     let before = tracker.blocks().len();
-    for marker in &markers {
-        tracker.on_marker(marker);
+    let mut cursor = 0;
+    for hit in markers {
+        if hit.start > cursor {
+            tracker.on_region_bytes(&chunk[cursor..hit.start]);
+        }
+        tracker.on_marker(&hit.marker);
+        cursor = hit.end;
+    }
+    if cursor < chunk.len() {
+        tracker.on_region_bytes(&chunk[cursor..]);
     }
     if tracker.blocks().len() != before {
         let blocks: Vec<Block> = tracker.blocks().iter().cloned().collect();

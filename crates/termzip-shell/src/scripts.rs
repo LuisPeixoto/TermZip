@@ -11,9 +11,9 @@ if [[ -o interactive ]]; then
   __termzip_emit() { printf '\e]%s\a' "$1" }
   __termzip_started=0
   __termzip_precmd() {
-    local status=$?
+    local exit_code=$?
     if (( __termzip_started )); then
-      __termzip_emit "133;D;$status"
+      __termzip_emit "133;D;$exit_code"
       __termzip_started=0
     fi
     __termzip_emit "133;A"

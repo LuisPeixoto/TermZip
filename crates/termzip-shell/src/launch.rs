@@ -166,17 +166,18 @@ fn write_zsh_stubs(dir: &Path, integration: &str) {
     if std::fs::create_dir_all(dir).is_err() {
         return;
     }
-    let contents = format!(
-        "[[ -f \"$TERMZIP_USER_ZDOTDIR/.zshenv\" ]] && builtin source \"$TERMZIP_USER_ZDOTDIR/.zshenv\"\n\
-         export ZDOTDIR=\"$TERMZIP_USER_ZDOTDIR\"\n\
+    let zshenv = "typeset -g TERMZIP_STAGED_ZDOTDIR=\"$ZDOTDIR\"\n\
+export ZDOTDIR=\"$TERMZIP_USER_ZDOTDIR\"\n\
+[[ -f \"$ZDOTDIR/.zshenv\" ]] && builtin source \"$ZDOTDIR/.zshenv\"\n\
+export ZDOTDIR=\"$TERMZIP_STAGED_ZDOTDIR\"\n";
+    let zshrc = format!(
+        "export ZDOTDIR=\"$TERMZIP_USER_ZDOTDIR\"\n\
+         [[ -f \"$ZDOTDIR/.zshrc\" ]] && builtin source \"$ZDOTDIR/.zshrc\"\n\
+         export ZDOTDIR=\"$TERMZIP_STAGED_ZDOTDIR\"\n\
          builtin source \"{integration}\"\n",
-        integration = integration,
     );
-    let _ = std::fs::write(dir.join(".zshenv"), contents);
-    let _ = std::fs::write(
-        dir.join(".zshrc"),
-        "[[ -f \"$TERMZIP_USER_ZDOTDIR/.zshrc\" ]] && builtin source \"$TERMZIP_USER_ZDOTDIR/.zshrc\"\n",
-    );
+    let _ = std::fs::write(dir.join(".zshenv"), zshenv);
+    let _ = std::fs::write(dir.join(".zshrc"), zshrc);
 }
 
 fn quote_fish(path: &str) -> String {
