@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible problem in TermZip.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please check for an existing issue and remove secrets or private terminal output from examples.
+  - type: input
+    id: version
+    attributes:
+      label: TermZip version
+      placeholder: 0.1.0 or main commit
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Do not include credentials, tokens, or private terminal content.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true

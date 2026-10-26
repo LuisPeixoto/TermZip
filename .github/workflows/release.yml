@@ -1,0 +1,83 @@
+name: Release
+
+# Push a tag such as v0.1.0 to build portable desktop binaries and a draft release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  draft:
+    name: Prepare draft release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Create a draft release if one does not exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --title "TermZip $GITHUB_REF_NAME" --notes "See [CHANGELOG.md](https://github.com/LuisPeixoto/TermZip/blob/main/CHANGELOG.md) for what is new."
+          fi
+
+  desktop:
+    name: Desktop binary (${{ matrix.target }})
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-apple-darwin, os: macos-latest, archive: tar.gz }
+          - { target: x86_64-apple-darwin, os: macos-latest, archive: tar.gz }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-24.04, archive: tar.gz }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux window-system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxkbcommon-dev libxkbcommon-x11-0 libxrandr-dev libxi-dev libxcursor-dev libxinerama-dev libwayland-dev libwayland-cursor0 libwayland-egl1 libgl1-mesa-dev
+      - name: Build
+        run: cargo build --release --locked -p termzip-desktop --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          name="termzip-${version}-${{ matrix.target }}"
+          mkdir "$name"
+          exe=termzip
+          if [ "${{ runner.os }}" = "Windows" ]; then exe=termzip.exe; fi
+          cp "target/${{ matrix.target }}/release/$exe" LICENSE README.md "$name/"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            7z a "$name.zip" "$name" > /dev/null
+          else
+            tar -czf "$name.tar.gz" "$name"
+          fi
+          echo "ARCHIVE=$name.${{ matrix.archive }}" >> "$GITHUB_ENV"
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" "$ARCHIVE" --clobber
+  checksums:
+    name: Release checksums
+    needs: desktop
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern 'termzip-*'
+      - name: Create SHA-256 manifest
+        run: sha256sum termzip-* > SHA256SUMS
+      - name: Upload SHA-256 manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
