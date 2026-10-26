@@ -1,4 +1,7 @@
-use alacritty_terminal::event::VoidListener;
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+
+use alacritty_terminal::event::{Event, EventListener};
 use alacritty_terminal::grid::{Dimensions, Scroll};
 use alacritty_terminal::index::{Column, Line};
 use alacritty_terminal::term::cell::{Cell, Flags};
@@ -26,6 +29,19 @@ impl Dimensions for TerminalSize {
     }
 }
 
+#[derive(Clone, Default)]
+struct TerminalEventProxy(Arc<Mutex<VecDeque<String>>>);
+
+impl EventListener for TerminalEventProxy {
+    fn send_event(&self, event: Event) {
+        if let Event::PtyWrite(response) = event
+            && let Ok(mut pending) = self.0.lock()
+        {
+            pending.push_back(response);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TerminalStyle {
     pub foreground: Rgb,
@@ -41,6 +57,34 @@ pub struct TerminalStyle {
 pub struct TerminalCell {
     pub character: char,
     pub style: TerminalStyle,
+    pub wide_char_spacer: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CellPoint {
+    pub row: usize,
+    pub column: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CellSelection {
+    pub anchor: CellPoint,
+    pub focus: CellPoint,
+}
+
+impl CellSelection {
+    pub fn contains(self, point: CellPoint) -> bool {
+        let (start, end) = self.ordered();
+        point >= start && point <= end
+    }
+
+    fn ordered(self) -> (CellPoint, CellPoint) {
+        if (self.anchor.row, self.anchor.column) <= (self.focus.row, self.focus.column) {
+            (self.anchor, self.focus)
+        } else {
+            (self.focus, self.anchor)
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,6 +96,7 @@ pub struct TerminalSnapshot {
     pub scrollback_offset: usize,
     pub alternate_screen: bool,
     pub mouse_reporting: bool,
+    pub bracketed_paste: bool,
 }
 
 impl TerminalSnapshot {
@@ -62,11 +107,50 @@ impl TerminalSnapshot {
 
         self.cells.get(row * self.columns + column)
     }
+
+    pub fn selected_text(&self, selection: CellSelection) -> Option<String> {
+        let (start, end) = selection.ordered();
+        if start.row >= self.rows
+            || end.row >= self.rows
+            || start.column >= self.columns
+            || end.column >= self.columns
+        {
+            return None;
+        }
+
+        let mut text = String::new();
+        for row in start.row..=end.row {
+            let first_column = if row == start.row { start.column } else { 0 };
+            let last_column = if row == end.row {
+                end.column
+            } else {
+                self.columns - 1
+            };
+
+            let mut line = String::new();
+            for column in first_column..=last_column {
+                if let Some(cell) = self.cell(row, column)
+                    && !cell.wide_char_spacer
+                    && !cell.style.hidden
+                {
+                    line.push(cell.character);
+                }
+            }
+
+            text.push_str(line.trim_end());
+            if row < end.row {
+                text.push('\n');
+            }
+        }
+
+        Some(text)
+    }
 }
 
 pub struct TerminalGrid {
-    term: Term<VoidListener>,
+    term: Term<TerminalEventProxy>,
     parser: ansi::Processor,
+    pending_responses: Arc<Mutex<VecDeque<String>>>,
 }
 
 impl TerminalGrid {
@@ -80,14 +164,23 @@ impl TerminalGrid {
             ..Config::default()
         };
 
+        let pending_responses = Arc::new(Mutex::new(VecDeque::new()));
         Self {
-            term: Term::new(config, &size, VoidListener),
+            term: Term::new(config, &size, TerminalEventProxy(pending_responses.clone())),
             parser: ansi::Processor::new(),
+            pending_responses,
         }
     }
 
     pub fn feed(&mut self, bytes: &[u8]) {
         self.parser.advance(&mut self.term, bytes);
+    }
+
+    pub fn drain_pty_responses(&mut self) -> Vec<String> {
+        self.pending_responses
+            .lock()
+            .map(|mut pending| pending.drain(..).collect())
+            .unwrap_or_default()
     }
 
     pub fn resize(&mut self, rows: usize, columns: usize) {
@@ -136,12 +229,14 @@ impl TerminalGrid {
                 );
             }
 
+            let wide_char_spacer = cell.flags.contains(Flags::WIDE_CHAR_SPACER);
             cells[row as usize * columns + column] = TerminalCell {
                 character: if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
                     ' '
                 } else {
                     cell.c
                 },
+                wide_char_spacer,
                 style: TerminalStyle {
                     foreground,
                     background,
@@ -176,6 +271,9 @@ impl TerminalGrid {
             mouse_reporting: content
                 .mode
                 .intersects(alacritty_terminal::term::TermMode::MOUSE_MODE),
+            bracketed_paste: content
+                .mode
+                .contains(alacritty_terminal::term::TermMode::BRACKETED_PASTE),
         }
     }
 
@@ -220,6 +318,7 @@ fn blank_cell(theme: Theme) -> TerminalCell {
             strikethrough: false,
             hidden: false,
         },
+        wide_char_spacer: false,
     }
 }
 
@@ -304,7 +403,7 @@ fn indexed_color(index: u8, theme: Theme) -> Rgb {
 mod tests {
     use termzip_core::ThemeKind;
 
-    use super::TerminalGrid;
+    use super::{CellPoint, CellSelection, TerminalGrid};
 
     #[test]
     fn ansi_text_and_truecolor_are_rendered() {
@@ -353,5 +452,37 @@ mod tests {
 
         assert!(lines.iter().any(|line| line == "first"));
         assert!(lines.iter().any(|line| line == "third"));
+    }
+
+    #[test]
+    fn selection_copies_text_across_lines_in_either_direction() {
+        let mut terminal = TerminalGrid::new(3, 12, 100);
+        terminal.feed(b"first\r\nsecond");
+        let snapshot = terminal.snapshot(ThemeKind::Dark.palette());
+        let selection = CellSelection {
+            anchor: CellPoint { row: 1, column: 11 },
+            focus: CellPoint { row: 0, column: 2 },
+        };
+
+        assert_eq!(
+            snapshot.selected_text(selection).as_deref(),
+            Some("rst\nsecond")
+        );
+    }
+
+    #[test]
+    fn bracketed_paste_mode_is_exposed_to_the_input_layer() {
+        let mut terminal = TerminalGrid::new(3, 12, 100);
+        terminal.feed(b"\x1b[?2004h");
+
+        assert!(terminal.snapshot(ThemeKind::Dark.palette()).bracketed_paste);
+    }
+
+    #[test]
+    fn device_status_cursor_queries_are_answered() {
+        let mut terminal = TerminalGrid::new(3, 12, 100);
+        terminal.feed(b"\x1b[2;4H\x1b[6n");
+
+        assert_eq!(terminal.drain_pty_responses(), ["\x1b[2;4R"]);
     }
 }

@@ -34,7 +34,8 @@ process, and shared settings in separate packages so that performance and compat
 1. The desktop starts the configured shell in a cross-platform PTY.
 2. A dedicated reader thread transfers bounded chunks to the UI and requests a repaint.
 3. `termzip-terminal` incrementally parses VT/ANSI bytes; output is never parsed on a separate lossy string path.
-4. The UI snapshots visible cells, draws them, and updates both the emulator and operating-system PTY dimensions.
+4. The UI snapshots visible cells, draws them, returns VT-generated device-query responses to the PTY, and updates
+   both the emulator and operating-system PTY dimensions.
 5. Composer mode submits a complete line to the persistent shell. Terminal mode forwards text, common control keys, and
    navigation sequences to interactive programs.
 

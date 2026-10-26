@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 use termzip_core::{Rgb, Theme};
-use termzip_terminal::TerminalSnapshot;
+use termzip_terminal::{CellPoint, CellSelection, TerminalSnapshot};
 
 pub struct TerminalViewport {
     pub response: egui::Response,
@@ -10,11 +10,28 @@ pub struct TerminalViewport {
     pub columns: u16,
     pub cell_width: f32,
     pub cell_height: f32,
+    pub origin: Pos2,
+    pub visible_rows: usize,
+    pub visible_columns: usize,
+}
+
+impl TerminalViewport {
+    pub fn cell_at(&self, position: Pos2) -> Option<CellPoint> {
+        if position.x < self.origin.x || position.y < self.origin.y {
+            return None;
+        }
+
+        let column = ((position.x - self.origin.x) / self.cell_width).floor() as usize;
+        let row = ((position.y - self.origin.y) / self.cell_height).floor() as usize;
+        (row < self.visible_rows && column < self.visible_columns)
+            .then_some(CellPoint { row, column })
+    }
 }
 
 pub fn show_terminal(
     ui: &mut egui::Ui,
     snapshot: &TerminalSnapshot,
+    selection: Option<CellSelection>,
     theme: Theme,
     font_size: f32,
     cursor_visible: bool,
@@ -33,8 +50,8 @@ pub fn show_terminal(
     });
     let cell_width = cell_width.max(font_size * 0.52);
     let cell_height = font_size * 1.52;
-    let columns = (rect.width() / cell_width).floor().max(2.0) as u16;
-    let rows = (rect.height() / cell_height).floor().max(1.0) as u16;
+    let columns = ((rect.width() - 32.0) / cell_width).floor().max(2.0) as u16;
+    let rows = ((rect.height() - 24.0) / cell_height).floor().max(1.0) as u16;
     let top = rect.top() + 12.0;
     let left = rect.left() + 16.0;
     let visible_rows = usize::from(rows).min(snapshot.rows);
@@ -48,12 +65,16 @@ pub fn show_terminal(
             };
             let run_start = column;
             let run_style = cell.style;
+            let run_selected =
+                selection.is_some_and(|selection| selection.contains(CellPoint { row, column }));
             let mut text = String::new();
             while column < visible_columns {
                 let Some(next) = snapshot.cell(row, column) else {
                     break;
                 };
-                if next.style != run_style {
+                let next_selected = selection
+                    .is_some_and(|selection| selection.contains(CellPoint { row, column }));
+                if next.style != run_style || next_selected != run_selected {
                     break;
                 }
                 text.push(if next.style.hidden {
@@ -68,19 +89,25 @@ pub fn show_terminal(
                 left + run_start as f32 * cell_width,
                 top + row as f32 * cell_height,
             );
-            let foreground = if run_style.bold {
+            let foreground = if run_selected {
+                color(theme.foreground)
+            } else if run_style.bold {
                 brighten(run_style.foreground)
             } else {
                 color(run_style.foreground)
             };
-            if run_style.background != theme.surface {
+            if run_selected || run_style.background != theme.surface {
                 painter.rect_filled(
                     Rect::from_min_size(
                         position,
                         Vec2::new((column - run_start) as f32 * cell_width, cell_height),
                     ),
                     0.0,
-                    color(run_style.background),
+                    if run_selected {
+                        color(theme.accent_soft)
+                    } else {
+                        color(run_style.background)
+                    },
                 );
             }
             painter.text(position, Align2::LEFT_TOP, text, font.clone(), foreground);
@@ -132,6 +159,9 @@ pub fn show_terminal(
         columns,
         cell_width,
         cell_height,
+        origin: Pos2::new(left, top),
+        visible_rows,
+        visible_columns,
     }
 }
 
