@@ -1,4 +1,5 @@
 import type { ITheme } from "@xterm/xterm";
+import type { AnsiPalette } from "../ansi";
 
 export interface Palette {
   bg: string;
@@ -89,7 +90,6 @@ export function xtermTheme(): ITheme {
   const palette = readPalette();
   const dark = document.documentElement.dataset.theme === "dark";
   const ansi = dark ? ANSI_DARK : ANSI_LIGHT;
-
   return {
     background: palette.bg,
     foreground: palette.fg,
@@ -113,5 +113,15 @@ export function xtermTheme(): ITheme {
     brightMagenta: ansi[13],
     brightCyan: ansi[14],
     brightWhite: ansi[15],
+  };
+}
+
+export function getAnsiPalette(): AnsiPalette {
+  const palette = readPalette();
+  const dark = document.documentElement.dataset.theme === "dark";
+  return {
+    foreground: palette.fg,
+    background: palette.bg,
+    colors: dark ? [...ANSI_DARK] : [...ANSI_LIGHT],
   };
 }

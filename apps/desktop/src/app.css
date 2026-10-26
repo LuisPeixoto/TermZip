@@ -139,6 +139,25 @@
   box-shadow: var(--shadow);
 }
 
+.termzip-terminal {
+  display: flex;
+  min-height: 0;
+}
+
+.termzip-terminal .xterm {
+  height: 100%;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.termzip-terminal .xterm-viewport {
+  background: transparent !important;
+}
+
+.termzip-terminal .xterm-screen {
+  margin-left: 2px;
+}
+
 @keyframes flash-in {
   from {
     background-color: var(--accent-soft);

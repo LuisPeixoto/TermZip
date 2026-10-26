@@ -1,4 +1,4 @@
-import type { Block, SessionInfo, Settings } from "../api";
+import type { Block, SessionInfo, Settings, ShellOption } from "../api";
 import { api } from "../api";
 
 export interface Toast {
@@ -31,15 +31,28 @@ function createAppStore() {
   let settingsOpen = $state(false);
   let toasts = $state<Toast[]>([]);
   let viewport = $state<Viewport>({ rows: 0, columns: 0 });
+  let platform = $state("unknown");
+  let version = $state("0.1.0");
+  let ready = $state(false);
+  let shells = $state<ShellOption[]>([]);
 
   function applyTheme(theme: Settings["theme"]): void {
     document.documentElement.dataset.theme = theme;
   }
 
   async function init(): Promise<void> {
-    const loaded = await api.getSettings();
+    const [loaded, info, detected] = await Promise.all([
+      api.getSettings(),
+      api.appInfo(),
+      api.detectShells(),
+    ]);
     settings = loaded;
+    platform = info.platform;
+    version = info.version;
+    shells = detected;
+    document.documentElement.dataset.platform = info.platform;
     applyTheme(loaded.theme);
+    ready = true;
   }
 
   async function toggleTheme(): Promise<void> {
@@ -111,6 +124,18 @@ function createAppStore() {
     },
     get viewport() {
       return viewport;
+    },
+    get platform() {
+      return platform;
+    },
+    get version() {
+      return version;
+    },
+    get ready() {
+      return ready;
+    },
+    get shells() {
+      return shells;
     },
     init,
     toggleTheme,

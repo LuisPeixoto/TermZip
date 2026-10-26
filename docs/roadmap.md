@@ -29,7 +29,7 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - ✅ Native shell in a PTY; raw output streamed to xterm.js off the read thread.
 - ✅ Bottom-anchored composer with multiline input, local history, and Enter-to-run.
 - ✅ Shell integration (OSC 133) for zsh, bash, fish, and partial PowerShell; cmd.exe runs plain.
-- ✅ Command blocks with command, exit code, duration, cwd, copy, and re-run.
+- ✅ Command blocks with command, exit code, duration, cwd, ANSI output preview, copy, output copy, and re-run.
 - ✅ Interactive programs keep working: alternate screen, bracketed paste, selection, clipboard, resize.
 - ✅ Preferences: theme, font size/family, scrollback, shell path, working directory — persisted and clamped.
 - [ ] Manual compatibility matrix: zsh, bash, fish, PowerShell, cmd.exe, SSH, vim, less, top/htop, tmux per platform.

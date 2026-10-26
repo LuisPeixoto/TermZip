@@ -11,7 +11,9 @@
   import Toasts from "./lib/components/Toasts.svelte";
 
   onMount(() => {
-    void app.init();
+    void app
+      .init()
+      .catch((error) => app.toast("err", `Could not load preferences: ${error}`));
     let unlisten: (() => void) | undefined;
     void onBlocksUpdate((event) => {
       const session = app.session;
@@ -53,16 +55,22 @@
 
 <div class="flex h-full flex-col bg-bg">
   <Toolbar />
-  <div class="flex min-h-0 flex-1">
-    <div class="flex min-w-0 flex-1 flex-col">
-      <TerminalPane />
-      <Composer />
+  {#if app.ready}
+    <div class="flex min-h-0 flex-1">
+      <div class="flex min-w-0 flex-1 flex-col">
+        <TerminalPane />
+        <Composer />
+      </div>
+      {#if app.blocksOpen}
+        <BlocksRail />
+      {/if}
     </div>
-    {#if app.blocksOpen}
-      <BlocksRail />
-    {/if}
-  </div>
-  <StatusBar />
+    <StatusBar />
+  {:else}
+    <div class="grid min-h-0 flex-1 place-items-center text-[12px] text-faint">
+      Starting TermZip…
+    </div>
+  {/if}
 </div>
 
 {#if app.settingsOpen}

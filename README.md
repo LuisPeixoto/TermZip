@@ -36,7 +36,7 @@ eyes already are.
 - **Bottom-anchored composer.** Type in a fixed footer; Enter runs, Shift+Enter adds a line, and the arrow keys walk
   through your command history.
 - **Real command blocks.** With an integrated shell, every command becomes a card with its command text, exit code,
-  duration, and working directory — copyable and re-runnable in one click.
+  duration, working directory, and an ANSI-colored output preview — copyable and re-runnable in one click.
 - **A real terminal, always.** The canvas is a full terminal emulator: vim, htop, tmux, SSH, and REPLs work as usual,
   with selection, clipboard, bracketed paste, and resize.
 - **Private by design.** No accounts, no telemetry, no cloud. Terminal contents never leave your machine.

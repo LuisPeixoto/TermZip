@@ -16,6 +16,13 @@ export interface SessionInfo {
   integrated: boolean;
 }
 
+export interface ShellOption {
+  path: string;
+  label: string;
+  default: boolean;
+  integrated: boolean;
+}
+
 export interface AppInfo {
   version: string;
   platform: string;
@@ -31,12 +38,14 @@ export interface Block {
   durationMs: number | null;
   outputChars: number;
   truncated: boolean;
+  output: string | null;
 }
 
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   appInfo: () => invoke<AppInfo>("app_info"),
+  detectShells: () => invoke<ShellOption[]>("detect_shells"),
   createSession: (options: {
     rows: number;
     columns: number;

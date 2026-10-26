@@ -1,10 +1,12 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import AnsiOutput from "./AnsiOutput.svelte";
   import { app } from "../stores/app.svelte";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { api, type Block } from "../api";
 
-  let copiedIndex: number | null = $state(null);
+  let copied = $state<string | null>(null);
+  let expanded = $state<Set<number>>(new Set());
 
   function basename(path: string | null): string | null {
     if (!path) return null;
@@ -22,26 +24,28 @@
     return `${minutes}m ${Math.round(seconds % 60)}s`;
   }
 
-  function statusClass(block: Block): string {
-    const ok = block.exitCode === 0;
-    return `${ok ? "bg-ok/15 text-ok" : "bg-err/15 text-err"}`;
+  function toggle(index: number) {
+    const next = new Set(expanded);
+    if (next.has(index)) next.delete(index);
+    else next.add(index);
+    expanded = next;
   }
 
-  function newestIndex(): number | null {
-    return app.blocks.length > 0 ? app.blocks[app.blocks.length - 1].index : null;
+  function isExpanded(index: number): boolean {
+    return expanded.has(index);
   }
 
-  async function copyCommand(index: number, command: string) {
+  async function copy(key: string, text: string) {
     try {
-      await writeText(command);
-      copiedIndex = index;
-      window.setTimeout(() => (copiedIndex = null), 1200);
+      await writeText(text);
+      copied = key;
+      window.setTimeout(() => (copied = null), 1200);
     } catch {
       app.toast("warn", "Clipboard is unavailable");
     }
   }
 
-  async function rerun(command: string) {
+  function rerun(command: string) {
     window.dispatchEvent(
       new CustomEvent("termzip:composer", { detail: { command, execute: true } }),
     );
@@ -56,16 +60,23 @@
       /* the session may be gone */
     }
   }
+
+  function statusClass(block: Block): string {
+    return block.exitCode === 0 ? "bg-ok/15 text-ok" : "bg-err/15 text-err";
+  }
 </script>
 
-<aside class="flex w-[300px] shrink-0 flex-col border-l border-line bg-panel">
+<aside class="flex w-[360px] shrink-0 flex-col border-l border-line bg-panel">
   <div class="flex h-9 items-center justify-between border-b border-line px-3">
-    <span class="text-[11px] font-semibold uppercase tracking-wide text-muted">Command blocks</span>
+    <span class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
+      <Icon name="layers" size={12} />
+      Command blocks
+    </span>
     <button
       type="button"
       class="grid size-6 place-items-center rounded text-faint transition-colors hover:bg-hover hover:text-fg"
       onclick={() => void refresh()}
-      title="Refresh"
+      title="Refresh blocks"
     >
       <Icon name="refresh" size={13} />
     </button>
@@ -73,70 +84,111 @@
 
   {#if app.blocks.length === 0}
     <div class="px-4 py-6 text-[11.5px] leading-relaxed text-faint">
-      Commands you run appear here with their exit code and duration. TermZip reads
-      <span class="mono">OSC&nbsp;133</span> markers from your shell.
+      Run a command to create your first block. TermZip reads
+      <span class="mono">OSC&nbsp;133</span> markers from zsh, bash, fish, and PowerShell.
     </div>
   {:else}
-    <div class="min-h-0 flex-1 overflow-y-auto p-2">
+    <div class="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
       {#each [...app.blocks].reverse() as block (block.index)}
         <article
-          class="mb-1.5 rounded-lg border border-line bg-panel-2 p-2.5
-            {block.index === newestIndex() ? 'block-new' : ''}"
+          class="rounded-lg border border-line bg-panel-2 transition-colors hover:border-line-strong"
         >
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-[10px] font-medium text-faint">#{block.index}</span>
-            <div class="flex items-center gap-1.5">
-              {#if block.exitCode != null}
-                <span
-                  class="mono rounded px-1.5 py-0.5 text-[9.5px] font-semibold {statusClass(block)}"
-                  title="Exit code"
-                >
-                  {block.exitCode === 0 ? "ok" : `exit ${block.exitCode}`}
+          <div class="p-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                class="flex min-w-0 items-center gap-1.5 text-left"
+                onclick={() => toggle(block.index)}
+                aria-expanded={isExpanded(block.index)}
+              >
+                <Icon
+                  name="chevronRight"
+                  size={11}
+                  class="shrink-0 text-faint transition-transform {isExpanded(block.index) ? 'rotate-90' : ''}"
+                />
+                <span class="mono truncate text-[11.5px] text-fg">
+                  {block.command ?? "command not captured"}
                 </span>
+              </button>
+              <div class="flex shrink-0 items-center gap-1.5">
+                {#if block.exitCode != null}
+                  <span
+                    class="mono rounded px-1.5 py-0.5 text-[9.5px] font-semibold {statusClass(block)}"
+                    title="Exit code"
+                  >
+                    {block.exitCode === 0 ? "ok" : `exit ${block.exitCode}`}
+                  </span>
+                {/if}
+                {#if formatDuration(block.durationMs) != null}
+                  <span class="mono text-[9.5px] text-faint" title="Duration">
+                    {formatDuration(block.durationMs)}
+                  </span>
+                {/if}
+              </div>
+            </div>
+
+            {#if block.output}
+              <div
+                class="mt-2 rounded-md border border-line bg-bg/60 p-2"
+                class:max-h-44={!isExpanded(block.index)}
+                class:overflow-hidden={!isExpanded(block.index)}
+              >
+                <AnsiOutput
+                  output={block.output}
+                  maxHeight={isExpanded(block.index) ? 420 : 150}
+                />
+              </div>
+              {#if block.truncated}
+                <p class="mt-1 text-[9.5px] text-warn">
+                  Output truncated in the block; open the terminal for the full text.
+                </p>
               {/if}
-              {#if formatDuration(block.durationMs) != null}
-                <span class="mono flex items-center gap-1 text-[9.5px] text-faint" title="Duration">
-                  <Icon name="clock" size={10} stroke={2} />
-                  {formatDuration(block.durationMs)}
+            {:else if block.index === app.blocks.at(-1)?.index}
+              <p class="mt-2 flex items-center gap-1.5 text-[10px] text-faint">
+                <span class="size-1.5 animate-pulse rounded-full bg-accent"></span>
+                running…
+              </p>
+            {:else}
+              <p class="mt-2 text-[10px] italic text-faint">no output captured</p>
+            {/if}
+
+            <div class="mt-2 flex items-center gap-1">
+              {#if block.command}
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
+                  onclick={() => block.command && copy(`cmd-${block.index}`, block.command)}
+                >
+                  <Icon name={copied === `cmd-${block.index}` ? "check" : "copy"} size={11} />
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
+                  onclick={() => block.command && rerun(block.command)}
+                >
+                  <Icon name="zap" size={11} />
+                  Run
+                </button>
+              {/if}
+              {#if block.output}
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
+                  onclick={() => block.output && copy(`out-${block.index}`, block.output)}
+                >
+                  <Icon name={copied === `out-${block.index}` ? "check" : "copy"} size={11} />
+                  Output
+                </button>
+              {/if}
+              <span class="flex-1"></span>
+              {#if basename(block.cwd)}
+                <span class="mono flex items-center gap-1 text-[9.5px] text-faint" title={block.cwd ?? ""}>
+                  <Icon name="folder" size={10} stroke={2} />
+                  {basename(block.cwd)}
                 </span>
               {/if}
             </div>
-          </div>
-
-          {#if block.command}
-            <p class="mono selectable mt-1.5 line-clamp-3 break-all text-[11.5px] text-fg">
-              {block.command}
-            </p>
-          {:else}
-            <p class="mono mt-1.5 text-[11.5px] italic text-faint">command not captured</p>
-          {/if}
-
-          <div class="mt-2 flex items-center gap-1">
-            {#if block.command}
-              <button
-                type="button"
-                class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
-                onclick={() => block.command && copyCommand(block.index, block.command)}
-              >
-                <Icon name={copiedIndex === block.index ? "check" : "copy"} size={11} />
-                {copiedIndex === block.index ? "Copied" : "Copy"}
-              </button>
-              <button
-                type="button"
-                class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
-                onclick={() => block.command && rerun(block.command)}
-              >
-                <Icon name="zap" size={11} />
-                Run
-              </button>
-            {/if}
-            <span class="flex-1"></span>
-            {#if basename(block.cwd)}
-              <span class="mono flex items-center gap-1 text-[9.5px] text-faint" title={block.cwd ?? ""}>
-                <Icon name="folder" size={10} stroke={2} />
-                {basename(block.cwd)}
-              </span>
-            {/if}
           </div>
         </article>
       {/each}

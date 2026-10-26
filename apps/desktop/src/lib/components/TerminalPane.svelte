@@ -16,29 +16,63 @@
   import { xtermTheme } from "../terminal/xtermTheme";
   import { app } from "../stores/app.svelte";
 
+  const DEFAULT_FONT_FAMILY =
+    '"JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace';
+
+  function fontFamily(): string {
+    return app.settings.fontFamily ?? DEFAULT_FONT_FAMILY;
+  }
+
   let container: HTMLDivElement | undefined = $state();
   let terminal: Terminal | undefined;
   let fitAddon: FitAddon | undefined;
   let webgl: WebglAddon | undefined;
   let sessionInfo: { id: number; shell: string; integrated: boolean } | null = null;
+  let hydrated = false;
+  let deferred: Uint8Array[] = [];
   let disposed = false;
 
   $effect(() => {
     if (terminal && sessionInfo) {
       terminal.options.fontSize = app.settings.fontSize;
-      terminal.options.fontFamily = app.settings.fontFamily ?? undefined;
+      terminal.options.fontFamily = fontFamily();
       fit();
     }
   });
 
   $effect(() => {
     if (terminal) {
-      // Re-read the CSS custom properties after a theme switch.
-      requestAnimationFrame(() => {
-        terminal!.options.theme = xtermTheme();
-      });
+      app.settings.theme;
+      requestAnimationFrame(() => applyTerminalTheme());
     }
   });
+
+  function applyTerminalTheme(): void {
+    if (!terminal) return;
+    terminal.options.theme = xtermTheme();
+    // The WebGL renderer keeps its clear color, so rebuild it on theme changes
+    // while leaving the terminal buffer untouched.
+    if (webgl) {
+      try {
+        webgl.dispose();
+      } catch {
+        /* already disposed */
+      }
+      webgl = undefined;
+      try {
+        const addon = new WebglAddon();
+        terminal.loadAddon(addon);
+        addon.onContextLoss(() => {
+          addon.dispose();
+          if (webgl === addon) webgl = undefined;
+        });
+        webgl = addon;
+      } catch {
+        webgl = undefined;
+      }
+    }
+    terminal.refresh(0, Math.max(0, terminal.rows - 1));
+  }
 
   $effect(() => {
     function onRestart() {
@@ -53,8 +87,12 @@
     terminal = new Terminal({
       convertEol: false,
       cursorBlink: true,
-      fontFamily: settings.fontFamily ?? undefined,
+      fontFamily: fontFamily(),
       fontSize: settings.fontSize,
+      fontWeight: 400,
+      fontWeightBold: 600,
+      lineHeight: 1.3,
+      letterSpacing: 0,
       scrollback: settings.scrollbackLines,
       theme: xtermTheme(),
     });
@@ -79,27 +117,41 @@
 
     const observer = new ResizeObserver(() => fit());
     observer.observe(container!);
-
-    void startSession();
+    const onWindowResize = () => fit();
+    window.addEventListener("resize", onWindowResize);
+    // WebFonts and the Tauri window can settle after the first frame.
+    void document.fonts.ready.then(() => fit());
+    const fitTimer = window.setTimeout(() => fit(), 250);
 
     let unlistenData: (() => void) | undefined;
     let unlistenExit: (() => void) | undefined;
-    void onPtyData((event: PtyData) => {
-      if (!sessionInfo || event.sessionId !== sessionInfo.id || !terminal) return;
-      terminal.write(base64ToBytes(event.data));
-    }).then((unlisten) => (unlistenData = unlisten));
-    void onPtyExit((event: PtyExit) => {
-      if (!sessionInfo || event.sessionId !== sessionInfo.id) return;
-      app.markExited(event.code);
-      app.toast(
-        event.code === 0 ? "warn" : "err",
-        `Shell exited${event.code != null ? ` with code ${event.code}` : ""}`,
-      );
-    }).then((unlisten) => (unlistenExit = unlisten));
+
+    void (async () => {
+      unlistenData = await onPtyData((event: PtyData) => {
+        if (!terminal || !sessionInfo || event.sessionId !== sessionInfo.id) return;
+        const bytes = base64ToBytes(event.data);
+        if (!hydrated) {
+          deferred.push(bytes);
+          return;
+        }
+        terminal.write(bytes);
+      });
+      unlistenExit = await onPtyExit((event: PtyExit) => {
+        if (!sessionInfo || event.sessionId !== sessionInfo.id) return;
+        app.markExited(event.code);
+        app.toast(
+          event.code === 0 ? "warn" : "err",
+          `Shell exited${event.code != null ? ` with code ${event.code}` : ""}`,
+        );
+      });
+      await startSession();
+    })();
 
     return () => {
       disposed = true;
       observer.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+      window.clearTimeout(fitTimer);
       unlistenData?.();
       unlistenExit?.();
       if (sessionInfo) void api.destroySession(sessionInfo.id).catch(() => {});
@@ -109,9 +161,12 @@
 
   async function startSession(): Promise<void> {
     if (!terminal || disposed) return;
+    hydrated = false;
+    deferred = [];
     fit();
     const rows = Math.max(terminal.rows, 10);
     const columns = Math.max(terminal.cols, 20);
+
     try {
       const info = await api.createSession({
         rows,
@@ -127,11 +182,20 @@
       app.setSession(info);
 
       const backlog = await api.takeBacklog(info.id);
-      if (backlog && terminal) terminal.write(base64ToBytes(backlog));
-      terminal?.focus();
+      if (backlog) terminal.write(base64ToBytes(backlog));
+      for (const chunk of deferred) terminal.write(chunk);
+      deferred = [];
+      hydrated = true;
+
+      try {
+        app.setBlocks(await api.listBlocks(info.id));
+      } catch {
+        /* blocks may be empty */
+      }
+      terminal.focus();
     } catch (error) {
       app.toast("err", `Could not start the shell: ${error}`);
-      terminal?.writeln(
+      terminal.writeln(
         "\x1b[31mCould not start the shell. Check the shell path in Preferences.\x1b[0m",
       );
     }
@@ -196,4 +260,4 @@
   }
 </script>
 
-<div bind:this={container} class="min-h-0 min-w-0 flex-1 px-3 pb-1"></div>
+<div bind:this={container} class="termzip-terminal min-h-0 min-w-0 flex-1 px-3 pb-1"></div>

@@ -10,7 +10,8 @@ Notable changes to TermZip are documented here.
 - Bottom-anchored command composer with multiline input and local history.
 - Shell integration (OSC 133 + private 1337 markers) for zsh, bash, fish, and PowerShell with a bundled script per
   shell, injected without touching user configuration.
-- Command blocks with command text, exit code, duration, and working directory; copy and re-run actions.
+- Command blocks with command text, exit code, duration, working directory, ANSI-colored output preview, and copy /
+  re-run / output-copy actions.
 - Full terminal canvas (xterm.js): keyboard encoding, bracketed paste, selection with clipboard shortcuts, alternate
   screen, scrollback, mouse reporting, and resize on all platforms via PTY/ConPTY.
 - Preferences for theme, font size, font family, scrollback lines, shell path, and working directory, persisted with

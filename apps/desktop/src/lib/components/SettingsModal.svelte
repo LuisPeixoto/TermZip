@@ -120,6 +120,7 @@
         <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Shell path</h3>
         <input
           type="text"
+          list="termzip-shell-paths"
           placeholder="System default shell"
           class="mono w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-[12px] outline-none focus:border-accent"
           value={draft.shell ?? ""}
@@ -128,6 +129,11 @@
             draft = { ...draft, shell: raw || null };
           }}
         />
+        <datalist id="termzip-shell-paths">
+          {#each app.shells as shell (shell.path)}
+            <option value={shell.path}>{shell.label}{shell.default ? " · default" : ""}</option>
+          {/each}
+        </datalist>
         <p class="mt-1 text-[10.5px] text-faint">
           Integrated shells: zsh, bash, fish, PowerShell. Other shells run without block capture.
         </p>

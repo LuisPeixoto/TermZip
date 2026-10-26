@@ -35,6 +35,6 @@
   <span class="flex-1"></span>
 
   <span class="mono text-faint">
-    TermZip {app.session ? "" : "starting…"}
+    TermZip {app.version}
   </span>
 </footer>
