@@ -8,6 +8,12 @@
   let copied = $state<string | null>(null);
   let expanded = $state<Set<number>>(new Set());
 
+  // Block numbers start again with every shell, so what was expanded belongs to the old one.
+  $effect(() => {
+    app.session?.id;
+    expanded = new Set();
+  });
+
   function basename(path: string | null): string | null {
     if (!path) return null;
     const trimmed = path.replace(/\/+$/, "");
@@ -77,6 +83,7 @@
       class="grid size-6 place-items-center rounded text-faint transition-colors hover:bg-hover hover:text-fg"
       onclick={() => void refresh()}
       title="Refresh blocks"
+      aria-label="Refresh blocks"
     >
       <Icon name="refresh" size={13} />
     </button>
@@ -143,11 +150,6 @@
                   Output truncated in the block; open the terminal for the full text.
                 </p>
               {/if}
-            {:else if block.index === app.blocks.at(-1)?.index}
-              <p class="mt-2 flex items-center gap-1.5 text-[10px] text-faint">
-                <span class="size-1.5 animate-pulse rounded-full bg-accent"></span>
-                running…
-              </p>
             {:else}
               <p class="mt-2 text-[10px] italic text-faint">no output captured</p>
             {/if}
