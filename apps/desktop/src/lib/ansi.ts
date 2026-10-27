@@ -65,12 +65,14 @@ function colorFromIndex(index: number, palette: AnsiPalette): string | undefined
 }
 
 function applySgr(state: State, params: number[], palette: AnsiPalette): State {
-  const next: State = { ...state };
+  let next: State = { ...state };
   for (let i = 0; i < params.length; i += 1) {
     const code = params[i];
     switch (code) {
       case 0:
-        return resetState();
+        // A reset only clears what came before it: `0;31` is "reset, then red".
+        next = resetState();
+        break;
       case 1:
         next.bold = true;
         break;
