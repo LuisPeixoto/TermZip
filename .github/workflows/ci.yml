@@ -72,3 +72,5 @@ jobs:
         run: npm run build
       - name: Clippy (desktop shell)
         run: cargo clippy -p termzip-desktop --all-targets -- -D warnings
+      - name: Build the desktop application
+        run: npm run tauri build -- --debug --no-bundle
