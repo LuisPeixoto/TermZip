@@ -32,8 +32,8 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
-    "shortDescription": "A fast, modern terminal with a bottom-anchored command line",
-    "longDescription": "TermZip is an open-source desktop terminal written in Rust. The command composer stays at the bottom while output, blocks, and scrollback live above it.",
+    "shortDescription": "A fast, modern terminal with command blocks",
+    "longDescription": "TermZip is an open-source desktop terminal written in Rust. It runs your shell in a real terminal and turns every command into a block you can copy, re-run, and revisit.",
     "copyright": "MIT License — Luis Peixoto",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   }
