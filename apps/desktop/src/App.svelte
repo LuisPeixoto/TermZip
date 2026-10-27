@@ -4,7 +4,6 @@
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TerminalPane from "./lib/components/TerminalPane.svelte";
   import BlocksRail from "./lib/components/BlocksRail.svelte";
-  import Composer from "./lib/components/Composer.svelte";
   import StatusBar from "./lib/components/StatusBar.svelte";
   import SettingsModal from "./lib/components/SettingsModal.svelte";
   import Toasts from "./lib/components/Toasts.svelte";
@@ -28,11 +27,6 @@
     } else if (mod && event.key.toLowerCase() === "r" && !typing) {
       event.preventDefault();
       window.dispatchEvent(new CustomEvent("termzip:restart"));
-    } else if (mod && event.key.toLowerCase() === "k" && !typing) {
-      event.preventDefault();
-      window.dispatchEvent(
-        new CustomEvent("termzip:composer", { detail: { command: "", execute: false } }),
-      );
     } else if (mod && event.key.toLowerCase() === "b" && !typing) {
       event.preventDefault();
       app.toggleBlocks();
@@ -50,7 +44,6 @@
     <div class="flex min-h-0 flex-1">
       <div class="flex min-w-0 flex-1 flex-col">
         <TerminalPane />
-        <Composer />
       </div>
       {#if app.blocksOpen}
         <BlocksRail />
