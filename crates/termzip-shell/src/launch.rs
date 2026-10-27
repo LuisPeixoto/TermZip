@@ -222,9 +222,7 @@ fn quote_powershell(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ShellKind, detect_shell_kind, launch_config, quote_fish, quote_posix, quote_powershell,
-    };
+    use super::{ShellKind, detect_shell_kind, launch_config, quote_fish, quote_powershell};
     use std::path::{Path, PathBuf};
 
     fn kind_of(name: &str) -> ShellKind {
@@ -341,11 +339,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    const HOSTILE: &str = "/tmp/it's $HOME `id` $(id) \"x\" back\\slash";
-
     #[cfg(unix)]
     #[test]
     fn posix_quoting_round_trips_through_a_real_shell() {
+        use super::quote_posix;
+
+        const HOSTILE: &str = "/tmp/it's $HOME `id` $(id) \"x\" back\\slash";
         let output = std::process::Command::new("/bin/sh")
             .args(["-c", &format!("printf %s {}", quote_posix(HOSTILE))])
             .output()
