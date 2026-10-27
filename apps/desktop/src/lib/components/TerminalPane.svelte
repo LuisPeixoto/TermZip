@@ -258,4 +258,7 @@
   }
 </script>
 
-<div bind:this={container} class="termzip-terminal min-h-0 min-w-0 flex-1 px-3 pb-1"></div>
+<!-- FitAddon measures the parent's border box, so the padding lives one level up. -->
+<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-bg px-3 pb-2 pt-1">
+  <div bind:this={container} class="termzip-terminal min-h-0 flex-1"></div>
+</div>

@@ -153,19 +153,3 @@
 .termzip-terminal .xterm-viewport {
   background: transparent !important;
 }
-
-.termzip-terminal .xterm-screen {
-  margin-left: 2px;
-}
-
-@keyframes flash-in {
-  from {
-    background-color: var(--accent-soft);
-  }
-  to {
-    background-color: transparent;
-  }
-}
-.block-new {
-  animation: flash-in 1s ease-out;
-}
