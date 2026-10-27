@@ -13,6 +13,20 @@ jobs:
     name: Prepare draft release
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v7
+      - name: Check that the tag matches the application version
+        run: |
+          expected="${GITHUB_REF_NAME#v}"
+          workspace=$(sed -n '/^\[workspace.package\]/,/^\[/{s/^version = "\(.*\)"/\1/p;}' Cargo.toml)
+          tauri=$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)
+          npm=$(jq -r .version apps/desktop/package.json)
+          echo "tag=$expected workspace=$workspace tauri=$tauri npm=$npm"
+          for found in "$workspace" "$tauri" "$npm"; do
+            if [ "$found" != "$expected" ]; then
+              echo "::error::The tag $GITHUB_REF_NAME does not match the application version ($found)"
+              exit 1
+            fi
+          done
       - name: Create a draft release if one does not exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -28,14 +42,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: macOS (Apple silicon), os: macos-latest, args: "--target aarch64-apple-darwin" }
-          - { name: macOS (Intel), os: macos-latest, args: "--target x86_64-apple-darwin" }
-          - { name: Linux, os: ubuntu-24.04, args: "" }
-          - { name: Windows, os: windows-latest, args: "" }
+          - { name: macOS (Apple silicon), os: macos-latest, target: aarch64-apple-darwin }
+          - { name: macOS (Intel), os: macos-latest, target: x86_64-apple-darwin }
+          - { name: Linux, os: ubuntu-24.04, target: "" }
+          - { name: Windows, os: windows-latest, target: "" }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v7
         with:
@@ -52,12 +68,19 @@ jobs:
         run: npm ci
       - name: Build bundles
         working-directory: apps/desktop
-        run: npm run tauri build -- ${{ matrix.args }}
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.target }}" ]; then
+            npm run tauri build -- --target "${{ matrix.target }}"
+          else
+            npm run tauri build
+          fi
       - name: Collect artifacts
         shell: bash
         run: |
           mkdir -p artifacts
-          find apps/desktop/src-tauri/target -maxdepth 4 \
+          # With --target the bundles live one level deeper (target/<triple>/release/bundle).
+          find apps/desktop/src-tauri/target -path '*/release/bundle/*' -type f \
             \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.msi' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
             -exec cp {} artifacts/ \;
           ls -la artifacts
@@ -75,9 +98,12 @@ jobs:
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets
       - name: Create SHA-256 manifest
-        run: sha256sum * > SHA256SUMS
+        run: |
+          # A re-run must not hash the manifest uploaded by a previous run.
+          rm -f assets/SHA256SUMS
+          (cd assets && sha256sum * > ../SHA256SUMS)
       - name: Upload SHA-256 manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
