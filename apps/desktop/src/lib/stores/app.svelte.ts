@@ -95,6 +95,25 @@ function createAppStore() {
     session = info;
   }
 
+  /** Types text into the running shell, as if it had been entered in the terminal. */
+  async function writeToShell(text: string): Promise<boolean> {
+    if (!session) {
+      toast("warn", "The shell is not running yet");
+      return false;
+    }
+    if (exited) {
+      toast("err", "The shell has exited. Use Restart in the toolbar");
+      return false;
+    }
+    try {
+      await api.writeSession(session.id, new TextEncoder().encode(text));
+      return true;
+    } catch (error) {
+      toast("err", `Could not send the command: ${error}`);
+      return false;
+    }
+  }
+
   function markExited(code: number | null): void {
     exited = true;
     exitCode = code;
@@ -156,6 +175,7 @@ function createAppStore() {
     toast,
     beginSession,
     setSession,
+    writeToShell,
     markExited,
     setBlocks(list: Block[]) {
       blocks = list;
