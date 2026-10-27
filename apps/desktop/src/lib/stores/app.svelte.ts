@@ -82,12 +82,17 @@ function createAppStore() {
     }, 2600);
   }
 
-  function setSession(info: SessionInfo): void {
-    session = info;
+  /** Clears the state of the previous shell. Called before a new one opens, because its events can arrive first. */
+  function beginSession(): void {
+    session = null;
     exited = false;
     exitCode = null;
     title = null;
     blocks = [];
+  }
+
+  function setSession(info: SessionInfo): void {
+    session = info;
   }
 
   function markExited(code: number | null): void {
@@ -149,6 +154,7 @@ function createAppStore() {
     toggleTheme,
     updateSettings,
     toast,
+    beginSession,
     setSession,
     markExited,
     setBlocks(list: Block[]) {
