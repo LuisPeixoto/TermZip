@@ -276,11 +276,14 @@ mod tests {
         let from_env = data_dir_with(Some(OsString::from("/tmp/lab")), Some("/cfg".into()));
         assert_eq!(from_env.unwrap(), PathBuf::from("/tmp/lab"));
 
+        // Joined, not spelled out: the separator differs between platforms.
+        let expected = PathBuf::from("/cfg").join("termzip");
+
         let default = data_dir_with(None, Some("/cfg".into()));
-        assert_eq!(default.unwrap(), PathBuf::from("/cfg/termzip"));
+        assert_eq!(default.unwrap(), expected);
 
         let blank = data_dir_with(Some(OsString::from("")), Some("/cfg".into()));
-        assert_eq!(blank.unwrap(), PathBuf::from("/cfg/termzip"));
+        assert_eq!(blank.unwrap(), expected);
 
         assert!(data_dir_with(None, None).is_err());
     }
