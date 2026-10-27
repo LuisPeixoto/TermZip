@@ -99,24 +99,32 @@ pub fn launch_config(shell: Option<&str>, integration_dir: &Path) -> Launch {
 
     match kind {
         ShellKind::Zsh => {
-            let user_zdotdir = std::env::var_os("ZDOTDIR")
-                .map(PathBuf::from)
-                .unwrap_or_else(home_dir);
             let staged = staged_dir(integration_dir, "zsh");
-            write_zsh_stubs(&staged, &script);
-            launch.env.push((
-                "TERMZIP_USER_ZDOTDIR".to_owned(),
-                user_zdotdir.display().to_string(),
-            ));
-            launch
-                .env
-                .push(("ZDOTDIR".to_owned(), staged.display().to_string()));
+            if write_zsh_stubs(&staged, &script) {
+                // Without a home the stubs fall back to $HOME themselves.
+                let user_zdotdir = std::env::var_os("ZDOTDIR")
+                    .map(PathBuf::from)
+                    .unwrap_or_else(home_dir);
+                if !user_zdotdir.as_os_str().is_empty() {
+                    launch.env.push((
+                        "TERMZIP_USER_ZDOTDIR".to_owned(),
+                        user_zdotdir.display().to_string(),
+                    ));
+                }
+                launch
+                    .env
+                    .push(("ZDOTDIR".to_owned(), staged.display().to_string()));
+            } else {
+                // Better a plain shell with the user's own config than a broken ZDOTDIR.
+                launch.integrated = false;
+            }
         }
         ShellKind::Bash => {
             let staged = staged_dir(integration_dir, "bash");
             let rc = staged.join("bashrc");
             let contents = format!(
-                "[ -f \"$HOME/.bashrc\" ] && builtin source \"$HOME/.bashrc\"\nbuiltin source \"{script}\"\n"
+                "[ -f \"$HOME/.bashrc\" ] && builtin source \"$HOME/.bashrc\"\nbuiltin source {}\n",
+                quote_posix(&script)
             );
             if std::fs::create_dir_all(&staged).is_ok() && std::fs::write(&rc, contents).is_ok() {
                 launch.args.push("--rcfile".to_owned());
@@ -132,7 +140,7 @@ pub fn launch_config(shell: Option<&str>, integration_dir: &Path) -> Launch {
         ShellKind::PowerShell => {
             launch.args.push("-NoExit".to_owned());
             launch.args.push("-Command".to_owned());
-            launch.args.push(format!(". '{}'", script));
+            launch.args.push(format!(". {}", quote_powershell(&script)));
         }
         ShellKind::Cmd | ShellKind::Other => {
             launch.integrated = false;
@@ -162,31 +170,61 @@ fn home_dir() -> PathBuf {
     }
 }
 
-fn write_zsh_stubs(dir: &Path, integration: &str) {
+/// Writes the `.zshenv` / `.zshrc` stubs that hand control to the user's own files and then
+/// load the integration. Returns `false` when they could not be written.
+fn write_zsh_stubs(dir: &Path, integration: &str) -> bool {
     if std::fs::create_dir_all(dir).is_err() {
-        return;
+        return false;
     }
     let zshenv = "typeset -g TERMZIP_STAGED_ZDOTDIR=\"$ZDOTDIR\"\n\
-export ZDOTDIR=\"$TERMZIP_USER_ZDOTDIR\"\n\
+export ZDOTDIR=\"${TERMZIP_USER_ZDOTDIR:-$HOME}\"\n\
 [[ -f \"$ZDOTDIR/.zshenv\" ]] && builtin source \"$ZDOTDIR/.zshenv\"\n\
 export ZDOTDIR=\"$TERMZIP_STAGED_ZDOTDIR\"\n";
     let zshrc = format!(
-        "export ZDOTDIR=\"$TERMZIP_USER_ZDOTDIR\"\n\
+        "export ZDOTDIR=\"${{TERMZIP_USER_ZDOTDIR:-$HOME}}\"\n\
          [[ -f \"$ZDOTDIR/.zshrc\" ]] && builtin source \"$ZDOTDIR/.zshrc\"\n\
          export ZDOTDIR=\"$TERMZIP_STAGED_ZDOTDIR\"\n\
-         builtin source \"{integration}\"\n",
+         builtin source {}\n",
+        quote_posix(integration)
     );
-    let _ = std::fs::write(dir.join(".zshenv"), zshenv);
-    let _ = std::fs::write(dir.join(".zshrc"), zshrc);
+    std::fs::write(dir.join(".zshenv"), zshenv).is_ok()
+        && std::fs::write(dir.join(".zshrc"), zshrc).is_ok()
 }
 
-fn quote_fish(path: &str) -> String {
-    format!("'{path}'")
+/// Single-quotes a value for zsh and bash: nothing inside is expanded, and a
+/// quote is written as close-quote, escaped quote, reopen.
+fn quote_posix(value: &str) -> String {
+    format!("'{}'", value.replace('\'', r"'\''"))
+}
+
+/// fish expands nothing inside single quotes either, but `\` and `\'` are escapes there.
+fn quote_fish(value: &str) -> String {
+    format!("'{}'", value.replace('\\', r"\\").replace('\'', r"\'"))
+}
+
+/// PowerShell doubles a quote inside a single-quoted string, and also treats the
+/// typographic single quotes as quotes.
+fn quote_powershell(value: &str) -> String {
+    let mut quoted = String::with_capacity(value.len() + 2);
+    quoted.push('\'');
+    for character in value.chars() {
+        quoted.push(character);
+        if matches!(
+            character,
+            '\'' | '\u{2018}' | '\u{2019}' | '\u{201a}' | '\u{201b}'
+        ) {
+            quoted.push(character);
+        }
+    }
+    quoted.push('\'');
+    quoted
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ShellKind, detect_shell_kind, launch_config};
+    use super::{
+        ShellKind, detect_shell_kind, launch_config, quote_fish, quote_posix, quote_powershell,
+    };
     use std::path::{Path, PathBuf};
 
     fn kind_of(name: &str) -> ShellKind {
@@ -245,5 +283,87 @@ mod tests {
         let path = PathBuf::from("placeholder");
         let _ = path;
         assert!(!super::default_shell().as_os_str().is_empty());
+    }
+
+    #[cfg(unix)]
+    fn unique_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("termzip-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_hostile_integration_path_is_never_executed_by_bash() {
+        if !Path::new("/bin/bash").exists() {
+            return;
+        }
+        let root = unique_dir("hostile-bash");
+        let marker = root.join("pwned");
+        let integration = root.join(format!(
+            "a'b$(touch {})`touch {}`",
+            marker.display(),
+            marker.display()
+        ));
+
+        let launch = launch_config(Some("/bin/bash"), &integration);
+        assert!(launch.integrated);
+        let status = std::process::Command::new("/bin/bash")
+            .args(&launch.args)
+            .args(["-i", "-c", "true"])
+            .env("HOME", &root)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap();
+
+        assert!(status.success());
+        assert!(
+            !marker.exists(),
+            "the integration path was evaluated by the shell"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn zsh_without_a_staging_directory_is_not_reported_as_integrated() {
+        let root = unique_dir("zsh-readonly");
+        // A file where the staging directory must go makes the staging fail.
+        std::fs::write(root.join("zsh"), "in the way").unwrap();
+
+        let launch = launch_config(Some("/bin/zsh"), &root);
+
+        assert!(!launch.integrated);
+        assert!(launch.env.iter().all(|(key, _)| key != "ZDOTDIR"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    const HOSTILE: &str = "/tmp/it's $HOME `id` $(id) \"x\" back\\slash";
+
+    #[cfg(unix)]
+    #[test]
+    fn posix_quoting_round_trips_through_a_real_shell() {
+        let output = std::process::Command::new("/bin/sh")
+            .args(["-c", &format!("printf %s {}", quote_posix(HOSTILE))])
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&output.stdout), HOSTILE);
+    }
+
+    #[test]
+    fn fish_quoting_escapes_quotes_and_backslashes() {
+        assert_eq!(quote_fish("/a b"), "'/a b'");
+        assert_eq!(quote_fish("it's"), r"'it\'s'");
+        assert_eq!(quote_fish(r"C:\dir"), r"'C:\\dir'");
+    }
+
+    #[test]
+    fn powershell_quoting_doubles_every_kind_of_single_quote() {
+        assert_eq!(quote_powershell("/a b"), "'/a b'");
+        assert_eq!(quote_powershell("it's"), "'it''s'");
+        assert_eq!(quote_powershell("it\u{2019}s"), "'it\u{2019}\u{2019}s'");
     }
 }
