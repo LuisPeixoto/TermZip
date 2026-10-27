@@ -71,8 +71,15 @@
     function onRestart() {
       restartShell();
     }
+    function onFocusRequest() {
+      terminal?.focus();
+    }
     window.addEventListener("termzip:restart", onRestart);
-    return () => window.removeEventListener("termzip:restart", onRestart);
+    window.addEventListener("termzip:focus-terminal", onFocusRequest);
+    return () => {
+      window.removeEventListener("termzip:restart", onRestart);
+      window.removeEventListener("termzip:focus-terminal", onFocusRequest);
+    };
   });
 
   onMount(() => {

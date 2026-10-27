@@ -45,10 +45,10 @@
     }
   }
 
-  function rerun(command: string) {
-    window.dispatchEvent(
-      new CustomEvent("termzip:composer", { detail: { command, execute: true } }),
-    );
+  async function rerun(command: string) {
+    if (await app.writeToShell(`${command}\r`)) {
+      window.dispatchEvent(new CustomEvent("termzip:focus-terminal"));
+    }
   }
 
   async function refresh() {
@@ -165,7 +165,7 @@
                 <button
                   type="button"
                   class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
-                  onclick={() => block.command && rerun(block.command)}
+                  onclick={() => block.command && void rerun(block.command)}
                 >
                   <Icon name="zap" size={11} />
                   Run
