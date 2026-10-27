@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { app } from "./lib/stores/app.svelte";
+  import { matchShortcut } from "./lib/shortcuts";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TerminalPane from "./lib/components/TerminalPane.svelte";
   import BlocksRail from "./lib/components/BlocksRail.svelte";
@@ -15,23 +16,30 @@
   });
 
   function onWindowKeydown(event: KeyboardEvent) {
-    const mod = event.metaKey || event.ctrlKey;
-    const typing =
-      event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLTextAreaElement ||
-      (event.target instanceof HTMLElement && event.target.classList.contains("xterm"));
+    // xterm keeps focus in a hidden textarea of its own; that is the terminal, not a form field.
+    const target = event.target instanceof Element ? event.target : null;
+    const inField =
+      target !== null &&
+      target.closest(".xterm") === null &&
+      (target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement);
 
-    if (mod && event.key.toLowerCase() === "," && !event.shiftKey) {
+    const shortcut = matchShortcut(event, app.platform);
+    if (shortcut === "preferences") {
       event.preventDefault();
       app.toggleSettings();
-    } else if (mod && event.key.toLowerCase() === "r" && !typing) {
+    } else if (shortcut && !inField && !app.settingsOpen) {
       event.preventDefault();
-      window.dispatchEvent(new CustomEvent("termzip:restart"));
-    } else if (mod && event.key.toLowerCase() === "b" && !typing) {
-      event.preventDefault();
-      app.toggleBlocks();
-    } else if (event.key === "Escape" && typing) {
-      (event.target as HTMLElement).blur();
+      if (shortcut === "restart") window.dispatchEvent(new CustomEvent("termzip:restart"));
+      else app.toggleBlocks();
+    } else if (event.key === "Escape") {
+      if (app.settingsOpen) {
+        event.preventDefault();
+        app.closeSettings();
+      } else if (inField) {
+        (target as HTMLElement).blur();
+      }
     }
   }
 </script>

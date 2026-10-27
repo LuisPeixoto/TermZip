@@ -119,6 +119,14 @@ function createAppStore() {
     exitCode = code;
   }
 
+  function setSettingsOpen(open: boolean): void {
+    settingsOpen = open;
+    // The modal held the keyboard; give it back to the terminal once the modal is gone.
+    if (!open) {
+      requestAnimationFrame(() => window.dispatchEvent(new CustomEvent("termzip:focus-terminal")));
+    }
+  }
+
   function setViewport(next: Viewport): void {
     viewport = next;
   }
@@ -184,10 +192,10 @@ function createAppStore() {
       blocksOpen = !blocksOpen;
     },
     toggleSettings() {
-      settingsOpen = !settingsOpen;
+      setSettingsOpen(!settingsOpen);
     },
     closeSettings() {
-      settingsOpen = false;
+      setSettingsOpen(false);
     },
     setViewport,
   };
