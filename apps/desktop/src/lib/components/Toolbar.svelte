@@ -52,6 +52,7 @@
     class="grid size-7 place-items-center rounded-md border border-line bg-panel text-muted transition-colors hover:bg-hover hover:text-fg"
     onclick={() => app.toggleTheme()}
     title={app.settings.theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+    aria-label={app.settings.theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
   >
     <Icon name={app.settings.theme === "dark" ? "sun" : "moon"} size={14} />
   </button>
@@ -61,6 +62,7 @@
     class="grid size-7 place-items-center rounded-md border border-line bg-panel text-muted transition-colors hover:bg-hover hover:text-fg"
     onclick={() => app.toggleSettings()}
     title="Preferences ({shortcutLabel('preferences', app.platform)})"
+    aria-label="Preferences"
   >
     <Icon name="settings" size={14} />
   </button>

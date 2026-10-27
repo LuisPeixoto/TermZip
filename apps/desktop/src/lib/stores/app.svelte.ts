@@ -57,13 +57,17 @@ function createAppStore() {
   }
 
   async function toggleTheme(): Promise<void> {
-    const current = await api.getSettings();
-    const next: Settings = {
-      ...current,
-      theme: current.theme === "dark" ? "light" : "dark",
-    };
-    settings = await api.saveSettings(next);
-    applyTheme(settings.theme);
+    try {
+      const current = await api.getSettings();
+      const next: Settings = {
+        ...current,
+        theme: current.theme === "dark" ? "light" : "dark",
+      };
+      settings = await api.saveSettings(next);
+      applyTheme(settings.theme);
+    } catch (error) {
+      toast("err", `Could not change the theme: ${error}`);
+    }
   }
 
   async function updateSettings(patch: Partial<Settings>): Promise<Settings> {

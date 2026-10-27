@@ -9,7 +9,11 @@
   };
 </script>
 
-<div class="pointer-events-none fixed bottom-12 right-4 z-50 flex flex-col gap-2">
+<div
+  class="pointer-events-none fixed bottom-12 right-4 z-50 flex flex-col gap-2"
+  role="status"
+  aria-live="polite"
+>
   {#each app.toasts as toast (toast.id)}
     <div
       class="pointer-events-auto rounded-lg border bg-panel px-3 py-2 text-[12px] shadow-pop {styles[toast.kind] ?? styles.info}"
