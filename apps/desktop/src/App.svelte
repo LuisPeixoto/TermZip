@@ -46,7 +46,7 @@
 
 <svelte:window onkeydown={onWindowKeydown} oncontextmenu={(event) => event.preventDefault()} />
 
-<div class="flex h-full flex-col bg-bg">
+<div class="flex h-full flex-col bg-bg" inert={app.settingsOpen}>
   <Toolbar />
   {#if app.ready}
     <div class="flex min-h-0 flex-1">
