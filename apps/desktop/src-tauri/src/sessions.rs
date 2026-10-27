@@ -6,19 +6,23 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use base64::Engine;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::ipc::Channel;
 
 use termzip_pty::{PtyOptions, PtySession};
 use termzip_shell::{Block, BlockTracker, OscParser};
 
-const BACKLOG_LIMIT: usize = 512 * 1024;
 const EXIT_POLL: Duration = Duration::from_millis(400);
+/// After the PTY closes, the child may need a moment before its status is
+/// available: wait at most `EXIT_GRACE_POLLS * EXIT_GRACE_STEP` for it.
+const EXIT_GRACE_POLLS: u32 = 20;
+const EXIT_GRACE_STEP: Duration = Duration::from_millis(50);
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,25 +32,18 @@ pub struct SessionInfo {
     pub integrated: bool,
 }
 
+/// Everything a session tells the webview, in order, on one channel. The
+/// channel belongs to a single session, so events carry no session id and
+/// cannot arrive before the terminal is ready for them.
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct DataEvent<'a> {
-    session_id: u32,
-    data: &'a str,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ExitEvent {
-    session_id: u32,
-    code: Option<i32>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BlocksEvent<'a> {
-    session_id: u32,
-    blocks: &'a [Block],
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum SessionEvent {
+    /// Raw terminal output, base64 encoded.
+    Data { data: String },
+    /// The shell ended; `code` is `None` when the status could not be read.
+    Exit { code: Option<u32> },
+    /// The full list of finished command blocks.
+    Blocks { blocks: Vec<Block> },
 }
 
 pub struct SessionHandle {
@@ -55,9 +52,7 @@ pub struct SessionHandle {
     child: Mutex<Box<dyn termzip_pty::Child + Send + Sync>>,
     parser: Mutex<OscParser>,
     tracker: Mutex<BlockTracker>,
-    backlog: Mutex<Vec<u8>>,
-    attached: AtomicBool,
-    info: SessionInfo,
+    destroyed: AtomicBool,
 }
 
 impl SessionHandle {
@@ -85,16 +80,6 @@ impl SessionHandle {
         Ok(())
     }
 
-    pub fn take_backlog(&self) -> String {
-        self.attached.store(true, Ordering::Relaxed);
-        let Ok(mut backlog) = self.backlog.lock() else {
-            return String::new();
-        };
-        let encoded = base64::engine::general_purpose::STANDARD.encode(backlog.as_slice());
-        backlog.clear();
-        encoded
-    }
-
     fn try_exit(&self) -> anyhow::Result<Option<termzip_pty::ExitStatus>> {
         self.child
             .lock()
@@ -104,6 +89,7 @@ impl SessionHandle {
     }
 
     fn kill(&self) {
+        self.destroyed.store(true, Ordering::Relaxed);
         if let Ok(mut child) = self.child.lock() {
             let _ = child.kill();
         }
@@ -123,7 +109,7 @@ impl Sessions {
 
     pub fn create(
         &self,
-        app: &AppHandle,
+        events: Channel<SessionEvent>,
         rows: u16,
         columns: u16,
         working_directory: Option<String>,
@@ -160,17 +146,21 @@ impl Sessions {
             child: Mutex::new(parts.child),
             parser: Mutex::new(OscParser::new()),
             tracker: Mutex::new(BlockTracker::new()),
-            backlog: Mutex::new(Vec::new()),
-            attached: AtomicBool::new(false),
-            info: info.clone(),
+            destroyed: AtomicBool::new(false),
         });
 
-        self.inner
-            .lock()
-            .map_err(|_| anyhow::anyhow!("sessions lock poisoned"))?
-            .insert(id, handle.clone());
+        match self.inner.lock() {
+            Ok(mut sessions) => {
+                sessions.insert(id, handle.clone());
+            }
+            Err(_) => {
+                // Do not leave a shell running that nobody can reach.
+                handle.kill();
+                anyhow::bail!("sessions lock poisoned");
+            }
+        }
 
-        spawn_reader(app.clone(), handle, receiver);
+        spawn_reader(events, handle, receiver);
         Ok(info)
     }
 
@@ -211,64 +201,57 @@ impl Sessions {
 }
 
 fn spawn_reader(
-    app: AppHandle,
+    events: Channel<SessionEvent>,
     handle: Arc<SessionHandle>,
-    receiver: std::sync::mpsc::Receiver<Vec<u8>>,
+    receiver: Receiver<Vec<u8>>,
 ) {
     let _ = thread::Builder::new()
         .name("termzip-session-reader".to_owned())
         .spawn(move || {
-            loop {
-                match receiver.recv_timeout(EXIT_POLL) {
-                    Ok(chunk) => handle_chunk(&app, &handle, &chunk),
-                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                        if let Ok(Some(status)) = handle.try_exit() {
-                            let _ = app.emit(
-                                "pty-exit",
-                                ExitEvent {
-                                    session_id: handle.info.id,
-                                    code: Some(status.exit_code() as i32),
-                                },
-                            );
-                            break;
-                        }
-                    }
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                        if let Ok(Some(status)) = handle.try_exit() {
-                            let _ = app.emit(
-                                "pty-exit",
-                                ExitEvent {
-                                    session_id: handle.info.id,
-                                    code: Some(status.exit_code() as i32),
-                                },
-                            );
-                        }
-                        break;
-                    }
+            let code = loop {
+                if handle.destroyed.load(Ordering::Relaxed) {
+                    // The webview asked for this; it is not waiting for an exit.
+                    return;
                 }
+                match receiver.recv_timeout(EXIT_POLL) {
+                    Ok(chunk) => handle_chunk(&events, &handle, &chunk),
+                    Err(RecvTimeoutError::Timeout) => match handle.try_exit() {
+                        Ok(None) => {}
+                        Ok(Some(status)) => {
+                            // Output written just before the exit may still be queued.
+                            while let Ok(chunk) = receiver.try_recv() {
+                                handle_chunk(&events, &handle, &chunk);
+                            }
+                            break Some(status.exit_code());
+                        }
+                        // A poisoned lock never recovers: report and stop instead of spinning.
+                        Err(_) => break None,
+                    },
+                    Err(RecvTimeoutError::Disconnected) => break wait_for_exit(&handle),
+                }
+            };
+            if !handle.destroyed.load(Ordering::Relaxed) {
+                let _ = events.send(SessionEvent::Exit { code });
             }
         });
 }
 
-fn handle_chunk(app: &AppHandle, handle: &Arc<SessionHandle>, chunk: &[u8]) {
-    if !handle.attached.load(Ordering::Relaxed)
-        && let Ok(mut backlog) = handle.backlog.lock()
-    {
-        backlog.extend_from_slice(chunk);
-        if backlog.len() > BACKLOG_LIMIT {
-            let overflow = backlog.len() - BACKLOG_LIMIT;
-            backlog.drain(..overflow);
+/// The PTY closed, so the shell is ending; its status can lag by a moment.
+fn wait_for_exit(handle: &SessionHandle) -> Option<u32> {
+    for _ in 0..EXIT_GRACE_POLLS {
+        match handle.try_exit() {
+            Ok(Some(status)) => return Some(status.exit_code()),
+            Ok(None) => thread::sleep(EXIT_GRACE_STEP),
+            Err(_) => return None,
         }
     }
+    None
+}
 
-    let encoded = base64::engine::general_purpose::STANDARD.encode(chunk);
-    let _ = app.emit(
-        "pty-data",
-        DataEvent {
-            session_id: handle.info.id,
-            data: &encoded,
-        },
-    );
+fn handle_chunk(events: &Channel<SessionEvent>, handle: &Arc<SessionHandle>, chunk: &[u8]) {
+    let _ = events.send(SessionEvent::Data {
+        data: base64::engine::general_purpose::STANDARD.encode(chunk),
+    });
 
     let markers = handle
         .parser
@@ -292,13 +275,106 @@ fn handle_chunk(app: &AppHandle, handle: &Arc<SessionHandle>, chunk: &[u8]) {
         tracker.on_region_bytes(&chunk[cursor..]);
     }
     if tracker.blocks().len() != before {
-        let blocks: Vec<Block> = tracker.blocks().iter().cloned().collect();
-        let _ = app.emit(
-            "blocks-update",
-            BlocksEvent {
-                session_id: handle.info.id,
-                blocks: &blocks,
-            },
+        let _ = events.send(SessionEvent::Blocks {
+            blocks: tracker.blocks().iter().cloned().collect(),
+        });
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use tauri::ipc::InvokeResponseBody;
+
+    type Collected = Arc<Mutex<Vec<serde_json::Value>>>;
+
+    fn collecting_channel() -> (Channel<SessionEvent>, Collected) {
+        let collected: Collected = Arc::default();
+        let sink = collected.clone();
+        let channel = Channel::new(move |body| {
+            if let InvokeResponseBody::Json(json) = body {
+                sink.lock()
+                    .unwrap()
+                    .push(serde_json::from_str(&json).unwrap());
+            }
+            Ok(())
+        });
+        (channel, collected)
+    }
+
+    fn wait_for(collected: &Collected, kind: &str) -> bool {
+        for _ in 0..100 {
+            if collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| event["type"] == kind)
+            {
+                return true;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        false
+    }
+
+    fn open(sessions: &Sessions, channel: Channel<SessionEvent>, script: &str) -> SessionInfo {
+        let dir = std::env::temp_dir().join("termzip-sessions-test");
+        // `sh` is not an integrated shell, so the script runs without injected startup files.
+        let info = sessions
+            .create(channel, 24, 80, None, Some("/bin/sh".to_owned()), &dir)
+            .unwrap();
+        sessions
+            .get(info.id)
+            .unwrap()
+            .write(script.as_bytes())
+            .unwrap();
+        info
+    }
+
+    #[test]
+    fn output_arrives_in_order_and_the_exit_code_is_reported_once() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        open(&sessions, channel, "printf 'one-two'; exit 3\n");
+
+        assert!(wait_for(&collected, "exit"), "no exit event arrived");
+        thread::sleep(Duration::from_millis(600));
+
+        let events = collected.lock().unwrap();
+        let exits: Vec<_> = events.iter().filter(|e| e["type"] == "exit").collect();
+        assert_eq!(exits.len(), 1, "exit must be sent exactly once");
+        assert_eq!(exits[0]["code"], 3);
+        assert_eq!(events.last().unwrap()["type"], "exit", "exit comes last");
+
+        let output: Vec<u8> = events
+            .iter()
+            .filter(|e| e["type"] == "data")
+            .flat_map(|e| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(e["data"].as_str().unwrap())
+                    .unwrap()
+            })
+            .collect();
+        assert!(String::from_utf8_lossy(&output).contains("one-two"));
+    }
+
+    #[test]
+    fn destroying_a_session_does_not_report_an_exit() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let info = open(&sessions, channel, "sleep 30\n");
+
+        sessions.destroy(info.id);
+        thread::sleep(Duration::from_millis(1200));
+
+        assert!(
+            !collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|e| e["type"] == "exit"),
+            "a destroyed session must stay silent"
         );
+        assert!(sessions.get(info.id).is_err());
     }
 }
