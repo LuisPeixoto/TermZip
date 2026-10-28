@@ -215,6 +215,22 @@ impl Workspace {
         self.save_to(&workspace_path()?)
     }
 
+    /// Deletes the saved layout, for when the user turns session restore off.
+    pub fn forget() -> Result<(), SettingsError> {
+        Self::forget_at(&workspace_path()?)
+    }
+
+    pub fn forget_at(path: &Path) -> Result<(), SettingsError> {
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(source) => Err(SettingsError::Write {
+                path: path.to_owned(),
+                source,
+            }),
+        }
+    }
+
     pub fn save_to(&self, path: &Path) -> Result<(), SettingsError> {
         let workspace = self.clone().normalized().map_err(SettingsError::Invalid)?;
         let json = serde_json::to_vec_pretty(&workspace)
@@ -499,5 +515,18 @@ mod tests {
         // Far past the parser's recursion limit: an error, never a stack overflow.
         assert!(serde_json::from_str::<Workspace>(&text).is_err());
         assert!(Workspace::from_json(&text).is_err());
+    }
+
+    #[test]
+    fn forgetting_removes_the_layout_and_is_fine_when_there_is_none() {
+        let dir = temp_dir("forget");
+        let path = dir.join("workspace.json");
+        workspace(vec![tab(leaf("/a"))]).save_to(&path).unwrap();
+        assert!(path.exists());
+
+        Workspace::forget_at(&path).unwrap();
+        assert!(!path.exists());
+        Workspace::forget_at(&path).unwrap();
+        let _ = fs::remove_dir_all(&dir);
     }
 }
