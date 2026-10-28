@@ -54,7 +54,7 @@
 >
   <div
     bind:this={dialog}
-    class="shadow-pop flex max-h-full w-full max-w-[420px] flex-col rounded-xl border border-line bg-panel outline-none"
+    class="shadow-pop flex max-h-[calc(100vh-2rem)] w-full max-w-[420px] flex-col rounded-xl border border-line bg-panel outline-none"
     role="dialog"
     aria-modal="true"
     aria-labelledby="preferences-title"
