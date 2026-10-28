@@ -1,5 +1,5 @@
 import { api, type Block, type SessionInfo } from "../api";
-import { appendBlock } from "../blocks";
+import { appendBlock, type StatusFilter } from "../blocks";
 import { NO_RESULTS, type SearchResults } from "../terminal/search";
 import { toast } from "./toasts.svelte";
 
@@ -25,6 +25,10 @@ export class Pane {
   viewport = $state({ rows: 0, columns: 0 });
   // Replaced as a whole on every change, so there is nothing to gain from a deep proxy.
   blocks = $state.raw<Block[]>([]);
+
+  /** What the blocks rail is narrowed to for this pane. */
+  blockQuery = $state("");
+  blockStatus = $state<StatusFilter>("all");
 
   /** The find box of this pane, and what its last search found. */
   searchOpen = $state(false);

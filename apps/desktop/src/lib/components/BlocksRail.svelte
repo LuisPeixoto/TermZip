@@ -6,8 +6,16 @@
   import { basename } from "../paths";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { api, type Block } from "../api";
+  import { filterBlocks, type StatusFilter } from "../blocks";
 
   const pane = $derived(workspace.activePane);
+  const visible = $derived(filterBlocks(pane.blocks, pane.blockQuery, pane.blockStatus));
+  const filtering = $derived(pane.blockQuery.trim() !== "" || pane.blockStatus !== "all");
+  const STATUSES: Array<[StatusFilter, string]> = [
+    ["all", "All"],
+    ["ok", "OK"],
+    ["failed", "Failed"],
+  ];
   let copied = $state<string | null>(null);
   let expanded = $state<Set<number>>(new Set());
 
@@ -36,6 +44,11 @@
 
   function isExpanded(index: number): boolean {
     return expanded.has(index);
+  }
+
+  function clearFilter() {
+    pane.blockQuery = "";
+    pane.blockStatus = "all";
   }
 
   async function copy(key: string, text: string) {
@@ -92,8 +105,51 @@
       <span class="mono">OSC&nbsp;133</span> markers from zsh, bash, fish, and PowerShell.
     </div>
   {:else}
+    <div class="space-y-1.5 border-b border-line p-2">
+      <input
+        type="search"
+        spellcheck="false"
+        placeholder="Filter blocks"
+        aria-label="Filter blocks by text"
+        bind:value={pane.blockQuery}
+        class="h-7 w-full rounded-md border border-line bg-panel-2 px-2 text-[11.5px] text-fg outline-none placeholder:text-faint focus:border-accent"
+        onkeydown={(event) => {
+          // Escape empties a filter first; with nothing to clear it leaves the box as usual.
+          if (event.key === "Escape" && pane.blockQuery) {
+            pane.blockQuery = "";
+            event.stopPropagation();
+          }
+        }}
+      />
+      <div class="flex items-center gap-1" role="group" aria-label="Filter blocks by status">
+        {#each STATUSES as [value, label] (value)}
+          <button
+            type="button"
+            class="rounded px-2 py-0.5 text-[10.5px] font-medium transition-colors
+              {pane.blockStatus === value ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-hover hover:text-fg'}"
+            aria-pressed={pane.blockStatus === value}
+            onclick={() => (pane.blockStatus = value)}
+          >
+            {label}
+          </button>
+        {/each}
+        <span class="ml-auto text-[10.5px] text-faint" aria-live="polite">
+          {filtering ? `${visible.length} of ${pane.blocks.length}` : `${pane.blocks.length}`}
+        </span>
+      </div>
+    </div>
+
+    {#if visible.length === 0}
+      <div class="px-4 py-6 text-[11.5px] leading-relaxed text-faint">
+        No block matches.
+        <button type="button" class="text-accent underline-offset-2 hover:underline" onclick={clearFilter}>
+          Clear the filter
+        </button>
+      </div>
+    {/if}
+
     <div class="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
-      {#each [...pane.blocks].reverse() as block (block.index)}
+      {#each [...visible].reverse() as block (block.index)}
         <article
           class="rounded-lg border border-line bg-panel-2 transition-colors hover:border-line-strong"
         >
