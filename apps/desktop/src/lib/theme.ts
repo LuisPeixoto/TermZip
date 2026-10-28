@@ -13,6 +13,9 @@ export const DEFAULT_LIGHT_THEME = "termzip-light";
 /** The settings that decide which theme is in use. */
 export type ThemeChoice = Pick<Settings, "theme" | "darkTheme" | "lightTheme">;
 
+/** Everything about the look of the window that the preferences show before it is saved. */
+export type AppearanceChoice = ThemeChoice & Pick<Settings, "backgroundOpacity" | "backgroundBlur">;
+
 export interface Rgba {
   r: number;
   g: number;
@@ -145,21 +148,37 @@ export function chromeTokens(theme: Theme): Record<string, string> {
   };
 }
 
+/**
+ * The big surfaces of the window (its background and the panels that frame the terminal). Below full
+ * opacity they let the desktop show through; dialogs and menus keep the opaque tokens.
+ */
+export function windowTokens(theme: Theme, opacity: number): Record<string, string> {
+  const { "--bg": background, "--panel": panel } = chromeTokens(theme);
+  if (opacity >= 1) return { "--window-bg": background, "--window-panel": panel };
+  const alpha = Number(Math.max(0, opacity).toFixed(2));
+  const translucent = (color: string) => withAlpha(color, alpha);
+  return { "--window-bg": translucent(background), "--window-panel": translucent(panel) };
+}
+
 /** Writes the theme into the document: the tokens, and `data-theme` for the dark and light variants. */
-export function applyTheme(theme: Theme, root: HTMLElement = document.documentElement): void {
-  for (const [name, value] of Object.entries(chromeTokens(theme))) {
+export function applyTheme(theme: Theme, opacity = 1, root: HTMLElement = document.documentElement): void {
+  for (const [name, value] of Object.entries({ ...chromeTokens(theme), ...windowTokens(theme, opacity) })) {
     root.style.setProperty(name, value);
   }
   root.dataset.theme = theme.appearance;
 }
 
-export function xtermTheme(theme: Theme): ITheme {
+/**
+ * The xterm.js theme. With `transparent` the default background is left clear, so what shows is the
+ * translucent window behind the terminal and the opacity is applied once, not twice.
+ */
+export function xtermTheme(theme: Theme, transparent = false): ITheme {
   const { colors } = theme;
   const [black, red, green, yellow, blue, magenta, cyan, white] = colors.ansi;
   const [brightBlack, brightRed, brightGreen, brightYellow, brightBlue, brightMagenta, brightCyan, brightWhite] =
     colors.ansi.slice(8);
   return {
-    background: colors.background,
+    background: transparent ? "#00000000" : colors.background,
     foreground: colors.foreground,
     cursor: colors.cursor,
     cursorAccent: colors.cursor_text ?? colors.background,

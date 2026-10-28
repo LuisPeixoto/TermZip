@@ -71,7 +71,7 @@
   }
 </script>
 
-<aside class="flex w-[clamp(280px,30vw,360px)] shrink-0 flex-col border-l border-line bg-panel">
+<aside class="flex w-[clamp(280px,30vw,360px)] shrink-0 flex-col border-l border-line bg-window-panel">
   <div class="flex h-9 items-center justify-between border-b border-line px-3">
     <span class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted">
       <Icon name="layers" size={12} />

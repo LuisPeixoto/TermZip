@@ -7,7 +7,7 @@
 </script>
 
 <header
-  class="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-panel pr-3
+  class="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-window-panel pr-3
     {app.platform === 'macos' ? 'pl-[76px]' : 'pl-3'}"
   data-tauri-drag-region
 >
