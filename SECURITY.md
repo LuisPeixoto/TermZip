@@ -36,6 +36,19 @@ the affected version, operating system, impact, and a reproduction or proof of c
 - Command blocks keep what a command printed in memory only, bounded to 64 KiB per block and 200 blocks per session;
   the OSC marker parser holds at most 64 KiB of pending bytes. Output can contain secrets or personal data: nothing is
   written to disk, but anything you copy leaves TermZip through your clipboard.
+- Clicking text in the terminal is validated by the backend before anything reaches the operating system: only
+  `http`, `https` and `mailto` URLs, and files that exist (relative paths are resolved against the pane's folder, `..`
+  and symlinks before the check). A program, script, installer or application is never started by a click: its folder
+  is opened instead, also when it is reached through a symlink. Opening needs ⌘ (Ctrl elsewhere) held.
+- The saved layout (`workspace.json`) holds structure only: tabs, names, splits, profiles and folders. It is read as
+  untrusted input: at most 64 KiB, 32 tabs, 16 panes per tab and 8 levels of splits, and a file that breaks a limit or
+  cannot be parsed is kept as `.invalid` instead of being partly used. Turning session restore off deletes it.
+- Profile environment variables are validated (names, sizes, no NUL) and cannot override the variables the shell
+  integration depends on (`TERM`, `COLORTERM`, `TERM_PROGRAM*`, `ZDOTDIR`, `TERMZIP_*`). They are stored in
+  `config.toml` in plain text, so do not put secrets in them.
+- Output not yet drawn by the terminal is bounded (1 MiB): the backend pauses the shell instead of queueing without
+  limit, and gives up on the account if the page is silent for 10 seconds, so a stuck page cannot freeze a shell for
+  good.
 - Plugin loading is not implemented. Future extensions require an explicit isolation and permission design.
 
 ## Responsible use
