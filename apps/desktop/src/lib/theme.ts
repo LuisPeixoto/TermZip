@@ -10,6 +10,9 @@ import type { Settings, Theme, ThemeEntry } from "./api";
 export const DEFAULT_DARK_THEME = "termzip-dark";
 export const DEFAULT_LIGHT_THEME = "termzip-light";
 
+/** The settings that decide which theme is in use. */
+export type ThemeChoice = Pick<Settings, "theme" | "darkTheme" | "lightTheme">;
+
 export interface Rgba {
   r: number;
   g: number;
@@ -194,10 +197,7 @@ export function ansiPalette(theme: Theme): AnsiPalette {
  * theme that was deleted) or a theme of the other appearance falls back to TermZip's own, so the
  * window is never left without colors.
  */
-export function resolveTheme(
-  entries: readonly ThemeEntry[],
-  settings: Pick<Settings, "theme" | "darkTheme" | "lightTheme">,
-): Theme | null {
+export function resolveTheme(entries: readonly ThemeEntry[], settings: ThemeChoice): Theme | null {
   const dark = settings.theme === "dark";
   const find = (id: string) => entries.find((entry) => entry.theme.id === id)?.theme;
   const chosen = find(dark ? settings.darkTheme : settings.lightTheme);
@@ -207,4 +207,17 @@ export function resolveTheme(
     entries.find((entry) => entry.theme.appearance === settings.theme)?.theme ??
     null
   );
+}
+
+/** The gallery's two groups, each in the order the backend lists them (TermZip's own first). */
+export function groupThemes(entries: readonly ThemeEntry[]): { dark: ThemeEntry[]; light: ThemeEntry[] } {
+  return {
+    dark: entries.filter((entry) => entry.theme.appearance === "dark"),
+    light: entries.filter((entry) => entry.theme.appearance === "light"),
+  };
+}
+
+/** Who made a theme and under what license, for the line under its name. */
+export function describeCredit(theme: Theme): string {
+  return [theme.author, theme.license].filter((part): part is string => Boolean(part)).join(" · ");
 }
