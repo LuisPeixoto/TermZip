@@ -95,6 +95,58 @@ export interface Workspace {
   tabs: WorkspaceTab[];
 }
 
+/** Colors are `#rrggbb`, or `#rrggbbaa` where a transparency matters. */
+export interface ThemeColors {
+  background: string;
+  foreground: string;
+  cursor: string;
+  cursor_text?: string;
+  selection: string;
+  accent?: string;
+  /** The 16 ANSI colors, black to bright white. */
+  ansi: string[];
+}
+
+/** Interface colors a theme sets itself; whatever is left out is derived from the terminal colors. */
+export interface ThemeChrome {
+  panel?: string;
+  panel_2?: string;
+  elevated?: string;
+  hover?: string;
+  line?: string;
+  line_strong?: string;
+  muted?: string;
+  faint?: string;
+  accent_soft?: string;
+  ok?: string;
+  warn?: string;
+  err?: string;
+}
+
+/** A theme exactly as its file spells it (snake_case keys), see docs/themes.md. */
+export interface Theme {
+  id: string;
+  name: string;
+  appearance: "dark" | "light";
+  author?: string;
+  license?: string;
+  source?: string;
+  colors: ThemeColors;
+  chrome?: ThemeChrome;
+}
+
+export interface ThemeEntry {
+  /** Built-in themes cannot be deleted. */
+  builtIn: boolean;
+  theme: Theme;
+}
+
+export interface ThemeList {
+  themes: ThemeEntry[];
+  /** One sentence for every custom theme file that was left out. */
+  problems: string[];
+}
+
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
@@ -132,6 +184,12 @@ export const api = {
   openLink: (target: string, cwd: string | null) => invoke<void>("open_link", { target, cwd }),
   loadWorkspace: () => invoke<Workspace | null>("load_workspace"),
   saveWorkspace: (workspace: Workspace) => invoke<void>("save_workspace", { workspace }),
+  listThemes: () => invoke<ThemeList>("list_themes"),
+  /** Opens a file dialog and keeps the converted theme; `null` when the dialog is cancelled. */
+  importTheme: () => invoke<ThemeEntry | null>("import_theme"),
+  /** Opens a save dialog and writes the theme in TermZip's format; `false` when it is cancelled. */
+  exportTheme: (id: string) => invoke<boolean>("export_theme", { id }),
+  deleteTheme: (id: string) => invoke<void>("delete_theme", { id }),
 };
 
 export function bytesToBase64(bytes: Uint8Array): string {

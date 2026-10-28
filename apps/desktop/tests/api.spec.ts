@@ -65,3 +65,26 @@ describe("session stream", () => {
     expect("takeBacklog" in api).toBe(false);
   });
 });
+
+
+describe("themes", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+  });
+
+  it("asks the backend for the gallery, and for import, export and delete by id", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await api.listThemes();
+    await api.importTheme();
+    await api.exportTheme("nord");
+    await api.deleteTheme("mine");
+
+    expect(vi.mocked(invoke).mock.calls).toEqual([
+      ["list_themes"],
+      ["import_theme"],
+      ["export_theme", { id: "nord" }],
+      ["delete_theme", { id: "mine" }],
+    ]);
+  });
+});
