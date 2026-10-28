@@ -16,11 +16,9 @@
   import { matchShortcut } from "../shortcuts";
   import { cellsToLine, columnsOf, findPathLinks, isOpenGesture } from "../terminal/links";
   import { ACK_BATCH, AckBatcher } from "../flow";
+  import { fontStack } from "../terminal/font";
 
   let { pane }: { pane: Pane } = $props();
-
-  const DEFAULT_FONT_FAMILY =
-    '"JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace';
 
   // A plain click on a link only selects, so text that contains one can still be copied; opening
   // needs ⌘ (Ctrl elsewhere). The backend decides what may be opened.
@@ -34,7 +32,7 @@
   const hideHint = () => (hint = null);
 
   function fontFamily(): string {
-    return app.settings.fontFamily ?? DEFAULT_FONT_FAMILY;
+    return fontStack(app.settings.fontFamily);
   }
 
   let container: HTMLDivElement | undefined = $state();
@@ -60,12 +58,16 @@
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
-    const { fontSize, scrollbackLines } = app.settings;
+    const { fontSize, scrollbackLines, cursorStyle, cursorBlink, lineHeight, letterSpacing } = app.settings;
     const family = fontFamily();
     if (!terminal) return;
     terminal.options.fontSize = fontSize;
     terminal.options.fontFamily = family;
     terminal.options.scrollback = scrollbackLines;
+    terminal.options.cursorStyle = cursorStyle;
+    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.lineHeight = lineHeight;
+    terminal.options.letterSpacing = letterSpacing;
     untrack(() => fit());
     requestAnimationFrame(() => fit());
   });
@@ -134,13 +136,16 @@
     const settingsTheme = app.theme;
     terminal = new Terminal({
       convertEol: false,
-      cursorBlink: true,
+      cursorBlink: settings.cursorBlink,
+      cursorStyle: settings.cursorStyle,
+      // A pane that is not focused keeps an outline, so it is clear where the keyboard is not.
+      cursorInactiveStyle: "outline",
       fontFamily: fontFamily(),
       fontSize: settings.fontSize,
       fontWeight: 400,
       fontWeightBold: 600,
-      lineHeight: 1.3,
-      letterSpacing: 0,
+      lineHeight: settings.lineHeight,
+      letterSpacing: settings.letterSpacing,
       scrollback: settings.scrollbackLines,
       theme: settingsTheme ? xtermTheme(settingsTheme) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.
