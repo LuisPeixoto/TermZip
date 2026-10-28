@@ -1,5 +1,13 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+export interface Profile {
+  id: string;
+  name: string;
+  shell: string | null;
+  workingDirectory: string | null;
+  env: Record<string, string>;
+}
+
 export interface Settings {
   theme: "dark" | "light";
   fontSize: number;
@@ -7,6 +15,9 @@ export interface Settings {
   scrollbackLines: number;
   shell: string | null;
   workingDirectory: string | null;
+  restoreSession: boolean;
+  defaultProfile: string | null;
+  profiles: Profile[];
 }
 
 export interface SessionInfo {

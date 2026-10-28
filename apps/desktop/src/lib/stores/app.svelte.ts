@@ -23,6 +23,9 @@ function createAppStore() {
     scrollbackLines: 10_000,
     shell: null,
     workingDirectory: null,
+    restoreSession: true,
+    defaultProfile: null,
+    profiles: [],
   });
   let session = $state<SessionInfo | null>(null);
   let exited = $state(false);
