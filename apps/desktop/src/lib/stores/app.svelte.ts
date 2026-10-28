@@ -122,6 +122,9 @@ function createAppStore() {
     previewAppearance(choice: AppearanceChoice | null) {
       preview = choice;
     },
+    get opacity() {
+      return opacity;
+    },
     /** Whether the window lets the desktop show through (the opacity is below 100%). */
     get translucent() {
       return translucent;

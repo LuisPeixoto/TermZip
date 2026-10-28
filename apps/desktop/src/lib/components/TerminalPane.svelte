@@ -17,6 +17,8 @@
   import { cellsToLine, columnsOf, findPathLinks, isOpenGesture } from "../terminal/links";
   import { ACK_BATCH, AckBatcher } from "../flow";
   import { fontStack } from "../terminal/font";
+  import { paneSurface, resolvePaneLook } from "../paneLook";
+  import { themes } from "../stores/themes.svelte";
 
   let { pane }: { pane: Pane } = $props();
 
@@ -31,8 +33,19 @@
   const showHint = (event: MouseEvent) => (hint = { x: event.clientX, y: event.clientY });
   const hideHint = () => (hint = null);
 
+  // What this pane is drawn with: the app's settings, unless its profile sets its own theme, font or cursor.
+  const look = $derived(
+    resolvePaneLook({
+      settings: app.settings,
+      entries: themes.entries,
+      appTheme: app.theme,
+      profileId: pane.profileId,
+    }),
+  );
+  const surface = $derived(look ? paneSurface(look, app.opacity) : undefined);
+
   function fontFamily(): string {
-    return fontStack(app.settings.fontFamily);
+    return fontStack(look?.fontFamily ?? app.settings.fontFamily);
   }
 
   let container: HTMLDivElement | undefined = $state();
@@ -42,7 +55,7 @@
   let search: SearchAddon | undefined = $state.raw();
   let webgl: WebglAddon | undefined;
   // What the terminal was last drawn with: the theme, and whether the window lets the desktop through.
-  let appliedTheme = app.theme;
+  let appliedTheme = untrack(() => look?.theme);
   let appliedTranslucent = app.translucent;
   // Where a link is being hovered, for the "⌘+click to open" hint.
   let hint = $state.raw<{ x: number; y: number } | null>(null);
@@ -60,9 +73,10 @@
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
-    const { fontSize, scrollbackLines, cursorStyle, cursorBlink, lineHeight, letterSpacing } = app.settings;
+    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing } = app.settings;
     const family = fontFamily();
-    if (!terminal) return;
+    if (!terminal || !look) return;
+    const { fontSize, cursorStyle } = look;
     terminal.options.fontSize = fontSize;
     terminal.options.fontFamily = family;
     terminal.options.scrollback = scrollbackLines;
@@ -75,7 +89,7 @@
   });
 
   $effect(() => {
-    const theme = app.theme;
+    const theme = look?.theme;
     const translucent = app.translucent;
     if (!terminal || !theme || (theme === appliedTheme && translucent === appliedTranslucent)) return;
     appliedTheme = theme;
@@ -139,22 +153,22 @@
 
   onMount(() => {
     const settings = app.settings;
-    const settingsTheme = app.theme;
+    const initial = look;
     terminal = new Terminal({
       convertEol: false,
       cursorBlink: settings.cursorBlink,
-      cursorStyle: settings.cursorStyle,
+      cursorStyle: initial?.cursorStyle ?? settings.cursorStyle,
       // A pane that is not focused keeps an outline, so it is clear where the keyboard is not.
       cursorInactiveStyle: "outline",
       fontFamily: fontFamily(),
-      fontSize: settings.fontSize,
+      fontSize: initial?.fontSize ?? settings.fontSize,
       fontWeight: 400,
       fontWeightBold: 600,
       lineHeight: settings.lineHeight,
       letterSpacing: settings.letterSpacing,
       scrollback: settings.scrollbackLines,
       allowTransparency: app.translucent,
-      theme: settingsTheme ? xtermTheme(settingsTheme, app.translucent) : undefined,
+      theme: initial ? xtermTheme(initial.theme, app.translucent) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.
       allowProposedApi: true,
       // OSC 8 hyperlinks (`ls --hyperlink`, many CLIs): http and https only.
@@ -362,7 +376,10 @@
 </script>
 
 <!-- FitAddon measures the parent's border box, so the padding lives one level up. -->
-<div class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-window px-3 pb-2 pt-1">
+<div
+  class="relative flex min-h-0 min-w-0 flex-1 flex-col px-3 pb-2 pt-1 {surface ? '' : 'bg-window'}"
+  style:background-color={surface}
+>
   <div bind:this={container} class="termzip-terminal min-h-0 flex-1"></div>
   {#if pane.searchOpen && search}
     <SearchBar {pane} addon={search} />
