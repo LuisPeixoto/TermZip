@@ -4,21 +4,34 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-27
+
+First release: a usable terminal with command blocks.
+
 ### Added
 
 - Desktop interface rebuilt on Tauri 2, Svelte 5, Tailwind 4, and xterm.js with a zinc & blue design system.
-- Bottom-anchored command composer with multiline input and local history.
+- The terminal is the only input: type straight into your shell, so its line editor, history, completion, and
+  keybindings work unchanged.
+- Application shortcuts that never steal shell keys: ⌘B / ⌘R / ⌘, on macOS and Ctrl+Shift+B / Ctrl+Shift+R / Ctrl+,
+  on Windows and Linux, shown in the status bar and the tooltips.
+- `TERMZIP_HOME` moves the data folder (settings and shell-integration scripts).
+- A settings file that cannot be read is kept as `config.toml.invalid` instead of being overwritten, and saves are
+  atomic.
+- One ordered channel per shell session carries output, blocks, and the exit, so the first prompt is never drawn twice
+  and the exit is always reported.
+- A troubleshooting guide, a documentation table in the README, and design notes in `SECURITY.md`.
 - Shell integration (OSC 133 + private 1337 markers) for zsh, bash, fish, and PowerShell with a bundled script per
   shell, injected without touching user configuration.
 - Command blocks with command text, exit code, duration, working directory, ANSI-colored output preview, and copy /
-  re-run / output-copy actions.
+  re-run / output-copy actions. Re-run types the command into the shell and returns the keyboard to the terminal.
 - Full terminal canvas (xterm.js): keyboard encoding, bracketed paste, selection with clipboard shortcuts, alternate
   screen, scrollback, mouse reporting, and resize on all platforms via PTY/ConPTY.
 - Preferences for theme, font size, font family, scrollback lines, shell path, and working directory, persisted with
-  validation and clamping.
+  validation and clamping. Theme, font, and scrollback apply to the running terminal as soon as they are saved.
 - New workspace crate `termzip-shell` (marker parser, block tracker, launch configuration) with unit tests.
-- GitHub Actions: desktop job (svelte-check, vitest, vite build, clippy), Tauri bundle release workflow, npm
-  Dependabot updates.
+- GitHub Actions: desktop job (svelte-check, vitest, vite build, shell tests, clippy, a debug application build), a
+  release workflow that checks the tag against the version and builds both macOS targets, npm Dependabot updates.
 
 ### Changed
 
