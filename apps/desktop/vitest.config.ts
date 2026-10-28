@@ -6,7 +6,10 @@ export default defineConfig({
   plugins: [svelte({ hot: false })],
   resolve: { conditions: ["browser"] },
   test: {
-    environment: "node",
+    // A DOM environment compiles what the tests import for the client. In the plain node
+    // environment `$effect` compiles to nothing, so a test of reactive code would pass without
+    // ever running its effects.
+    environment: "happy-dom",
     include: ["tests/**/*.spec.ts"],
   },
 });
