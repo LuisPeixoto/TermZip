@@ -7,6 +7,7 @@ import { toast } from "./toasts.svelte";
 export interface PaneController {
   restart(): void;
   focus(): void;
+  clearSelection(): void;
 }
 
 /** One shell and everything the interface shows about it. */
