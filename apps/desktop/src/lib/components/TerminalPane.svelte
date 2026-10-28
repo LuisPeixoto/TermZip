@@ -336,7 +336,7 @@
 
   function onCustomKey(event: KeyboardEvent): boolean {
     // Application shortcuts must not reach the shell (Ctrl+Shift+R would arrive as Ctrl+R).
-    if (matchShortcut(event, app.platform)) return false;
+    if (matchShortcut(event, app.platform, app.settings.keybindings)) return false;
     const meta = event.metaKey || (event.ctrlKey && event.shiftKey);
     if (!meta) return true;
 

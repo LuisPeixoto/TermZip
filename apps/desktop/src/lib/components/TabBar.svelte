@@ -3,7 +3,6 @@
   import { app } from "../stores/app.svelte";
   import { workspace } from "../stores/workspace.svelte";
   import { focusTerminal } from "../focus";
-  import { shortcutLabel } from "../shortcuts";
 
   let strip: HTMLDivElement | undefined = $state();
   let renaming = $state<string | null>(null);
@@ -155,7 +154,7 @@
   <button
     type="button"
     class="grid size-7 shrink-0 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg"
-    title="New tab ({shortcutLabel('newTab', app.platform)})"
+    title="New tab{app.hint('newTab')}"
     aria-label="New tab"
     onclick={() => {
       if (!workspace.newTab()) app.toast("warn", "That is the most tabs a window can hold");

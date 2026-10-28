@@ -7,7 +7,6 @@
   import ProfilesSection from "./preferences/ProfilesSection.svelte";
   import TerminalSection from "./preferences/TerminalSection.svelte";
   import { app } from "../stores/app.svelte";
-  import { shortcutLabel } from "../shortcuts";
   import { api, type Settings } from "../api";
   import { defaultSettings } from "../settings";
   import { workspace } from "../stores/workspace.svelte";
@@ -72,7 +71,7 @@
       app.closeSettings();
       app.toast(
         "ok",
-        `Preferences saved. Restart the shell (${shortcutLabel("restart", app.platform)}) to apply shell changes`,
+        `Preferences saved. Restart the shell${app.hint("restart")} to apply shell changes`,
       );
     } catch (error) {
       // The backend explains what is wrong with a profile in a sentence; show it where it can be read.
