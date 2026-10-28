@@ -8,8 +8,8 @@
   import SearchBar from "./SearchBar.svelte";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import "@xterm/xterm/css/xterm.css";
-  import { api, base64ToBytes, type SessionEvent } from "../api";
-  import { xtermTheme } from "../terminal/xtermTheme";
+  import { api, base64ToBytes, type SessionEvent, type Theme } from "../api";
+  import { xtermTheme } from "../theme";
   import { app } from "../stores/app.svelte";
   import { workspace } from "../stores/workspace.svelte";
   import type { Pane } from "../stores/pane.svelte";
@@ -43,7 +43,7 @@
   let fitAddon: FitAddon | undefined;
   let search: SearchAddon | undefined = $state.raw();
   let webgl: WebglAddon | undefined;
-  let appliedTheme = app.settings.theme;
+  let appliedTheme = app.theme;
   // Where a link is being hovered, for the "⌘+click to open" hint.
   let hint = $state.raw<{ x: number; y: number } | null>(null);
   let disposed = false;
@@ -71,16 +71,15 @@
   });
 
   $effect(() => {
-    const theme = app.settings.theme;
-    if (!terminal || theme === appliedTheme) return;
+    const theme = app.theme;
+    if (!terminal || !theme || theme === appliedTheme) return;
     appliedTheme = theme;
-    // The theme tokens are written to the document by the store; read them on the next frame.
-    requestAnimationFrame(() => applyTerminalTheme());
+    applyTerminalTheme(theme);
   });
 
-  function applyTerminalTheme(): void {
+  function applyTerminalTheme(theme: Theme): void {
     if (!terminal) return;
-    terminal.options.theme = xtermTheme();
+    terminal.options.theme = xtermTheme(theme);
     // The WebGL renderer keeps its clear color, so rebuild it on theme changes
     // while leaving the terminal buffer untouched.
     if (webgl) {
@@ -132,6 +131,7 @@
 
   onMount(() => {
     const settings = app.settings;
+    const settingsTheme = app.theme;
     terminal = new Terminal({
       convertEol: false,
       cursorBlink: true,
@@ -142,7 +142,7 @@
       lineHeight: 1.3,
       letterSpacing: 0,
       scrollback: settings.scrollbackLines,
-      theme: xtermTheme(),
+      theme: settingsTheme ? xtermTheme(settingsTheme) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.
       allowProposedApi: true,
       // OSC 8 hyperlinks (`ls --hyperlink`, many CLIs): http and https only.

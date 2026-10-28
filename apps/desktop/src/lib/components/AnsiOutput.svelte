@@ -1,18 +1,12 @@
 <script lang="ts">
-  import { ansiToSpans, type AnsiPalette } from "../ansi";
-  import { getAnsiPalette } from "../terminal/xtermTheme";
+  import { ansiToSpans, DEFAULT_PALETTE } from "../ansi";
+  import { ansiPalette } from "../theme";
   import { app } from "../stores/app.svelte";
 
   let { output, maxHeight = 260 }: { output: string; maxHeight?: number } = $props();
 
-  let palette = $state<AnsiPalette>(getAnsiPalette());
-
-  $effect(() => {
-    // Re-read CSS variables on theme changes.
-    app.settings.theme;
-    palette = getAnsiPalette();
-  });
-
+  // Follows the theme in use; the built-in palette only covers the moment before themes have loaded.
+  let palette = $derived(app.theme ? ansiPalette(app.theme) : DEFAULT_PALETTE);
   let spans = $derived(ansiToSpans(output ?? "", palette));
 </script>
 
