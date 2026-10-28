@@ -2,7 +2,7 @@ import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
 import { focusTerminal } from "../focus";
 import { defaultSettings } from "../settings";
-import { applyTheme, resolveTheme } from "../theme";
+import { applyTheme, resolveTheme, type ThemeChoice } from "../theme";
 import { currentToasts, toast, type Toast } from "./toasts.svelte";
 import { themes } from "./themes.svelte";
 
@@ -17,13 +17,21 @@ function createAppStore() {
   let ready = $state(false);
   let shells = $state<ShellOption[]>([]);
 
+  // While the preferences are open, the choices of the dialog are shown before they are saved.
+  let preview = $state.raw<ThemeChoice | null>(null);
+
   // The theme in use: the one chosen for the current appearance, or TermZip's own when it is gone.
-  const theme = $derived(resolveTheme(themes.entries, settings));
+  const theme = $derived(resolveTheme(themes.entries, preview ?? settings));
 
   /** Paints the window with the theme in use. */
   function paint(): void {
     if (theme) applyTheme(theme);
   }
+
+  // Whatever changes the theme in use (a save, the toggle, a preview, a deleted theme) repaints the window.
+  $effect.root(() => {
+    $effect(paint);
+  });
 
   async function init(): Promise<void> {
     const [loaded, info, detected] = await Promise.all([
@@ -100,6 +108,10 @@ function createAppStore() {
     init,
     toggleTheme,
     updateSettings,
+    /** Shows these theme choices as if they were saved; `null` goes back to the saved ones. */
+    previewTheme(choice: ThemeChoice | null) {
+      preview = choice;
+    },
     toast,
     toggleBlocks() {
       blocksOpen = !blocksOpen;

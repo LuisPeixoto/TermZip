@@ -5,7 +5,9 @@ import {
   chromeTokens,
   contrast,
   cssColor,
+  describeCredit,
   ensureContrast,
+  groupThemes,
   mix,
   parseColor,
   resolveTheme,
@@ -186,5 +188,26 @@ describe("choosing the theme in use", () => {
 
   it("has nothing to offer before the gallery has loaded", () => {
     expect(resolveTheme([], settings)).toBeNull();
+  });
+});
+
+describe("the gallery", () => {
+  const all = builtInThemes().map((theme) => entry(theme));
+
+  it("splits the themes by appearance and keeps the order it was given", () => {
+    const { dark, light } = groupThemes(all);
+
+    expect(dark.length + light.length).toBe(all.length);
+    expect(dark.every((item) => item.theme.appearance === "dark")).toBe(true);
+    expect(light.every((item) => item.theme.appearance === "light")).toBe(true);
+    const ids = all.map((item) => item.theme.id);
+    expect(dark.map((item) => item.theme.id)).toEqual(ids.filter((id) => dark.some((d) => d.theme.id === id)));
+  });
+
+  it("credits the author and the license, and copes with a theme that has neither", () => {
+    expect(describeCredit(builtIn("dracula"))).toBe("Zeno Rocha and the Dracula Theme contributors · MIT");
+    const imported = { ...builtIn("nord"), author: undefined, license: undefined };
+    expect(describeCredit(imported)).toBe("");
+    expect(describeCredit({ ...imported, license: "MIT" })).toBe("MIT");
   });
 });
