@@ -3673,7 +3673,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dirs 6.0.0",
  "plist",
@@ -3685,7 +3685,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3703,7 +3703,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-pty"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "portable-pty",
@@ -3712,7 +3712,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-shell"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "serde",
