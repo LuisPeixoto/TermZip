@@ -13,6 +13,10 @@ real hardware.
 | bash integration (PTY test) | ✅ local + CI | n/a | ✅ CI |
 | Session stream tests (`cargo test -p termzip-desktop`) | ✅ local + CI | n/a (Unix shells) | ✅ CI |
 | Manual interactive validation | ✅ typing, blocks, themes, shortcuts, restart, preferences, tabs, splits, restore, profiles, find, filter, links (validation) | ⏳ pending | ⏳ pending |
+| Themes: switching, previewing, importing an iTerm2 file in the native dialog | ✅ manual validation | ⏳ pending | ⏳ pending |
+| Theme importers (real Dracula and Catppuccin files in every format, hostile input) | ✅ local + CI | ✅ CI | ✅ CI |
+| Translucent window and blur | ✅ vibrancy, manual validation | ⏳ acrylic, pending | ⏳ transparency, pending |
+| Shortcut editor and command palette | ✅ manual validation | ⏳ pending | ⏳ pending |
 | vim / top / tmux / SSH | ⏳ pending | ⏳ pending | ⏳ pending |
 | Packaged installer | ✅ debug app build (no bundle) | ⏳ release workflow | ⏳ release workflow |
 
