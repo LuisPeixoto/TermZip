@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::ThemeKind;
+use crate::profile::{
+    DEFAULT_PROFILE_ID, LaunchProfile, Profile, normalize_profiles, validate_profiles,
+};
 
 pub const DEFAULT_FONT_SIZE: f32 = 14.0;
 pub const DEFAULT_SCROLLBACK_LINES: usize = 10_000;
@@ -25,8 +28,16 @@ pub struct Settings {
     pub font_size: f32,
     pub font_family: Option<String>,
     pub scrollback_lines: usize,
+    /// The shell of the built-in Default profile.
     pub shell: Option<String>,
+    /// The working directory of the built-in Default profile.
     pub working_directory: Option<String>,
+    /// Reopen the tabs, splits and folders of the last run.
+    pub restore_session: bool,
+    /// The profile a new tab starts with; `None` is the built-in one.
+    pub default_profile: Option<String>,
+    /// Kept last: TOML writes arrays of tables after the plain values.
+    pub profiles: Vec<Profile>,
 }
 
 impl Default for Settings {
@@ -38,6 +49,9 @@ impl Default for Settings {
             scrollback_lines: DEFAULT_SCROLLBACK_LINES,
             shell: None,
             working_directory: None,
+            restore_session: true,
+            default_profile: None,
+            profiles: Vec::new(),
         }
     }
 }
@@ -93,7 +107,44 @@ impl Settings {
             .working_directory
             .map(|directory| directory.trim().to_owned())
             .filter(|directory| !directory.is_empty());
+        self.profiles = normalize_profiles(self.profiles);
+        let known: Vec<&str> = self.profiles.iter().map(|p| p.id.as_str()).collect();
+        self.default_profile = self
+            .default_profile
+            .take()
+            .filter(|id| known.contains(&id.as_str()));
         self
+    }
+
+    /// Problems that deserve an explanation instead of a silent clean-up, as a sentence to show.
+    pub fn validate(&self) -> Result<(), String> {
+        validate_profiles(&self.profiles)
+    }
+
+    /// What a new session starts with. `requested` is a profile id; an unknown or missing one falls
+    /// back to the default profile, and anything a profile leaves empty comes from the built-in one.
+    pub fn launch_profile(&self, requested: Option<&str>) -> LaunchProfile {
+        let find = |id: &str| self.profiles.iter().find(|profile| profile.id == id);
+        let chosen = requested
+            .and_then(find)
+            .or_else(|| self.default_profile.as_deref().and_then(find));
+        match chosen {
+            Some(profile) => LaunchProfile {
+                id: profile.id.clone(),
+                shell: profile.shell.clone().or_else(|| self.shell.clone()),
+                working_directory: profile
+                    .working_directory
+                    .clone()
+                    .or_else(|| self.working_directory.clone()),
+                env: profile.env.clone(),
+            },
+            None => LaunchProfile {
+                id: DEFAULT_PROFILE_ID.to_owned(),
+                shell: self.shell.clone(),
+                working_directory: self.working_directory.clone(),
+                env: Default::default(),
+            },
+        }
     }
 
     pub fn save(&self) -> Result<(), SettingsError> {
@@ -212,7 +263,7 @@ mod tests {
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
 
-    use super::{DEFAULT_FONT_SIZE, MAX_SCROLLBACK_LINES, Settings, data_dir_with};
+    use super::{DEFAULT_FONT_SIZE, MAX_SCROLLBACK_LINES, Profile, Settings, data_dir_with};
 
     fn temp_dir(name: &str) -> PathBuf {
         let dir =
@@ -337,5 +388,96 @@ mod tests {
         assert_eq!(Settings::load_from(&path).unwrap(), Settings::default());
         assert!(!path.exists());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn profile(name: &str) -> Profile {
+        Profile {
+            name: name.to_owned(),
+            ..Profile::default()
+        }
+    }
+
+    #[test]
+    fn a_config_from_0_1_loads_with_the_new_fields_defaulted() {
+        let settings =
+            Settings::from_toml("theme = 'light'\nfont_size = 16.0\nshell = '/bin/zsh'\n");
+
+        assert_eq!(settings.theme, crate::ThemeKind::Light);
+        assert!(settings.restore_session);
+        assert!(settings.profiles.is_empty());
+        assert_eq!(settings.default_profile, None);
+    }
+
+    #[test]
+    fn profiles_survive_a_round_trip_through_toml() {
+        let mut work = profile("Work");
+        work.shell = Some("/bin/bash".to_owned());
+        work.env.insert("AWS_PROFILE".to_owned(), "work".to_owned());
+        let settings = Settings {
+            shell: Some("/bin/zsh".to_owned()),
+            default_profile: Some("work".to_owned()),
+            profiles: vec![work, profile("Scratch")],
+            ..Settings::default()
+        }
+        .normalized();
+
+        let text = toml::to_string_pretty(&settings).expect("profiles must serialize");
+        assert!(
+            text.contains("[[profiles]]") && text.contains("[profiles.env]"),
+            "{text}"
+        );
+        assert_eq!(Settings::from_toml(&text), settings);
+    }
+
+    #[test]
+    fn a_default_profile_that_does_not_exist_is_forgotten() {
+        let settings = Settings {
+            default_profile: Some("ghost".to_owned()),
+            profiles: vec![profile("Work")],
+            ..Settings::default()
+        }
+        .normalized();
+        assert_eq!(settings.default_profile, None);
+    }
+
+    #[test]
+    fn a_new_session_resolves_its_profile_against_the_settings() {
+        let mut work = profile("Work");
+        work.working_directory = Some("/srv/work".to_owned());
+        work.env.insert("MODE".to_owned(), "work".to_owned());
+        let settings = Settings {
+            shell: Some("/bin/zsh".to_owned()),
+            working_directory: Some("/home/me".to_owned()),
+            default_profile: Some("work".to_owned()),
+            profiles: vec![work, profile("Plain")],
+            ..Settings::default()
+        }
+        .normalized();
+
+        // The default profile applies when nothing is requested, and fills in what it leaves empty.
+        let by_default = settings.launch_profile(None);
+        assert_eq!(by_default.id, "work");
+        assert_eq!(by_default.shell.as_deref(), Some("/bin/zsh"));
+        assert_eq!(by_default.working_directory.as_deref(), Some("/srv/work"));
+        assert_eq!(by_default.env.get("MODE").map(String::as_str), Some("work"));
+
+        // A profile that sets nothing inherits everything from the built-in one.
+        let plain = settings.launch_profile(Some("plain"));
+        assert_eq!(plain.working_directory.as_deref(), Some("/home/me"));
+        assert!(plain.env.is_empty());
+
+        // An unknown id falls back to the default profile instead of failing the new tab.
+        assert_eq!(settings.launch_profile(Some("ghost")).id, "work");
+    }
+
+    #[test]
+    fn without_profiles_the_built_in_one_is_used() {
+        let settings = Settings {
+            shell: Some("/bin/fish".to_owned()),
+            ..Settings::default()
+        };
+        let launch = settings.launch_profile(Some("anything"));
+        assert_eq!(launch.id, "default");
+        assert_eq!(launch.shell.as_deref(), Some("/bin/fish"));
     }
 }
