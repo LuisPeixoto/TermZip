@@ -82,11 +82,19 @@
     function onFocusRequest() {
       terminal?.focus();
     }
+    // Coming back to the app must not leave the keyboard on nothing: type first, click never.
+    function onWindowFocus() {
+      const active = document.activeElement;
+      if (app.settingsOpen || (active && active !== document.body)) return;
+      terminal?.focus();
+    }
     window.addEventListener("termzip:restart", onRestart);
     window.addEventListener("termzip:focus-terminal", onFocusRequest);
+    window.addEventListener("focus", onWindowFocus);
     return () => {
       window.removeEventListener("termzip:restart", onRestart);
       window.removeEventListener("termzip:focus-terminal", onFocusRequest);
+      window.removeEventListener("focus", onWindowFocus);
     };
   });
 
