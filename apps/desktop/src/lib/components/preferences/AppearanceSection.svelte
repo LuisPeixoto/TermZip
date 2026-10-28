@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { Settings } from "../../api";
   import ThemeGallery from "./ThemeGallery.svelte";
-  import { heading } from "./styles";
+  import { app } from "../../stores/app.svelte";
+  import { LIMITS } from "../../settings";
+  import { heading, hint } from "./styles";
 
   let { draft = $bindable() }: { draft: Settings } = $props();
 </script>
@@ -26,6 +28,36 @@
         </button>
       {/each}
     </div>
+  </section>
+
+  <section>
+    <label for="pref-opacity" class={heading}>
+      Window opacity · <span class="text-fg">{Math.round(draft.backgroundOpacity * 100)}%</span>
+    </label>
+    <input
+      id="pref-opacity"
+      type="range"
+      min={LIMITS.backgroundOpacity.min}
+      max={LIMITS.backgroundOpacity.max}
+      step="0.05"
+      bind:value={draft.backgroundOpacity}
+      class="w-full accent-accent"
+    />
+    {#if app.blurSupported}
+      <label class="mt-2.5 flex items-center gap-2.5 text-[12px]">
+        <input
+          type="checkbox"
+          bind:checked={draft.backgroundBlur}
+          disabled={draft.backgroundOpacity >= 1}
+          class="size-3.5 accent-accent"
+        />
+        <span class="font-medium text-fg">Blur what shows through</span>
+      </label>
+    {:else if draft.backgroundOpacity < 1}
+      <p class={hint}>
+        The desktop shows through if your window manager composites windows. Blur is not available on this system.
+      </p>
+    {/if}
   </section>
 
   <section>
