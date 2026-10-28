@@ -58,11 +58,17 @@ Binary inspection does not establish runtime performance or reconstruct propriet
   terminal, and a virtual list of blocks. See [performance](performance.md).
 - Keyboard customization moved to Phase 4, where the shortcut editor lives.
 
-## 📋 Phase 4: Personalization · v0.3
+## ✅ Phase 4: Personalization · v0.3
 
-- [ ] Theme import/export and a gallery of audited themes.
-- [ ] Cursor styles, opacity, spacing, per-profile shell settings.
-- [ ] A complete keyboard shortcut editor (customization moved here from Phase 3) and a discoverable command palette.
+- ✅ Themes recolor the whole window: twelve audited built-in themes with their authors and licenses, and import from
+  TermZip, iTerm2, Windows Terminal, Ghostty, Kitty, and Alacritty files plus export to TermZip's format. See
+  [themes](themes.md).
+- ✅ Cursor style and blink, line height, letter spacing, a translucent window with native blur (vibrancy on macOS,
+  acrylic on Windows), and a look of its own per profile. See [appearance](appearance.md).
+- ✅ A complete shortcut editor (record, conflicts, warnings for keys a shell uses, reset) and a command palette over
+  actions, tabs, profiles, and themes. See [keyboard](keyboard.md).
+- [ ] Manual Windows/Linux validation of the translucent window and the new dialogs; tracked as validation debt for
+  Phase 7.
 
 ## 📋 Phase 5: Extensions · v0.4
 
@@ -82,3 +88,12 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - [ ] Broad cross-platform terminal conformance and accessibility testing.
 - [ ] Signed/notarized installers, package-manager distribution, update policy, and release checksums.
 - [ ] Plugin threat model, permissions, and security audit.
+
+## Ideas
+
+Not planned yet; they move into a phase when someone needs them.
+
+- Follow the system's light and dark appearance automatically.
+- A theme editor inside TermZip, instead of export, edit, import.
+- Shortcuts per profile, and multi-step (chord sequence) shortcuts.
+- Persist the recently used commands of the palette between launches.

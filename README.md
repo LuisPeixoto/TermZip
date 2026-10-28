@@ -23,6 +23,8 @@
   <a href="docs/roadmap.md">Roadmap</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/tabs-and-panes.md">Tabs and panes</a> ·
+  <a href="docs/themes.md">Themes</a> ·
+  <a href="docs/keyboard.md">Keyboard</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/shell-integration.md">Shell integration</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a> ·
@@ -52,7 +54,14 @@ run again. Tabs and split panes keep several shells in one window, and your layo
   with selection, clipboard, bracketed paste, and resize.
 - **Private by design.** No accounts, no telemetry, no cloud. Terminal contents never leave your machine.
 - **Rust core, native shell.** Sessions run in a real PTY via a small Rust engine; the interface is a fast Tauri app.
-- **Zinc & blue.** A calm, high-contrast visual system with complete dark and light themes.
+- **Themes you can bring.** Twelve audited themes (Catppuccin, Dracula, Nord, Gruvbox, Tokyo Night, One Dark, Rosé
+  Pine and TermZip's own) recolor the whole window, and iTerm2, Windows Terminal, Ghostty, Kitty and Alacritty themes
+  import as they are.
+- **Yours to shape.** Cursor, line height, letter spacing, a translucent window with native blur, and a look of its
+  own for each profile.
+- **Every shortcut is yours.** Rebind any of them in Preferences, with a warning before you take a key your shell
+  uses, and find anything with the command palette (⇧⌘P).
+- **Zinc & blue by default.** A calm, high-contrast visual system with complete dark and light themes.
 
 ## Screenshots
 
@@ -108,6 +117,7 @@ See [docs/shell-integration.md](docs/shell-integration.md) and
 | Move between panes | ⌥⌘ + arrow | Ctrl+Alt + arrow |
 | Next / previous tab | ⇧⌘] / ⇧⌘[ | Ctrl+Tab / Ctrl+Shift+Tab |
 | Go to tab 1 to 9 | ⌘1 … ⌘9 | Ctrl+Shift+1 … 9 |
+| Command palette | ⇧⌘P | Ctrl+Shift+P |
 | Find in the terminal | ⌘F | Ctrl+Shift+F |
 | Toggle the blocks rail | ⌘B | Ctrl+Shift+B |
 | Restart the shell | ⌘R | Ctrl+Shift+R |
@@ -115,7 +125,8 @@ See [docs/shell-integration.md](docs/shell-integration.md) and
 | Copy / paste / select all in the terminal | ⌘C / ⌘V / ⌘A | Ctrl+Shift+C / V / A |
 
 On Windows and Linux the application shortcuts use Ctrl+Shift, so plain Ctrl+R (reverse search), Ctrl+B and the other
-Ctrl keys always reach your shell. Ctrl+C still interrupts the running command.
+Ctrl keys always reach your shell. Ctrl+C still interrupts the running command. Every shortcut can be changed in
+**Preferences → Keyboard** (see [keyboard](docs/keyboard.md)).
 
 ## Documentation
 
@@ -125,6 +136,9 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command.
 | [Tabs and panes](docs/tabs-and-panes.md) | Tabs, splits, focus, the layout tree, and the limits. |
 | [Search and filter](docs/search-and-filter.md) | Find in the terminal and filter the blocks. |
 | [Links](docs/links.md) | What is recognized, what opens, and why a click never starts a program. |
+| [Themes](docs/themes.md) | The gallery and its credits, importing and exporting, the theme file, and how the interface colors are derived. |
+| [Appearance](docs/appearance.md) | Cursor, spacing, window opacity and blur on each system, and per-profile looks. |
+| [Keyboard and command palette](docs/keyboard.md) | Every default shortcut, the editor, `[keybindings]`, and what the palette lists. |
 | [Profiles and restore](docs/profiles-and-restore.md) | Shell, folder, and environment per profile; what is saved between launches. |
 | [Performance and limits](docs/performance.md) | Flow control for floods of output, block events, and every bound. |
 | [Shell integration](docs/shell-integration.md) | The OSC 133 markers, supported shells, and the limits of block capture. |

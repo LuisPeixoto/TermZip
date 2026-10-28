@@ -4,6 +4,37 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-28
+
+Personalization: themes you can bring, a terminal and a window you can shape, and every shortcut yours.
+
+### Added
+
+- Themes recolor the whole window, not only the terminal: twelve built-in themes (TermZip Dark and Light, Catppuccin
+  Mocha and Latte, Dracula, Nord, Gruvbox Dark and Light, Tokyo Night, One Dark, Rosé Pine and Rosé Pine Dawn) with their
+  authors and licenses, a gallery with a preview of each, and one theme remembered per appearance. Choosing one shows
+  it at once; Cancel puts the saved one back.
+- Import themes from TermZip, iTerm2 (`.itermcolors`), Windows Terminal (JSON), Ghostty, Kitty, and Alacritty files,
+  export any theme as a small TOML file, and keep your own in the `themes/` folder. A file that cannot be used is
+  explained in a sentence and never stops TermZip.
+- Cursor style (block, bar, underline) and blink, line height, and letter spacing, with a live sample.
+- A translucent window: an opacity slider from 50 to 100 % with the system's blur behind it on macOS and Windows.
+- A profile can have its own terminal theme, font size, font family, and cursor.
+- A shortcut editor in Preferences → Keyboard: press Record and the keys, see which action lost the chord and which
+  keys a shell uses, reset one or all. Shortcuts are saved as `[keybindings]` in `config.toml`.
+- A command palette (⇧⌘P, Ctrl+Shift+P): fuzzy search over every action with its shortcut, each tab, a new tab per
+  profile, every theme, and the appearance and blur switches.
+- Guides: themes, appearance, and keyboard and the command palette.
+
+### Changed
+
+- Preferences are organized in sections (General, Appearance, Terminal, Keyboard, Profiles) in a wider dialog.
+- The window is created transparent. It paints itself opaque unless you lower the opacity, so nothing changes for
+  existing settings.
+- On macOS the translucent window uses Tauri's private API, which rules out the Mac App Store.
+- Every tooltip and hint shows the shortcut you set, and an action without a shortcut shows none.
+- A hand-edited `config.toml` from 0.2 loads exactly as before: every new key has a default.
+
 ## [0.2.0] - 2026-10-28
 
 Everyday productivity: tabs, split panes, search, links, profiles, and a layout that comes back.
