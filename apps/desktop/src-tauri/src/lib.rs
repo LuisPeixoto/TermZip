@@ -8,8 +8,35 @@ mod sessions;
 use sessions::Sessions;
 use tauri::Manager;
 
+/// The default macOS menu without "Close Window". A menu accelerator is handled by the system before
+/// the page sees the key, so ⌘W would close the whole window; the app uses ⌘W to close a pane or a
+/// tab. The window still closes with the red button.
+#[cfg(target_os = "macos")]
+fn app_menu(handle: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{Menu, MenuItemKind};
+
+    let menu = Menu::default(handle)?;
+    for item in menu.items()? {
+        let MenuItemKind::Submenu(submenu) = item else {
+            continue;
+        };
+        for entry in submenu.items()? {
+            if let MenuItemKind::Predefined(predefined) = &entry
+                && predefined.text()?.eq_ignore_ascii_case("close window")
+            {
+                submenu.remove(&entry)?;
+            }
+        }
+    }
+    Ok(menu)
+}
+
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder.menu(app_menu);
+
+    builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Sessions::default())
         .invoke_handler(tauri::generate_handler![
