@@ -64,6 +64,47 @@ Font). Install one and set it as **Font family** in Preferences.
 
 There is no context menu yet. Copy with ⌘C (Ctrl+Shift+C on Windows and Linux) and paste with ⌘V (Ctrl+Shift+V).
 
+## ⌘W closes a pane, not the window
+
+That is intended: ⌘W (Ctrl+Shift+W elsewhere) closes the active pane, and the last pane closes the tab. The window
+closes with the red button, and ⌘Q quits. On macOS the menu's **Close Window** item is removed, because a menu
+accelerator is handled before the page sees the key.
+
+## A tab or a split cannot be added
+
+A window holds at most 32 tabs, a tab at most 16 panes, and splits nest at most 8 levels. Close something first. The
+same limits apply to the saved layout. See [tabs and panes](tabs-and-panes.md#limits).
+
+## The last session did not come back as it was
+
+TermZip restores the **layout** (tabs, names, splits, profiles, folders), not what was running: the shells are new, and
+the scrollback and the blocks are not saved. A folder that no longer exists falls back to the profile's folder. If
+nothing came back at all, **Restore tabs and folders on launch** may be off in Preferences, or `workspace.json` was
+unreadable and kept as `workspace.json.invalid`. See [profiles and restore](profiles-and-restore.md#session-restore).
+
+## A profile's variable is not in my shell
+
+Variables reach **new** shells only, so open a new tab with the profile (the caret next to **+**) instead of expecting
+a shell that was already running to change. Names TermZip manages (`TERM`, `ZDOTDIR`, `TERMZIP_…`) cannot be set, and
+Preferences say so when you save.
+
+## A link does nothing when I click it
+
+Opening needs **⌘+click** (Ctrl+click on Windows and Linux); a plain click only selects. A file must exist (a relative
+path is looked up in the folder of the pane), and a program is never started by a click: its folder is opened
+instead. A refusal shows as a message. See [links](links.md).
+
+## Find shows fewer matches than I expect
+
+Find searches what the pane still holds, so it stops at the **scrollback** setting (1,000 to 200,000 lines), and it
+marks at most 1,000 matches (`1000+ matches`). The block filter only looks at the last 200 blocks of the pane.
+
+## A command prints a lot and the screen lags behind
+
+The terminal slows the shell down on purpose when it has 1 MiB of output it has not drawn yet, so the screen stays
+close to what the program has done and Ctrl+C stops it. If the lag is large the page may be busy; see
+[performance](performance.md).
+
 ## Linux: the app does not build or start
 
 TermZip needs the WebKitGTK packages: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, and `librsvg2-dev` to build,
