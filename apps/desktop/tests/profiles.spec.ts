@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "../src/lib/api";
-import { describeProfile, formatEnv, parseEnv, slug, uniqueProfileId } from "../src/lib/profiles";
+import { describeProfile, formatEnv, parseEnv, parseFontSize, slug, uniqueProfileId } from "../src/lib/profiles";
 
 /** The message parseEnv gives for text it refuses. */
 function errorOf(text: string): string {
@@ -66,5 +66,40 @@ describe("describeProfile", () => {
       "/bin/bash · /srv · 1 variable",
     );
     expect(describeProfile({ ...base, env: { A: "1", B: "2" } })).toBe("2 variables");
+  });
+});
+
+describe("a profile's look", () => {
+  const base: Profile = { id: "x", name: "X", shell: null, workingDirectory: null, env: {} };
+
+  it("reads the font size field: empty inherits, otherwise a whole number in range", () => {
+    expect(parseFontSize("")).toEqual({ size: null });
+    expect(parseFontSize("  ")).toEqual({ size: null });
+    expect(parseFontSize("16")).toEqual({ size: 16 });
+    expect(parseFontSize(" 10 ")).toEqual({ size: 10 });
+    for (const bad of ["9", "29", "12.5", "big", "1e1", "-14"]) {
+      const result = parseFontSize(bad);
+      expect("error" in result, bad).toBe(true);
+    }
+  });
+
+  it("lists the look next to where the profile starts", () => {
+    const themes = new Map([["dracula", "Dracula"]]);
+    const styled: Profile = {
+      ...base,
+      theme: "dracula",
+      fontSize: 16,
+      fontFamily: "Fira Code",
+      cursorStyle: "bar",
+    };
+
+    expect(describeProfile(styled, themes)).toBe("Dracula · 16px · Fira Code · bar cursor");
+    expect(describeProfile({ ...styled, shell: "/bin/zsh" }, themes)).toBe(
+      "/bin/zsh · Dracula · 16px · Fira Code · bar cursor",
+    );
+  });
+
+  it("says so when the theme of a profile is gone", () => {
+    expect(describeProfile({ ...base, theme: "deleted" })).toBe("deleted (missing)");
   });
 });
