@@ -261,7 +261,9 @@
       void api.destroySession(sessionInfo.id).catch(() => {});
     }
     sessionInfo = null;
-    terminal?.clear();
+    // A full reset: clear() keeps the old prompt line, and the new shell then draws its own over it.
+    // It also drops modes the old shell left behind (alternate screen, mouse reporting).
+    terminal?.reset();
     void startSession();
   }
 </script>
