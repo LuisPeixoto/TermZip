@@ -145,3 +145,92 @@ describe("tab titles", () => {
     expect(tab.name).toHaveLength(64);
   });
 });
+
+describe("panes", () => {
+  it("splits the active pane into the same profile and folder, and gives it the keyboard", () => {
+    const first = store.activePane;
+    first.profileId = "work";
+    first.cwd = "/srv/app";
+
+    const second = store.splitActive("row");
+
+    expect(second).not.toBeNull();
+    expect(second!.profileId).toBe("work");
+    expect(second!.restoreDirectory).toBe("/srv/app");
+    expect(store.activePane).toBe(second);
+    expect(store.activeTab.paneList.map((p) => p.id)).toEqual([first.id, second!.id]);
+  });
+
+  it("keeps the existing pane objects when the layout changes, so their shells keep running", () => {
+    const tab = store.activeTab;
+    const first = tab.active;
+    store.splitActive("row");
+    store.splitActive("column");
+    expect(tab.pane(first.id)).toBe(first);
+    expect(tab.paneList).toContain(first);
+  });
+
+  it("stops at the pane limit", () => {
+    let made = 1;
+    while (store.splitActive(made % 2 ? "row" : "column") !== null) {
+      made += 1;
+      store.activeTab.focus(store.activeTab.paneList[0].id); // spread them out so only the count limits
+    }
+    expect(store.activeTab.paneList.length).toBeLessThanOrEqual(16);
+    expect(store.splitActive("row")).toBeNull();
+  });
+
+  it("closing a pane gives the keyboard to the one before it", () => {
+    const [a] = store.activeTab.paneList;
+    const b = store.splitActive("row")!;
+    const c = store.splitActive("row")!;
+
+    expect(store.activeTab.closePane(c.id)).toBe(true);
+    expect(store.activePane).toBe(b);
+    expect(store.activeTab.pane(c.id)).toBeUndefined();
+
+    expect(store.activeTab.closePane(a.id)).toBe(true);
+    expect(store.activePane).toBe(b);
+  });
+
+  it("closing the only pane of a tab closes the tab", () => {
+    const [first] = store.tabs;
+    const second = store.newTab();
+    expect(second.closePane(second.active.id)).toBe(false);
+
+    store.closeActivePane();
+    expect(store.tabs).toEqual([first]);
+  });
+
+  it("closing one of several panes leaves the tab open", () => {
+    store.splitActive("row");
+    const before = store.tabs.length;
+    store.closeActivePane();
+    expect(store.tabs).toHaveLength(before);
+    expect(store.activeTab.paneList).toHaveLength(1);
+  });
+
+  it("moves the keyboard to a neighbor by geometry and stops at the edge", () => {
+    const left = store.activePane;
+    const right = store.splitActive("row")!;
+    const below = store.splitActive("column")!;
+
+    expect(store.activeTab.focusSide("up")).toBe(true);
+    expect(store.activePane).toBe(right);
+    expect(store.activeTab.focusSide("left")).toBe(true);
+    expect(store.activePane).toBe(left);
+    expect(store.activeTab.focusSide("left")).toBe(false);
+    expect(store.activeTab.focusSide("right")).toBe(true);
+    expect([right, below]).toContain(store.activePane);
+  });
+
+  it("resizes a split within the allowed range", () => {
+    store.splitActive("row");
+    const layout = store.activeTab.layout;
+    if (layout.kind !== "split") throw new Error("expected a split");
+    store.activeTab.setRatio(layout.id, 0.7);
+    expect(store.activeTab.layout.kind === "split" && store.activeTab.layout.ratio).toBe(0.7);
+    store.activeTab.setRatio(layout.id, 5);
+    expect(store.activeTab.layout.kind === "split" && store.activeTab.layout.ratio).toBe(0.9);
+  });
+});

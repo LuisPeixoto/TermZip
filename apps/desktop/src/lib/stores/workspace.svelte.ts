@@ -1,5 +1,7 @@
 import { newId } from "../ids";
-import { leaf, leaves, type Layout } from "../layout";
+import type { SplitDirection } from "../api";
+import * as tree from "../layout";
+import { leaf, leaves, type Layout, type Side } from "../layout";
 import { basename } from "../paths";
 import { Pane } from "./pane.svelte";
 
@@ -37,6 +39,51 @@ export class Tab {
     });
   }
 
+  /**
+   * Puts a new pane beside the active one, in the same profile and folder, and gives it the keyboard.
+   * `null` when the tab is at its limit of panes or nesting.
+   */
+  split(direction: SplitDirection, before = false): Pane | null {
+    if (!tree.canSplit(this.layout, this.activePaneId)) return null;
+    const source = this.active;
+    const pane = new Pane(newId(), source.profileId, source.cwd);
+    this.panes.set(pane.id, pane);
+    this.layout = tree.split(this.layout, this.activePaneId, direction, pane.id, newId(), before);
+    this.activePaneId = pane.id;
+    return pane;
+  }
+
+  /** Closes a pane and gives its space to its sibling. `false` when it is the only pane. */
+  closePane(id: string): boolean {
+    const order = leaves(this.layout);
+    const index = order.indexOf(id);
+    if (index < 0 || order.length <= 1) return false;
+    const next = tree.close(this.layout, id);
+    if (!next) return false;
+    if (this.activePaneId === id) {
+      this.activePaneId = order[index - 1] ?? order[index + 1];
+    }
+    this.layout = next;
+    this.panes.delete(id);
+    return true;
+  }
+
+  focus(id: string): void {
+    if (this.panes.has(id)) this.activePaneId = id;
+  }
+
+  /** Moves the keyboard to the pane next to the active one. `false` at an edge. */
+  focusSide(side: Side): boolean {
+    const target = tree.neighbor(this.layout, this.activePaneId, side);
+    if (!target) return false;
+    this.activePaneId = target;
+    return true;
+  }
+
+  setRatio(splitId: string, ratio: number): void {
+    this.layout = tree.setRatio(this.layout, splitId, ratio);
+  }
+
   /** What the tab shows: its name, else the shell's title, else the folder, else the shell. */
   get title(): string {
     const pane = this.active;
@@ -60,6 +107,17 @@ export class WorkspaceStore {
   /** The pane that has the keyboard. */
   get activePane(): Pane {
     return this.activeTab.active;
+  }
+
+  /** Splits the active pane. `null` when the tab cannot hold another one. */
+  splitActive(direction: SplitDirection, before = false): Pane | null {
+    return this.activeTab.split(direction, before);
+  }
+
+  /** Closes the active pane; the last pane of a tab closes the tab. */
+  closeActivePane(): void {
+    const tab = this.activeTab;
+    if (!tab.closePane(tab.activePaneId)) this.closeTab(tab.id);
   }
 
   /**
