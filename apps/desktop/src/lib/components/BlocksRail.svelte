@@ -2,24 +2,21 @@
   import Icon from "./Icon.svelte";
   import AnsiOutput from "./AnsiOutput.svelte";
   import { app } from "../stores/app.svelte";
+  import { workspace } from "../stores/workspace.svelte";
+  import { basename } from "../paths";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { api, type Block } from "../api";
 
+  const pane = $derived(workspace.activePane);
   let copied = $state<string | null>(null);
   let expanded = $state<Set<number>>(new Set());
 
   // Block numbers start again with every shell, so what was expanded belongs to the old one.
   $effect(() => {
-    app.session?.id;
+    pane.id;
+    pane.session?.id;
     expanded = new Set();
   });
-
-  function basename(path: string | null): string | null {
-    if (!path) return null;
-    const trimmed = path.replace(/\/+$/, "");
-    const last = trimmed.split(/[\\/]/).pop();
-    return last || path;
-  }
 
   function formatDuration(ms: number | null): string | null {
     if (ms == null) return null;
@@ -52,16 +49,16 @@
   }
 
   async function rerun(command: string) {
-    if (await app.writeToShell(`${command}\r`)) {
+    if (await pane.write(`${command}\r`)) {
       window.dispatchEvent(new CustomEvent("termzip:focus-terminal"));
     }
   }
 
   async function refresh() {
-    const session = app.session;
+    const session = pane.session;
     if (!session) return;
     try {
-      app.setBlocks(await api.listBlocks(session.id));
+      pane.setBlocks(await api.listBlocks(session.id));
     } catch {
       /* the session may be gone */
     }
@@ -89,14 +86,14 @@
     </button>
   </div>
 
-  {#if app.blocks.length === 0}
+  {#if pane.blocks.length === 0}
     <div class="px-4 py-6 text-[11.5px] leading-relaxed text-faint">
       Run a command to create your first block. TermZip reads
       <span class="mono">OSC&nbsp;133</span> markers from zsh, bash, fish, and PowerShell.
     </div>
   {:else}
     <div class="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
-      {#each [...app.blocks].reverse() as block (block.index)}
+      {#each [...pane.blocks].reverse() as block (block.index)}
         <article
           class="rounded-lg border border-line bg-panel-2 transition-colors hover:border-line-strong"
         >

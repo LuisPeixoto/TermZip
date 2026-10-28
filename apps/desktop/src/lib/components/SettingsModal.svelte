@@ -3,7 +3,8 @@
   import Icon from "./Icon.svelte";
   import { app } from "../stores/app.svelte";
   import { shortcutLabel } from "../shortcuts";
-  import type { Settings } from "../api";
+  import { api, type Settings } from "../api";
+  import { workspace } from "../stores/workspace.svelte";
 
   let draft: Settings = $state({
     theme: "dark",
@@ -37,6 +38,9 @@
     saving = true;
     try {
       await app.updateSettings(draft);
+      // Turning restore off must also forget what was saved, so write once now: the backend deletes
+      // the file when restore is off and writes it when it is on.
+      void api.saveWorkspace(workspace.snapshot()).catch(() => {});
       app.closeSettings();
       app.toast(
         "ok",
@@ -137,6 +141,22 @@
             <option value={option}>{option.toLocaleString()} lines</option>
           {/each}
         </select>
+      </section>
+
+      <section>
+        <label class="flex items-start gap-2.5 text-[12px]">
+          <input
+            type="checkbox"
+            bind:checked={draft.restoreSession}
+            class="mt-0.5 size-3.5 accent-accent"
+          />
+          <span>
+            <span class="font-medium text-fg">Restore tabs and folders on launch</span>
+            <span class="mt-0.5 block text-[10.5px] text-faint">
+              Reopens your tabs, splits and the folder each shell was in. Terminal output is never saved.
+            </span>
+          </span>
+        </label>
       </section>
 
       <section>

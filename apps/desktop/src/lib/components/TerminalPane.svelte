@@ -5,11 +5,15 @@
   import { WebglAddon } from "@xterm/addon-webgl";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import "@xterm/xterm/css/xterm.css";
-  import { api, base64ToBytes, type SessionEvent, type SessionInfo } from "../api";
+  import { api, base64ToBytes, type SessionEvent } from "../api";
   import { xtermTheme } from "../terminal/xtermTheme";
   import { app } from "../stores/app.svelte";
+  import { workspace } from "../stores/workspace.svelte";
+  import type { Pane } from "../stores/pane.svelte";
   import { matchShortcut } from "../shortcuts";
   import { ACK_BATCH, AckBatcher } from "../flow";
+
+  let { pane }: { pane: Pane } = $props();
 
   const DEFAULT_FONT_FAMILY =
     '"JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace';
@@ -23,7 +27,6 @@
   let terminal: Terminal | undefined = $state.raw();
   let fitAddon: FitAddon | undefined;
   let webgl: WebglAddon | undefined;
-  let sessionInfo: SessionInfo | null = $state.raw(null);
   let appliedTheme = app.settings.theme;
   let disposed = false;
   // Each shell gets a number; events of an older shell (a restart is in flight) are ignored.
@@ -32,9 +35,9 @@
   const acks = new AckBatcher(
     ACK_BATCH,
     (bytes) => {
-      if (sessionInfo) void api.ackSession(sessionInfo.id, bytes).catch(() => {});
+      if (pane.session) void api.ackSession(pane.session.id, bytes).catch(() => {});
     },
-    () => sessionInfo !== null,
+    () => pane.session !== null,
   );
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
@@ -85,16 +88,18 @@
   }
 
   $effect(() => {
+    // These reach every pane; only the one that has the keyboard answers.
+    const isActive = () => workspace.activePane.id === pane.id;
     function onRestart() {
-      restartShell();
+      if (isActive()) restartShell();
     }
     function onFocusRequest() {
-      terminal?.focus();
+      if (isActive()) terminal?.focus();
     }
     // Coming back to the app must not leave the keyboard on nothing: type first, click never.
     function onWindowFocus() {
       const active = document.activeElement;
-      if (app.settingsOpen || (active && active !== document.body)) return;
+      if (!isActive() || app.settingsOpen || (active && active !== document.body)) return;
       terminal?.focus();
     }
     window.addEventListener("termzip:restart", onRestart);
@@ -137,9 +142,10 @@
     }
 
     fit();
+    pane.controller = { restart: restartShell, focus: () => terminal?.focus() };
     terminal.onData(onTerminalData);
     terminal.attachCustomKeyEventHandler(onCustomKey);
-    terminal.onTitleChange((title) => app.setTitle(title.trim() || null));
+    terminal.onTitleChange((title) => (pane.title = title.trim() || null));
 
     const observer = new ResizeObserver(() => fit());
     observer.observe(container!);
@@ -156,7 +162,8 @@
       observer.disconnect();
       window.removeEventListener("resize", onWindowResize);
       window.clearTimeout(fitTimer);
-      if (sessionInfo) void api.destroySession(sessionInfo.id).catch(() => {});
+      pane.controller = null;
+      if (pane.session) void api.destroySession(pane.session.id).catch(() => {});
       terminal?.dispose();
     };
   });
@@ -172,13 +179,13 @@
         break;
       }
       case "block":
-        app.addBlock(event.block);
+        pane.addBlock(event.block);
         break;
       case "cwd":
-        app.setCwd(event.path);
+        pane.cwd = event.path;
         break;
       case "exit":
-        app.markExited(event.code);
+        pane.markExited(event.code);
         app.toast(
           event.code === 0 ? "warn" : "err",
           `Shell exited${event.code != null ? ` with code ${event.code}` : ""}`,
@@ -191,7 +198,7 @@
     if (!terminal || disposed) return;
     const owner = ++generation;
     acks.reset();
-    app.beginSession();
+    pane.begin();
     fit();
     const rows = Math.max(terminal.rows, 10);
     const columns = Math.max(terminal.cols, 20);
@@ -201,6 +208,8 @@
         {
           rows,
           columns,
+          profileId: pane.profileId,
+          restoreDirectory: pane.restoreDirectory,
         },
         (event) => onSessionEvent(owner, event),
       );
@@ -209,8 +218,8 @@
         void api.destroySession(info.id).catch(() => {});
         return;
       }
-      sessionInfo = info;
-      app.setSession(info);
+      pane.restoreDirectory = null; // only the first start goes back to where the pane was
+      pane.setSession(info);
       acks.flush(); // output that arrived before the id was known
       if (!app.settingsOpen) terminal.focus();
     } catch (error) {
@@ -223,22 +232,24 @@
 
   function fit(): void {
     if (!terminal || !fitAddon || !container) return;
+    // A tab that is not shown has no size; fitting it would shrink its shell to a sliver.
+    if (container.clientWidth === 0 || container.clientHeight === 0) return;
     try {
       fitAddon.fit();
     } catch {
       return;
     }
-    app.setViewport({ rows: terminal.rows, columns: terminal.cols });
-    if (sessionInfo && terminal.rows > 0 && terminal.cols > 0) {
+    pane.viewport = { rows: terminal.rows, columns: terminal.cols };
+    if (pane.session && terminal.rows > 0 && terminal.cols > 0) {
       void api
-        .resizeSession(sessionInfo.id, terminal.rows, terminal.cols)
+        .resizeSession(pane.session.id, terminal.rows, terminal.cols)
         .catch(() => {});
     }
   }
 
   function onTerminalData(data: string): void {
-    if (!sessionInfo) return;
-    void api.writeSession(sessionInfo.id, new TextEncoder().encode(data)).catch((error) => {
+    if (!pane.session) return;
+    void api.writeSession(pane.session.id, new TextEncoder().encode(data)).catch((error) => {
       app.toast("err", `Write failed: ${error}`);
     });
   }
@@ -273,10 +284,10 @@
   }
 
   function restartShell(): void {
-    if (sessionInfo) {
-      void api.destroySession(sessionInfo.id).catch(() => {});
+    if (pane.session) {
+      void api.destroySession(pane.session.id).catch(() => {});
     }
-    sessionInfo = null;
+    pane.session = null;
     // A full reset: clear() keeps the old prompt line, and the new shell then draws its own over it.
     // It also drops modes the old shell left behind (alternate screen, mouse reporting).
     terminal?.reset();

@@ -1,19 +1,9 @@
-import type { Block, SessionInfo, Settings, ShellOption } from "../api";
+import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
-import { appendBlock } from "../blocks";
+import { focusTerminal } from "../focus";
+import { currentToasts, toast, type Toast } from "./toasts.svelte";
 
-export interface Toast {
-  id: number;
-  kind: "info" | "ok" | "warn" | "err";
-  message: string;
-}
-
-export interface Viewport {
-  rows: number;
-  columns: number;
-}
-
-let toastSequence = 0;
+export type { Toast };
 
 function createAppStore() {
   let settings = $state<Settings>({
@@ -27,20 +17,12 @@ function createAppStore() {
     defaultProfile: null,
     profiles: [],
   });
-  let session = $state<SessionInfo | null>(null);
-  let exited = $state(false);
-  let exitCode = $state<number | null>(null);
-  let blocks = $state<Block[]>([]);
   let blocksOpen = $state(true);
   let settingsOpen = $state(false);
-  let toasts = $state<Toast[]>([]);
-  let viewport = $state<Viewport>({ rows: 0, columns: 0 });
   let platform = $state("unknown");
   let version = $state("0.1.0");
   let ready = $state(false);
   let shells = $state<ShellOption[]>([]);
-  let title = $state<string | null>(null);
-  let cwd = $state<string | null>(null);
 
   function applyTheme(theme: Settings["theme"]): void {
     document.documentElement.dataset.theme = theme;
@@ -82,80 +64,15 @@ function createAppStore() {
     return settings;
   }
 
-  function toast(kind: Toast["kind"], message: string): void {
-    toastSequence += 1;
-    const entry: Toast = { id: toastSequence, kind, message };
-    toasts = [...toasts.slice(-3), entry];
-    window.setTimeout(() => {
-      toasts = toasts.filter((candidate) => candidate.id !== entry.id);
-    }, 2600);
-  }
-
-  /** Clears the state of the previous shell. Called before a new one opens, because its events can arrive first. */
-  function beginSession(): void {
-    session = null;
-    exited = false;
-    exitCode = null;
-    title = null;
-    cwd = null;
-    blocks = [];
-  }
-
-  function setSession(info: SessionInfo): void {
-    session = info;
-  }
-
-  /** Types text into the running shell, as if it had been entered in the terminal. */
-  async function writeToShell(text: string): Promise<boolean> {
-    if (!session) {
-      toast("warn", "The shell is not running yet");
-      return false;
-    }
-    if (exited) {
-      toast("err", "The shell has exited. Use Restart in the toolbar");
-      return false;
-    }
-    try {
-      await api.writeSession(session.id, new TextEncoder().encode(text));
-      return true;
-    } catch (error) {
-      toast("err", `Could not send the command: ${error}`);
-      return false;
-    }
-  }
-
-  function markExited(code: number | null): void {
-    exited = true;
-    exitCode = code;
-  }
-
   function setSettingsOpen(open: boolean): void {
     settingsOpen = open;
     // The modal held the keyboard; give it back to the terminal once the modal is gone.
-    if (!open) {
-      requestAnimationFrame(() => window.dispatchEvent(new CustomEvent("termzip:focus-terminal")));
-    }
-  }
-
-  function setViewport(next: Viewport): void {
-    viewport = next;
+    if (!open) focusTerminal();
   }
 
   return {
     get settings() {
       return settings;
-    },
-    get session() {
-      return session;
-    },
-    get exited() {
-      return exited;
-    },
-    get exitCode() {
-      return exitCode;
-    },
-    get blocks() {
-      return blocks;
     },
     get blocksOpen() {
       return blocksOpen;
@@ -164,10 +81,7 @@ function createAppStore() {
       return settingsOpen;
     },
     get toasts() {
-      return toasts;
-    },
-    get viewport() {
-      return viewport;
+      return currentToasts();
     },
     get platform() {
       return platform;
@@ -181,32 +95,10 @@ function createAppStore() {
     get shells() {
       return shells;
     },
-    get title() {
-      return title;
-    },
-    get cwd() {
-      return cwd;
-    },
-    setTitle(value: string | null) {
-      title = value;
-    },
-    setCwd(path: string | null) {
-      cwd = path;
-    },
-    addBlock(block: Block) {
-      blocks = appendBlock(blocks, block);
-    },
     init,
     toggleTheme,
     updateSettings,
     toast,
-    beginSession,
-    setSession,
-    writeToShell,
-    markExited,
-    setBlocks(list: Block[]) {
-      blocks = list;
-    },
     toggleBlocks() {
       blocksOpen = !blocksOpen;
     },
@@ -216,7 +108,6 @@ function createAppStore() {
     closeSettings() {
       setSettingsOpen(false);
     },
-    setViewport,
   };
 }
 
