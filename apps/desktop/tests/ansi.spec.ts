@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ansiToSpans, DEFAULT_PALETTE, type AnsiSpan } from "../src/lib/ansi";
+import { ansiToSpans, DEFAULT_PALETTE, stripAnsi, type AnsiSpan } from "../src/lib/ansi";
 
 function plain(spans: AnsiSpan[]): string {
   return spans.map((span) => span.text).join("");
@@ -66,5 +66,14 @@ describe("ansiToSpans", () => {
   it("expands tabs to the next 8-column boundary", () => {
     const spans = ansiToSpans("ab\tc");
     expect(plain(spans)).toBe("ab      c");
+  });
+});
+describe("stripAnsi", () => {
+  it("keeps the text and drops colors, cursor moves and titles", () => {
+    expect(stripAnsi("\x1b[1;31mred\x1b[0m plain")).toBe("red plain");
+    expect(stripAnsi("a\x1b[2Kb\x1b[10;5Hc")).toBe("abc");
+    expect(stripAnsi("\x1b]0;window title\x07text")).toBe("text");
+    expect(stripAnsi("\x1b]8;;https://x.test\x1b\\link\x1b]8;;\x1b\\")).toBe("link");
+    expect(stripAnsi("plain text, 100% [ok]")).toBe("plain text, 100% [ok]");
   });
 });
