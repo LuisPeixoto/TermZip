@@ -1,4 +1,5 @@
 import type { Profile } from "./api";
+import { LIMITS } from "./settings";
 
 /** Mirrors the limits in `profile.rs`; the backend still validates, these only give an earlier, kinder message. */
 export const MAX_PROFILES = 32;
@@ -67,11 +68,29 @@ export function formatEnv(env: Record<string, string>): string {
     .join("\n");
 }
 
-/** One line for the list: where the profile starts, and how many variables it sets. */
-export function describeProfile(profile: Profile): string {
+export type FontSizeResult = { size: number | null } | { error: string };
+
+/** The font size field of the profile form: empty means "same as the app", otherwise a whole number in range. */
+export function parseFontSize(text: string): FontSizeResult {
+  const trimmed = text.trim();
+  if (!trimmed) return { size: null };
+  const size = Number(trimmed);
+  const { min, max } = LIMITS.fontSize;
+  if (!/^\d+$/.test(trimmed) || size < min || size > max) {
+    return { error: `The font size must be a whole number from ${min} to ${max}, or empty.` };
+  }
+  return { size };
+}
+
+/** One line for the list: where the profile starts, how it looks, and how many variables it sets. */
+export function describeProfile(profile: Profile, themeNames: ReadonlyMap<string, string> = new Map()): string {
   const parts: string[] = [];
   if (profile.shell) parts.push(profile.shell);
   if (profile.workingDirectory) parts.push(profile.workingDirectory);
+  if (profile.theme) parts.push(themeNames.get(profile.theme) ?? `${profile.theme} (missing)`);
+  if (profile.fontSize) parts.push(`${profile.fontSize}px`);
+  if (profile.fontFamily) parts.push(profile.fontFamily);
+  if (profile.cursorStyle) parts.push(`${profile.cursorStyle} cursor`);
   const variables = Object.keys(profile.env).length;
   if (variables > 0) parts.push(`${variables} variable${variables === 1 ? "" : "s"}`);
   return parts.length > 0 ? parts.join(" · ") : "Same as the built-in profile";

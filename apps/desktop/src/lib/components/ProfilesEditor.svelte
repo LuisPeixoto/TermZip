@@ -1,7 +1,9 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import type { Profile } from "../api";
-  import { MAX_PROFILES, describeProfile, formatEnv, parseEnv, uniqueProfileId } from "../profiles";
+  import type { CursorStyle, Profile } from "../api";
+  import { MAX_PROFILES, describeProfile, formatEnv, parseEnv, parseFontSize, uniqueProfileId } from "../profiles";
+  import { themes } from "../stores/themes.svelte";
+  import { groupThemes } from "../theme";
 
   let {
     profiles = $bindable(),
@@ -10,7 +12,17 @@
 
   // `null` is the list, `""` a new profile, anything else the id being edited.
   let editing = $state<string | null>(null);
-  let form = $state({ name: "", shell: "", workingDirectory: "", env: "" });
+  const blankForm = { name: "", shell: "", workingDirectory: "", theme: "", fontSize: "", fontFamily: "", cursorStyle: "", env: "" };
+  let form = $state({ ...blankForm });
+  const groups = $derived.by(() => {
+    const { dark, light } = groupThemes(themes.entries);
+    return [
+      { label: "Dark themes", entries: dark },
+      { label: "Light themes", entries: light },
+    ];
+  });
+  // Ids to names, for the list; a theme that is gone is shown by its id.
+  const themeNames = $derived(new Map(themes.entries.map((entry) => [entry.theme.id, entry.theme.name])));
   let problem = $state<string | null>(null);
 
   const field =
@@ -24,7 +36,7 @@
   }
 
   function startNew() {
-    form = { name: "", shell: "", workingDirectory: "", env: "" };
+    form = { ...blankForm };
     problem = null;
     editing = "";
   }
@@ -34,6 +46,10 @@
       name: profile.name,
       shell: profile.shell ?? "",
       workingDirectory: profile.workingDirectory ?? "",
+      theme: profile.theme ?? "",
+      fontSize: profile.fontSize ? String(profile.fontSize) : "",
+      fontFamily: profile.fontFamily ?? "",
+      cursorStyle: profile.cursorStyle ?? "",
       env: formatEnv(profile.env),
     };
     problem = null;
@@ -51,10 +67,19 @@
       problem = parsed.error;
       return;
     }
+    const size = parseFontSize(form.fontSize);
+    if ("error" in size) {
+      problem = size.error;
+      return;
+    }
     const base = {
       name,
       shell: form.shell.trim() || null,
       workingDirectory: form.workingDirectory.trim() || null,
+      theme: form.theme || null,
+      fontSize: size.size,
+      fontFamily: form.fontFamily.trim() || null,
+      cursorStyle: (form.cursorStyle || null) as CursorStyle | null,
       env: parsed.env,
     };
     if (editing === "") {
@@ -104,7 +129,7 @@
         />
         <span class="min-w-0 flex-1">
           <span class="font-medium text-fg">{profile.name}</span>
-          <span class="mono block truncate text-[10.5px] text-faint">{describeProfile(profile)}</span>
+          <span class="mono block truncate text-[10.5px] text-faint">{describeProfile(profile, themeNames)}</span>
         </span>
         {#if defaultProfile === profile.id}
           <span class="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">default</span>
@@ -150,6 +175,41 @@
         <label for="profile-directory" class={small}>Folder (empty: the built-in one)</label>
         <input id="profile-directory" type="text" bind:value={form.workingDirectory} class={field} />
       </div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="col-span-2">
+          <label for="profile-theme" class={small}>Terminal theme (empty: the app's)</label>
+          <select id="profile-theme" bind:value={form.theme} class={field}>
+            <option value="">Same as the app</option>
+            {#each groups as group (group.label)}
+              <optgroup label={group.label}>
+                {#each group.entries as item (item.theme.id)}
+                  <option value={item.theme.id}>{item.theme.name}</option>
+                {/each}
+              </optgroup>
+            {/each}
+            {#if form.theme && !themes.entries.some((entry) => entry.theme.id === form.theme)}
+              <option value={form.theme}>{form.theme} (missing)</option>
+            {/if}
+          </select>
+        </div>
+        <div>
+          <label for="profile-font-size" class={small}>Font size (empty: the app's)</label>
+          <input id="profile-font-size" type="text" inputmode="numeric" placeholder="Same" bind:value={form.fontSize} class={field} />
+        </div>
+        <div>
+          <label for="profile-cursor" class={small}>Cursor</label>
+          <select id="profile-cursor" bind:value={form.cursorStyle} class={field}>
+            <option value="">Same as the app</option>
+            <option value="block">Block</option>
+            <option value="bar">Bar</option>
+            <option value="underline">Underline</option>
+          </select>
+        </div>
+        <div class="col-span-2">
+          <label for="profile-font-family" class={small}>Font family (empty: the app's)</label>
+          <input id="profile-font-family" type="text" bind:value={form.fontFamily} class={field} />
+        </div>
+      </div>
       <div>
         <label for="profile-env" class={small}>Environment, one KEY=value per line</label>
         <textarea
@@ -193,7 +253,8 @@
     </button>
   {/if}
   <p class="text-[10.5px] text-faint">
-    A profile only needs what differs: an empty shell or folder uses the built-in one. Environment variables
+    A profile only needs what differs: an empty field uses the built-in profile or the app's setting. Its theme,
+    font and cursor are for its terminals; the window around them keeps the app's theme. Environment variables
     reach new shells; the ones TermZip manages (TERM, ZDOTDIR, TERMZIP_…) cannot be set.
   </p>
 </div>
