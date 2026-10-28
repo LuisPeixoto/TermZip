@@ -8,7 +8,8 @@ npm ci
 npm run tauri build
 ```
 
-Tauri writes platform bundles under `src-tauri/target/<target>/release/bundle/`:
+Tauri writes platform bundles under `target/release/bundle/` at the repository root (the desktop shell is part of the
+Cargo workspace), or `target/<triple>/release/bundle/` when you build with `--target`:
 
 - macOS: `.app` and `.dmg` (Apple silicon and Intel targets are separate).
 - Windows: `.msi` and NSIS `.exe`.
