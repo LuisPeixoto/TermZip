@@ -42,8 +42,10 @@ pub enum SessionEvent {
     Data { data: String },
     /// The shell ended; `code` is `None` when the status could not be read.
     Exit { code: Option<u32> },
-    /// The full list of finished command blocks.
-    Blocks { blocks: Vec<Block> },
+    /// One command finished. Sent once per block, so a busy shell never re-sends the whole list.
+    Block { block: Block },
+    /// The shell reported a new working directory.
+    Cwd { path: String },
 }
 
 pub struct SessionHandle {
@@ -253,18 +255,31 @@ fn handle_chunk(events: &Channel<SessionEvent>, handle: &Arc<SessionHandle>, chu
         data: base64::engine::general_purpose::STANDARD.encode(chunk),
     });
 
-    let markers = handle
-        .parser
-        .lock()
-        .map(|mut parser| parser.feed_ranges(chunk))
-        .unwrap_or_default();
-
+    let Ok(mut parser) = handle.parser.lock() else {
+        return;
+    };
     let Ok(mut tracker) = handle.tracker.lock() else {
         return;
     };
-    let before = tracker.blocks().len();
+    for event in apply_chunk(&mut parser, &mut tracker, chunk) {
+        let _ = events.send(event);
+    }
+}
+
+/// Feeds one chunk of output through the marker parser and the block tracker, and returns what
+/// changed: each newly finished block, and the working directory when it moved.
+fn apply_chunk(
+    parser: &mut OscParser,
+    tracker: &mut BlockTracker,
+    chunk: &[u8],
+) -> Vec<SessionEvent> {
+    // Blocks are numbered for the life of the session, so "new" means a higher index. Comparing
+    // lengths would miss them once the oldest blocks start being dropped.
+    let last_index = tracker.blocks().back().map(|block| block.index);
+    let previous_cwd = tracker.cwd().map(str::to_owned);
+
     let mut cursor = 0;
-    for hit in markers {
+    for hit in parser.feed_ranges(chunk) {
         if hit.start > cursor {
             tracker.on_region_bytes(&chunk[cursor..hit.start]);
         }
@@ -274,11 +289,23 @@ fn handle_chunk(events: &Channel<SessionEvent>, handle: &Arc<SessionHandle>, chu
     if cursor < chunk.len() {
         tracker.on_region_bytes(&chunk[cursor..]);
     }
-    if tracker.blocks().len() != before {
-        let _ = events.send(SessionEvent::Blocks {
-            blocks: tracker.blocks().iter().cloned().collect(),
+
+    let mut events: Vec<SessionEvent> = tracker
+        .blocks()
+        .iter()
+        .filter(|block| last_index.is_none_or(|last| block.index > last))
+        .map(|block| SessionEvent::Block {
+            block: block.clone(),
+        })
+        .collect();
+    if let Some(path) = tracker.cwd()
+        && previous_cwd.as_deref() != Some(path)
+    {
+        events.push(SessionEvent::Cwd {
+            path: path.to_owned(),
         });
     }
+    events
 }
 
 #[cfg(all(test, unix))]
@@ -376,5 +403,71 @@ mod tests {
             "a destroyed session must stay silent"
         );
         assert!(sessions.get(info.id).is_err());
+    }
+
+    fn command(name: &str, output: &str, code: i32) -> Vec<u8> {
+        use base64::Engine as _;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(name);
+        format!(
+            "\x1b]133;A\x07$ \x1b]133;B\x07\x1b]1337;CommandB64={encoded}\x07\x1b]133;C\x07{output}\x1b]133;D;{code}\x07"
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn a_finished_command_is_reported_as_one_block_event() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let events = apply_chunk(&mut parser, &mut tracker, &command("echo hi", "hi\n", 0));
+
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            SessionEvent::Block { block } => {
+                assert_eq!(block.command.as_deref(), Some("echo hi"));
+                assert_eq!(block.exit_code, Some(0));
+            }
+            other => panic!("expected a block, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn blocks_keep_being_reported_after_the_store_is_full() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        // The tracker keeps 200 blocks; comparing lengths would stop reporting at that point.
+        for number in 0..230 {
+            let events = apply_chunk(
+                &mut parser,
+                &mut tracker,
+                &command(&format!("echo {number}"), "x", 0),
+            );
+            let blocks = events
+                .iter()
+                .filter(|event| matches!(event, SessionEvent::Block { .. }))
+                .count();
+            assert_eq!(blocks, 1, "command {number} was not reported exactly once");
+        }
+    }
+
+    #[test]
+    fn a_chunk_without_a_finished_command_reports_no_block() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let events = apply_chunk(
+            &mut parser,
+            &mut tracker,
+            b"\x1b]133;A\x07$ \x1b]133;B\x07ec",
+        );
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn the_working_directory_is_reported_only_when_it_changes() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let first = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/tmp\x07");
+        assert!(matches!(&first[..], [SessionEvent::Cwd { path }] if path == "/tmp"));
+
+        let same = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/tmp\x07");
+        assert!(same.is_empty());
+
+        let moved = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/etc\x07");
+        assert!(matches!(&moved[..], [SessionEvent::Cwd { path }] if path == "/etc"));
     }
 }
