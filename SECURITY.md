@@ -49,6 +49,17 @@ the affected version, operating system, impact, and a reproduction or proof of c
 - Output not yet drawn by the terminal is bounded (1 MiB): the backend pauses the shell instead of queueing without
   limit, and gives up on the account if the page is silent for 10 seconds, so a stuck page cannot freeze a shell for
   good.
+- Theme files are untrusted input. Importing reads one file you pick in a native dialog that Rust opens (the webview has
+  no dialog permission), only if it is a regular file of at most 256 KiB; the readers for iTerm2 (plist), Windows
+  Terminal (JSON), Ghostty, Kitty and Alacritty (TOML) return a sentence instead of panicking, clamp or refuse
+  out-of-range values, and are tested against truncated, oversized, deeply nested and wrong-typed input. The result is
+  written as one file in the themes folder (`0700`, files `0600`), never over another theme. An export is a plain write
+  where you choose in a save dialog. A theme is data: colors only, no scripts, and its text is never interpreted as
+  markup.
+- Keyboard shortcuts are validated (a chord needs Ctrl, Alt or Cmd, so typing cannot be taken over; at most 64 entries)
+  and a hand-edited `[keybindings]` can never make one key do two things.
+- On macOS the translucent window uses Tauri's `macOSPrivateApi` (a private Apple API), which makes the app ineligible
+  for the Mac App Store. It is used only to make the window transparent and to ask the system for its blur.
 - Plugin loading is not implemented. Future extensions require an explicit isolation and permission design.
 
 ## Responsible use
