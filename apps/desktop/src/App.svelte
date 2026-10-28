@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { app } from "./lib/stores/app.svelte";
+  import { workspace } from "./lib/stores/workspace.svelte";
   import { matchShortcut } from "./lib/shortcuts";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TerminalPane from "./lib/components/TerminalPane.svelte";
@@ -51,7 +52,7 @@
   {#if app.ready}
     <div class="flex min-h-0 flex-1">
       <div class="flex min-w-0 flex-1 flex-col">
-        <TerminalPane />
+        <TerminalPane pane={workspace.activePane} />
       </div>
       {#if app.blocksOpen}
         <BlocksRail />

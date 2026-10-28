@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import { app } from "../stores/app.svelte";
+  import { workspace } from "../stores/workspace.svelte";
   import { shortcutLabel } from "../shortcuts";
 </script>
 
@@ -20,10 +21,10 @@
   </div>
 
   <span class="ml-1 max-w-[280px] truncate rounded-full border border-line bg-panel-2 px-2 py-0.5 text-[10.5px] text-muted">
-    {app.title || app.session?.shell || "starting…"}
+    {workspace.activePane.title || workspace.activePane.session?.shell || "starting…"}
   </span>
 
-  {#if app.exited}
+  {#if workspace.activePane.exited}
     <button
       type="button"
       class="flex h-7 items-center gap-1.5 rounded-md border border-warn/40 bg-warn/10 px-2 text-[11px] text-warn transition-colors hover:bg-warn/20"

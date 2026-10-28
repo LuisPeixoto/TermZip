@@ -1,5 +1,6 @@
 <script lang="ts">
   import { app } from "../stores/app.svelte";
+  import { workspace } from "../stores/workspace.svelte";
   import { shortcutLabel } from "../shortcuts";
 </script>
 
@@ -8,12 +9,12 @@
 >
   <span class="flex items-center gap-1.5">
     <span
-      class="size-1.5 rounded-full {app.exited ? 'bg-warn' : 'bg-ok'}"
-      title={app.exited ? "Shell exited" : "Shell running"}
+      class="size-1.5 rounded-full {workspace.activePane.exited ? 'bg-warn' : 'bg-ok'}"
+      title={workspace.activePane.exited ? "Shell exited" : "Shell running"}
     ></span>
-    {#if app.exited}
+    {#if workspace.activePane.exited}
       shell exited
-    {:else if app.session?.integrated}
+    {:else if workspace.activePane.session?.integrated}
       shell integration
     {:else}
       plain terminal
@@ -22,7 +23,7 @@
 
   <span class="text-line-strong">·</span>
 
-  {#if app.session && !app.session.integrated}
+  {#if workspace.activePane.session && !workspace.activePane.session.integrated}
     <span class="text-warn" title="This shell does not emit OSC 133 markers; blocks are unavailable">
       no block capture
     </span>
@@ -30,7 +31,7 @@
   {/if}
 
   <span class="mono">
-    {app.viewport.columns}×{app.viewport.rows}
+    {workspace.activePane.viewport.columns}×{workspace.activePane.viewport.rows}
   </span>
 
   <span class="flex-1"></span>
