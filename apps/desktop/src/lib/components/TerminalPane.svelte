@@ -4,6 +4,7 @@
   import { FitAddon } from "@xterm/addon-fit";
   import { WebglAddon } from "@xterm/addon-webgl";
   import { SearchAddon } from "@xterm/addon-search";
+  import { WebLinksAddon } from "@xterm/addon-web-links";
   import SearchBar from "./SearchBar.svelte";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import "@xterm/xterm/css/xterm.css";
@@ -13,12 +14,24 @@
   import { workspace } from "../stores/workspace.svelte";
   import type { Pane } from "../stores/pane.svelte";
   import { matchShortcut } from "../shortcuts";
+  import { cellsToLine, columnsOf, findPathLinks, isOpenGesture } from "../terminal/links";
   import { ACK_BATCH, AckBatcher } from "../flow";
 
   let { pane }: { pane: Pane } = $props();
 
   const DEFAULT_FONT_FAMILY =
     '"JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace';
+
+  // A plain click on a link only selects, so text that contains one can still be copied; opening
+  // needs ⌘ (Ctrl elsewhere). The backend decides what may be opened.
+  function openLink(event: MouseEvent, target: string): void {
+    if (!isOpenGesture(event, app.platform)) return;
+    void api.openLink(target, pane.cwd ?? pane.restoreDirectory).catch((error) => {
+      app.toast("warn", String(error));
+    });
+  }
+  const showHint = (event: MouseEvent) => (hint = { x: event.clientX, y: event.clientY });
+  const hideHint = () => (hint = null);
 
   function fontFamily(): string {
     return app.settings.fontFamily ?? DEFAULT_FONT_FAMILY;
@@ -31,6 +44,8 @@
   let search: SearchAddon | undefined = $state.raw();
   let webgl: WebglAddon | undefined;
   let appliedTheme = app.settings.theme;
+  // Where a link is being hovered, for the "⌘+click to open" hint.
+  let hint = $state.raw<{ x: number; y: number } | null>(null);
   let disposed = false;
   // Each shell gets a number; events of an older shell (a restart is in flight) are ignored.
   let generation = 0;
@@ -130,6 +145,8 @@
       theme: xtermTheme(),
       // The search addon marks matches with decorations, which are still a proposed API.
       allowProposedApi: true,
+      // OSC 8 hyperlinks (`ls --hyperlink`, many CLIs): http and https only.
+      linkHandler: { activate: (event, uri) => openLink(event, uri), hover: (event) => showHint(event), leave: hideHint },
     });
     fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
@@ -137,6 +154,29 @@
     terminal.loadAddon(search);
     search.onDidChangeResults(({ resultIndex, resultCount }) => {
       pane.searchResults = { index: resultIndex, count: resultCount };
+    });
+    terminal.loadAddon(new WebLinksAddon((event, uri) => openLink(event, uri), { hover: showHint, leave: hideHint }));
+    terminal.registerLinkProvider({
+      provideLinks: (row, callback) => {
+        const line = terminal?.buffer.active.getLine(row - 1);
+        if (!line) return callback(undefined);
+        const cells = Array.from({ length: line.length }, (_, column) => {
+          const cell = line.getCell(column);
+          return { chars: cell?.getChars() ?? "", width: cell?.getWidth() ?? 1 };
+        });
+        const { text, columns } = cellsToLine(cells);
+        const links = findPathLinks(text).map((match) => {
+          const { start, end } = columnsOf(match, columns);
+          return {
+            range: { start: { x: start, y: row }, end: { x: end, y: row } },
+            text: match.text,
+            activate: (event: MouseEvent, target: string) => openLink(event, target),
+            hover: (event: MouseEvent) => showHint(event),
+            leave: hideHint,
+          };
+        });
+        callback(links.length > 0 ? links : undefined);
+      },
     });
     terminal.open(container!);
 
@@ -310,5 +350,13 @@
   <div bind:this={container} class="termzip-terminal min-h-0 flex-1"></div>
   {#if pane.searchOpen && search}
     <SearchBar {pane} addon={search} />
+  {/if}
+  {#if hint}
+    <div
+      class="pointer-events-none fixed z-30 rounded-md border border-line bg-elevated px-2 py-1 text-[10.5px] text-muted shadow-pop"
+      style="left:{hint.x + 12}px;top:{hint.y + 16}px"
+    >
+      {app.platform === "macos" ? "⌘+click" : "Ctrl+click"} to open
+    </div>
   {/if}
 </div>
