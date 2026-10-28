@@ -3607,6 +3607,7 @@ name = "termzip-core"
 version = "0.2.0"
 dependencies = [
  "dirs 6.0.0",
+ "plist",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

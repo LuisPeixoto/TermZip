@@ -22,6 +22,11 @@ impl Color {
         Self { r, g, b, a }
     }
 
+    /// The same color without transparency.
+    pub const fn opaque(self) -> Self {
+        Self { a: 255, ..self }
+    }
+
     /// Reads `#rgb`, `#rrggbb` or `#rrggbbaa`; the `#` may be left out (Ghostty writes bare hex).
     pub fn parse(text: &str) -> Option<Self> {
         let digits = text.trim().strip_prefix('#').unwrap_or(text.trim());

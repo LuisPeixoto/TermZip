@@ -8,6 +8,6 @@ pub use profile::{DEFAULT_PROFILE_ID, LaunchProfile, Profile, slug, validate_pro
 pub use settings::{HOME_ENV, Settings, SettingsError, data_dir, integration_dir, settings_path};
 pub use theme::{
     Chrome, Color, Colors, DEFAULT_DARK_ID, DEFAULT_LIGHT_ID, MAX_THEME_BYTES, Theme, ThemeKind,
-    built_in_theme, built_in_themes,
+    built_in_theme, built_in_themes, import_theme,
 };
 pub use workspace::{Direction, PaneNode, Tab, Workspace, workspace_path};
