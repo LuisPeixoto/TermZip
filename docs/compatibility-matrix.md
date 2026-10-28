@@ -12,7 +12,7 @@ real hardware.
 | zsh integration (PTY test) | ✅ local + CI | n/a | ✅ CI |
 | bash integration (PTY test) | ✅ local + CI | n/a | ✅ CI |
 | Session stream tests (`cargo test -p termzip-desktop`) | ✅ local + CI | n/a (Unix shells) | ✅ CI |
-| Manual interactive validation | ✅ typing, blocks, themes, shortcuts, restart, preferences | ⏳ pending | ⏳ pending |
+| Manual interactive validation | ✅ typing, blocks, themes, shortcuts, restart, preferences, tabs, splits, restore, profiles, find, filter, links (validation) | ⏳ pending | ⏳ pending |
 | vim / top / tmux / SSH | ⏳ pending | ⏳ pending | ⏳ pending |
 | Packaged installer | ✅ debug app build (no bundle) | ⏳ release workflow | ⏳ release workflow |
 

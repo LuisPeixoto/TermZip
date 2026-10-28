@@ -13,12 +13,15 @@ This document tracks what is verified, what is implemented but not exhaustively 
   integrated shells.
 - The terminal is the only input: your shell's line editor, history, completion, and keybindings apply unchanged.
 - Application shortcuts that never collide with shell keys (⌘ on macOS, Ctrl+Shift elsewhere).
+- Tabs and split panes, each pane a real PTY; search in the scrollback; clickable URLs, OSC 8 hyperlinks, and file paths.
 
 ## Verified locally (macOS)
 
 - zsh integration: prompt, `cd`, environment changes persist; blocks appear with correct exit codes and durations.
 - PTY smoke test on the CI matrix (Unix shells and `cmd.exe /C echo` on Windows).
 - VT-level behavior is inherited from xterm.js, which maintains its own extensive compatibility test suite.
+- Tabs, splits, session restore, profiles, find, the block filter, and links, driven in the running app; a flood of two
+  million lines with Ctrl+C (see [performance](performance.md)).
 
 ## Known limitations
 
@@ -30,7 +33,7 @@ This document tracks what is verified, what is implemented but not exhaustively 
   was truncated.
 - Block output strips terminal control sequences for display while preserving SGR colors; cursor-addressed output
   (for example progress animations) is shown as sequential text.
-- Hyperlink (OSC 8) rendering follows xterm.js defaults; clicking links to open them externally is not wired yet.
+- Hyperlinks (OSC 8) open with ⌘+click (Ctrl+click elsewhere), http and https only; see [links](links.md).
 
 ## Reporting a problem
 
