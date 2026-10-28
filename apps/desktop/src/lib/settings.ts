@@ -23,3 +23,11 @@ export function defaultSettings(): Settings {
     profiles: [],
   };
 }
+
+/** The ranges the backend clamps to; the sliders use the same ones. */
+export const LIMITS = {
+  fontSize: { min: 10, max: 28 },
+  lineHeight: { min: 1, max: 2 },
+  letterSpacing: { min: 0, max: 4 },
+  backgroundOpacity: { min: 0.5, max: 1 },
+} as const;
