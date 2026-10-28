@@ -11,6 +11,13 @@
   let dragging = $state<string | null>(null);
   // A drag ends with a click on the tab it ended on; that click must not switch tabs.
   let suppressClick = false;
+  let menuOpen = $state(false);
+
+  function openWithProfile(profileId: string) {
+    menuOpen = false;
+    workspace.newTab(profileId);
+    focusTerminal();
+  }
 
   function activate(id: string, clicks: number) {
     if (suppressClick) {
@@ -86,6 +93,12 @@
   }
 </script>
 
+<svelte:window
+  onpointerdown={(event) => {
+    if (menuOpen && !(event.target as Element | null)?.closest("[data-profile-menu]")) menuOpen = false;
+  }}
+/>
+
 <div bind:this={strip} class="flex min-w-0 items-center gap-1" role="tablist" aria-label="Tabs">
   {#each workspace.tabs as tab (tab.id)}
     {@const active = tab.id === workspace.activeId}
@@ -151,4 +164,50 @@
   >
     <Icon name="plus" size={14} />
   </button>
+
+  {#if app.settings.profiles.length > 0}
+    <div class="relative shrink-0" data-profile-menu>
+      <button
+        type="button"
+        class="grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg"
+        title="New tab with a profile"
+        aria-label="New tab with a profile"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onclick={() => (menuOpen = !menuOpen)}
+      >
+        <Icon name="chevronRight" size={11} stroke={2.2} class="rotate-90" />
+      </button>
+      {#if menuOpen}
+        <div
+          role="menu"
+          tabindex="-1"
+          class="shadow-pop absolute left-0 top-8 z-30 min-w-[190px] rounded-lg border border-line bg-elevated p-1"
+          onkeydown={(event) => event.key === "Escape" && (menuOpen = false)}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            class="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-[11.5px] text-fg hover:bg-hover"
+            onclick={() => openWithProfile("default")}
+          >
+            Built-in
+          </button>
+          {#each app.settings.profiles as profile (profile.id)}
+            <button
+              type="button"
+              role="menuitem"
+              class="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-[11.5px] text-fg hover:bg-hover"
+              onclick={() => openWithProfile(profile.id)}
+            >
+              <span class="truncate">{profile.name}</span>
+              {#if app.settings.defaultProfile === profile.id}
+                <span class="ml-auto pl-2 text-[10px] text-accent">default</span>
+              {/if}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
