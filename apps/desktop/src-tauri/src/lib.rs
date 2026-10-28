@@ -4,6 +4,7 @@ mod commands;
 mod flow;
 mod links;
 mod sessions;
+mod themes;
 
 use sessions::Sessions;
 use tauri::Manager;
@@ -38,6 +39,7 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Sessions::default())
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
@@ -53,6 +55,10 @@ pub fn run() {
             commands::load_workspace,
             commands::save_workspace,
             commands::list_blocks,
+            themes::list_themes,
+            themes::import_theme,
+            themes::export_theme,
+            themes::delete_theme,
         ])
         .build(tauri::generate_context!())
         .expect("could not initialize the TermZip application")
