@@ -67,7 +67,7 @@ const ANSI_DARK = [
   "#fafafa", // 15 bright white
 ];
 
-const ANSI_LIGHT = [
+export const ANSI_LIGHT = [
   "#3f3f46",
   "#dc2626",
   "#059669",
@@ -75,7 +75,7 @@ const ANSI_LIGHT = [
   "#2563eb",
   "#7c3aed",
   "#0891b2",
-  "#d4d4d8",
+  "#52525b", // white: dark enough to read on the light background
   "#71717a",
   "#b91c1c",
   "#047857",
@@ -83,7 +83,7 @@ const ANSI_LIGHT = [
   "#1d4ed8",
   "#6d28d9",
   "#0e7490",
-  "#fafafa",
+  "#18181b", // bright white
 ];
 
 export function xtermTheme(): ITheme {

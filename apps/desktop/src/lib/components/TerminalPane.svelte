@@ -1,13 +1,14 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { Terminal } from "@xterm/xterm";
   import { FitAddon } from "@xterm/addon-fit";
   import { WebglAddon } from "@xterm/addon-webgl";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import "@xterm/xterm/css/xterm.css";
-  import { api, base64ToBytes, type SessionEvent } from "../api";
+  import { api, base64ToBytes, type SessionEvent, type SessionInfo } from "../api";
   import { xtermTheme } from "../terminal/xtermTheme";
   import { app } from "../stores/app.svelte";
+  import { matchShortcut } from "../shortcuts";
 
   const DEFAULT_FONT_FAMILY =
     '"JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace';
@@ -17,27 +18,34 @@
   }
 
   let container: HTMLDivElement | undefined = $state();
-  let terminal: Terminal | undefined;
+  // Reactive on purpose: the effects below must run again once the terminal exists.
+  let terminal: Terminal | undefined = $state.raw();
   let fitAddon: FitAddon | undefined;
   let webgl: WebglAddon | undefined;
-  let sessionInfo: { id: number; shell: string; integrated: boolean } | null = null;
+  let sessionInfo: SessionInfo | null = $state.raw(null);
+  let appliedTheme = app.settings.theme;
   let disposed = false;
   // Each shell gets a number; events of an older shell (a restart is in flight) are ignored.
   let generation = 0;
 
+  // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
-    if (terminal && sessionInfo) {
-      terminal.options.fontSize = app.settings.fontSize;
-      terminal.options.fontFamily = fontFamily();
-      fit();
-    }
+    const { fontSize, scrollbackLines } = app.settings;
+    const family = fontFamily();
+    if (!terminal) return;
+    terminal.options.fontSize = fontSize;
+    terminal.options.fontFamily = family;
+    terminal.options.scrollback = scrollbackLines;
+    untrack(() => fit());
+    requestAnimationFrame(() => fit());
   });
 
   $effect(() => {
-    if (terminal) {
-      app.settings.theme;
-      requestAnimationFrame(() => applyTerminalTheme());
-    }
+    const theme = app.settings.theme;
+    if (!terminal || theme === appliedTheme) return;
+    appliedTheme = theme;
+    // The theme tokens are written to the document by the store; read them on the next frame.
+    requestAnimationFrame(() => applyTerminalTheme());
   });
 
   function applyTerminalTheme(): void {
@@ -71,8 +79,23 @@
     function onRestart() {
       restartShell();
     }
+    function onFocusRequest() {
+      terminal?.focus();
+    }
+    // Coming back to the app must not leave the keyboard on nothing: type first, click never.
+    function onWindowFocus() {
+      const active = document.activeElement;
+      if (app.settingsOpen || (active && active !== document.body)) return;
+      terminal?.focus();
+    }
     window.addEventListener("termzip:restart", onRestart);
-    return () => window.removeEventListener("termzip:restart", onRestart);
+    window.addEventListener("termzip:focus-terminal", onFocusRequest);
+    window.addEventListener("focus", onWindowFocus);
+    return () => {
+      window.removeEventListener("termzip:restart", onRestart);
+      window.removeEventListener("termzip:focus-terminal", onFocusRequest);
+      window.removeEventListener("focus", onWindowFocus);
+    };
   });
 
   onMount(() => {
@@ -173,7 +196,7 @@
       }
       sessionInfo = info;
       app.setSession(info);
-      terminal.focus();
+      if (!app.settingsOpen) terminal.focus();
     } catch (error) {
       app.toast("err", `Could not start the shell: ${error}`);
       terminal.writeln(
@@ -205,6 +228,8 @@
   }
 
   function onCustomKey(event: KeyboardEvent): boolean {
+    // Application shortcuts must not reach the shell (Ctrl+Shift+R would arrive as Ctrl+R).
+    if (matchShortcut(event, app.platform)) return false;
     const meta = event.metaKey || (event.ctrlKey && event.shiftKey);
     if (!meta) return true;
 
@@ -241,4 +266,7 @@
   }
 </script>
 
-<div bind:this={container} class="termzip-terminal min-h-0 min-w-0 flex-1 px-3 pb-1"></div>
+<!-- FitAddon measures the parent's border box, so the padding lives one level up. -->
+<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-bg px-3 pb-2 pt-1">
+  <div bind:this={container} class="termzip-terminal min-h-0 flex-1"></div>
+</div>

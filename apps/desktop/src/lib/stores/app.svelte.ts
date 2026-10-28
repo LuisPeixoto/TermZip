@@ -57,13 +57,17 @@ function createAppStore() {
   }
 
   async function toggleTheme(): Promise<void> {
-    const current = await api.getSettings();
-    const next: Settings = {
-      ...current,
-      theme: current.theme === "dark" ? "light" : "dark",
-    };
-    settings = await api.saveSettings(next);
-    applyTheme(settings.theme);
+    try {
+      const current = await api.getSettings();
+      const next: Settings = {
+        ...current,
+        theme: current.theme === "dark" ? "light" : "dark",
+      };
+      settings = await api.saveSettings(next);
+      applyTheme(settings.theme);
+    } catch (error) {
+      toast("err", `Could not change the theme: ${error}`);
+    }
   }
 
   async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
@@ -95,9 +99,36 @@ function createAppStore() {
     session = info;
   }
 
+  /** Types text into the running shell, as if it had been entered in the terminal. */
+  async function writeToShell(text: string): Promise<boolean> {
+    if (!session) {
+      toast("warn", "The shell is not running yet");
+      return false;
+    }
+    if (exited) {
+      toast("err", "The shell has exited. Use Restart in the toolbar");
+      return false;
+    }
+    try {
+      await api.writeSession(session.id, new TextEncoder().encode(text));
+      return true;
+    } catch (error) {
+      toast("err", `Could not send the command: ${error}`);
+      return false;
+    }
+  }
+
   function markExited(code: number | null): void {
     exited = true;
     exitCode = code;
+  }
+
+  function setSettingsOpen(open: boolean): void {
+    settingsOpen = open;
+    // The modal held the keyboard; give it back to the terminal once the modal is gone.
+    if (!open) {
+      requestAnimationFrame(() => window.dispatchEvent(new CustomEvent("termzip:focus-terminal")));
+    }
   }
 
   function setViewport(next: Viewport): void {
@@ -156,6 +187,7 @@ function createAppStore() {
     toast,
     beginSession,
     setSession,
+    writeToShell,
     markExited,
     setBlocks(list: Block[]) {
       blocks = list;
@@ -164,10 +196,10 @@ function createAppStore() {
       blocksOpen = !blocksOpen;
     },
     toggleSettings() {
-      settingsOpen = !settingsOpen;
+      setSettingsOpen(!settingsOpen);
     },
     closeSettings() {
-      settingsOpen = false;
+      setSettingsOpen(false);
     },
     setViewport,
   };

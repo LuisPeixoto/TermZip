@@ -18,6 +18,21 @@ describe("ansiToSpans", () => {
     expect(spans.at(-1)?.style.fg).toBeUndefined();
   });
 
+  it("keeps the colors that follow a reset in the same sequence", () => {
+    const spans = ansiToSpans("\x1b[0;31mred", DEFAULT_PALETTE);
+    expect(spans[0].style.fg).toBe(DEFAULT_PALETTE.colors[1]);
+
+    const bold = ansiToSpans("\x1b[31m\x1b[0;1;32mgreen", DEFAULT_PALETTE);
+    expect(bold.at(-1)?.style).toMatchObject({ bold: true, fg: DEFAULT_PALETTE.colors[2] });
+  });
+
+  it("forgets earlier styles when a reset sits in the middle", () => {
+    const spans = ansiToSpans("\x1b[1;4;0;32mx", DEFAULT_PALETTE);
+    expect(spans[0].style.bold).toBeUndefined();
+    expect(spans[0].style.underline).toBeUndefined();
+    expect(spans[0].style.fg).toBe(DEFAULT_PALETTE.colors[2]);
+  });
+
   it("handles bold, dim, italic, underline and inverse", () => {
     const spans = ansiToSpans("\x1b[1;2;3;4;7mx", DEFAULT_PALETTE);
     expect(spans[0].style).toMatchObject({
