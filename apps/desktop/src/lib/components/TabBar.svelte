@@ -1,0 +1,145 @@
+<script lang="ts">
+  import Icon from "./Icon.svelte";
+  import { app } from "../stores/app.svelte";
+  import { workspace } from "../stores/workspace.svelte";
+  import { focusTerminal } from "../focus";
+  import { shortcutLabel } from "../shortcuts";
+
+  let strip: HTMLDivElement | undefined = $state();
+  let renaming = $state<string | null>(null);
+  let draft = $state("");
+  let dragging = $state<string | null>(null);
+  // A drag ends with a click on the tab it ended on; that click must not switch tabs.
+  let suppressClick = false;
+
+  function activate(id: string) {
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
+    workspace.activate(id);
+    focusTerminal();
+  }
+
+  function close(id: string) {
+    workspace.closeTab(id);
+    focusTerminal();
+  }
+
+  function startRename(id: string, current: string) {
+    renaming = id;
+    draft = current;
+  }
+
+  function finishRename(save: boolean) {
+    if (renaming && save) workspace.renameTab(renaming, draft);
+    renaming = null;
+    focusTerminal();
+  }
+
+  function focusOnMount(node: HTMLInputElement) {
+    node.focus();
+    node.select();
+  }
+
+  // Reordering uses pointer events on the window: moving a keyed element in the DOM would drop a
+  // pointer capture, and HTML5 drag and drop is swallowed by the webview's file-drop handler.
+  function positionAt(x: number): number {
+    const tabs = [...(strip?.querySelectorAll<HTMLElement>("[data-tab]") ?? [])];
+    for (let index = 0; index < tabs.length; index += 1) {
+      const box = tabs[index].getBoundingClientRect();
+      if (x < box.left + box.width / 2) return index;
+    }
+    return Math.max(0, tabs.length - 1);
+  }
+
+  function onPointerDown(event: PointerEvent, id: string) {
+    if (event.button !== 0 || renaming) return;
+    const startX = event.clientX;
+    let moved = false;
+
+    const onMove = (move: PointerEvent) => {
+      if (!moved && Math.abs(move.clientX - startX) < 5) return;
+      moved = true;
+      dragging = id;
+      workspace.moveTab(id, positionAt(move.clientX));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (moved) suppressClick = true;
+      dragging = null;
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+</script>
+
+<div bind:this={strip} class="flex min-w-0 items-center gap-1" role="tablist" aria-label="Tabs">
+  {#each workspace.tabs as tab (tab.id)}
+    {@const active = tab.id === workspace.activeId}
+    <div
+      data-tab
+      class="group relative flex h-7 min-w-[84px] max-w-[200px] shrink items-center rounded-md border text-[11.5px] transition-colors
+        {active ? 'border-line bg-panel-2 text-fg' : 'border-transparent text-muted hover:bg-hover hover:text-fg'}
+        {dragging === tab.id ? 'opacity-70' : ''}"
+      role="presentation"
+    >
+      {#if renaming === tab.id}
+        <input
+          use:focusOnMount
+          bind:value={draft}
+          maxlength="64"
+          aria-label="Tab name"
+          class="mx-1 h-5 min-w-0 flex-1 rounded border border-accent bg-panel px-1.5 text-[11.5px] text-fg outline-none"
+          onkeydown={(event) => {
+            if (event.key === "Enter") finishRename(true);
+            else if (event.key === "Escape") finishRename(false);
+            event.stopPropagation();
+          }}
+          onblur={() => renaming === tab.id && finishRename(true)}
+        />
+      {:else}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={active}
+          class="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 text-left"
+          title={tab.title}
+          onpointerdown={(event) => onPointerDown(event, tab.id)}
+          onclick={() => activate(tab.id)}
+          ondblclick={() => startRename(tab.id, tab.title)}
+        >
+          {#if tab.active.exited}
+            <span class="size-1.5 shrink-0 rounded-full bg-warn" title="Shell exited"></span>
+          {/if}
+          <span class="truncate">{tab.title}</span>
+        </button>
+        <button
+          type="button"
+          class="mr-1 grid size-4 shrink-0 place-items-center rounded text-faint transition-opacity hover:bg-hover hover:text-fg
+            {active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"
+          aria-label="Close tab {tab.title}"
+          onclick={() => close(tab.id)}
+        >
+          <Icon name="x" size={11} stroke={2.2} />
+        </button>
+      {/if}
+    </div>
+  {/each}
+
+  <button
+    type="button"
+    class="grid size-7 shrink-0 place-items-center rounded-md text-muted transition-colors hover:bg-hover hover:text-fg"
+    title="New tab ({shortcutLabel('newTab', app.platform)})"
+    aria-label="New tab"
+    onclick={() => {
+      workspace.newTab();
+      focusTerminal();
+    }}
+  >
+    <Icon name="plus" size={14} />
+  </button>
+</div>

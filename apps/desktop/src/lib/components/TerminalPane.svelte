@@ -232,6 +232,8 @@
 
   function fit(): void {
     if (!terminal || !fitAddon || !container) return;
+    // A tab that is not shown has no size; fitting it would shrink its shell to a sliver.
+    if (container.clientWidth === 0 || container.clientHeight === 0) return;
     try {
       fitAddon.fit();
     } catch {

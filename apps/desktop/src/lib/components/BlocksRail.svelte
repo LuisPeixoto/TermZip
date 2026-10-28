@@ -3,6 +3,7 @@
   import AnsiOutput from "./AnsiOutput.svelte";
   import { app } from "../stores/app.svelte";
   import { workspace } from "../stores/workspace.svelte";
+  import { basename } from "../paths";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import { api, type Block } from "../api";
 
@@ -16,13 +17,6 @@
     pane.session?.id;
     expanded = new Set();
   });
-
-  function basename(path: string | null): string | null {
-    if (!path) return null;
-    const trimmed = path.replace(/\/+$/, "");
-    const last = trimmed.split(/[\\/]/).pop();
-    return last || path;
-  }
 
   function formatDuration(ms: number | null): string | null {
     if (ms == null) return null;

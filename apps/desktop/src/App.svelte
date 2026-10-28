@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import { app } from "./lib/stores/app.svelte";
   import { workspace } from "./lib/stores/workspace.svelte";
-  import { matchShortcut } from "./lib/shortcuts";
+  import { matchShortcut, tabPosition, type AppShortcut } from "./lib/shortcuts";
+  import { focusTerminal } from "./lib/focus";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TerminalPane from "./lib/components/TerminalPane.svelte";
   import BlocksRail from "./lib/components/BlocksRail.svelte";
@@ -15,6 +16,36 @@
       .init()
       .catch((error) => app.toast("err", `Could not load preferences: ${error}`));
   });
+
+  function runShortcut(shortcut: AppShortcut) {
+    const position = tabPosition(shortcut);
+    if (position !== null) {
+      workspace.activateAt(position);
+      focusTerminal();
+      return;
+    }
+    switch (shortcut) {
+      case "restart":
+        window.dispatchEvent(new CustomEvent("termzip:restart"));
+        break;
+      case "blocks":
+        app.toggleBlocks();
+        break;
+      case "newTab":
+        workspace.newTab();
+        focusTerminal();
+        break;
+      case "closePane":
+        workspace.closeTab(workspace.activeId);
+        focusTerminal();
+        break;
+      case "nextTab":
+      case "prevTab":
+        workspace.cycle(shortcut === "nextTab" ? 1 : -1);
+        focusTerminal();
+        break;
+    }
+  }
 
   function onWindowKeydown(event: KeyboardEvent) {
     // xterm keeps focus in a hidden textarea of its own; that is the terminal, not a form field.
@@ -32,8 +63,7 @@
       app.toggleSettings();
     } else if (shortcut && !inField && !app.settingsOpen) {
       event.preventDefault();
-      if (shortcut === "restart") window.dispatchEvent(new CustomEvent("termzip:restart"));
-      else app.toggleBlocks();
+      runShortcut(shortcut);
     } else if (event.key === "Escape") {
       if (app.settingsOpen) {
         event.preventDefault();
@@ -51,8 +81,13 @@
   <Toolbar />
   {#if app.ready}
     <div class="flex min-h-0 flex-1">
-      <div class="flex min-w-0 flex-1 flex-col">
-        <TerminalPane pane={workspace.activePane} />
+      <!-- Every tab stays mounted, so its terminal keeps its buffer; only the active one is shown. -->
+      <div class="relative min-h-0 min-w-0 flex-1">
+        {#each workspace.tabs as tab (tab.id)}
+          <div class="absolute inset-0 flex flex-col" class:hidden={tab.id !== workspace.activeId}>
+            <TerminalPane pane={tab.active} />
+          </div>
+        {/each}
       </div>
       {#if app.blocksOpen}
         <BlocksRail />
