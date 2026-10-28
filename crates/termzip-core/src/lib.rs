@@ -1,5 +1,6 @@
 mod profile;
 mod settings;
+mod storage;
 mod theme;
 
 pub use profile::{DEFAULT_PROFILE_ID, LaunchProfile, Profile, slug, validate_profiles};

@@ -1,6 +1,5 @@
 use std::ffi::OsString;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,7 @@ use crate::ThemeKind;
 use crate::profile::{
     DEFAULT_PROFILE_ID, LaunchProfile, Profile, normalize_profiles, validate_profiles,
 };
+use crate::storage::{set_aside, write_atomic};
 
 pub const DEFAULT_FONT_SIZE: f32 = 14.0;
 pub const DEFAULT_SCROLLBACK_LINES: usize = 10_000;
@@ -154,44 +154,8 @@ impl Settings {
     /// Writes the settings next to `path` and renames them into place, so a crash
     /// mid-write cannot leave a half-written file behind.
     pub fn save_to(&self, path: &Path) -> Result<(), SettingsError> {
-        let parent = path.parent().ok_or(SettingsError::InvalidPath)?;
-        let write_error = |path: &Path| {
-            let path = path.to_owned();
-            move |source| SettingsError::Write { path, source }
-        };
-        fs::create_dir_all(parent).map_err(write_error(parent))?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(parent, fs::Permissions::from_mode(0o700))
-                .map_err(write_error(parent))?;
-        }
-
         let contents = toml::to_string_pretty(&self.clone().normalized())?;
-        let mut temporary = path.as_os_str().to_owned();
-        temporary.push(".tmp");
-        let temporary = PathBuf::from(temporary);
-
-        let written = (|| {
-            let mut file = fs::File::create(&temporary)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                file.set_permissions(fs::Permissions::from_mode(0o600))?;
-            }
-            file.write_all(contents.as_bytes())?;
-            file.sync_all()?;
-            fs::rename(&temporary, path)
-        })();
-        if let Err(source) = written {
-            let _ = fs::remove_file(&temporary);
-            return Err(SettingsError::Write {
-                path: path.to_owned(),
-                source,
-            });
-        }
-        Ok(())
+        write_atomic(path, contents.as_bytes())
     }
 
     pub fn effective_shell(&self) -> Option<PathBuf> {
@@ -229,13 +193,6 @@ pub fn integration_dir() -> Result<PathBuf, SettingsError> {
     Ok(data_dir()?.join("shell-integration"))
 }
 
-/// Keeps an unreadable settings file as `<name>.invalid` instead of letting a save overwrite it.
-fn set_aside(path: &Path) {
-    let mut backup = path.as_os_str().to_owned();
-    backup.push(".invalid");
-    let _ = fs::rename(path, PathBuf::from(backup));
-}
-
 #[derive(Debug, Error)]
 pub enum SettingsError {
     #[error("the operating system did not provide a configuration directory")]
@@ -256,6 +213,8 @@ pub enum SettingsError {
     },
     #[error("settings could not be encoded as TOML")]
     Encode(#[from] toml::ser::Error),
+    #[error("{0}")]
+    Invalid(String),
 }
 
 #[cfg(test)]
