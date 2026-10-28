@@ -4,11 +4,15 @@ use std::collections::{BTreeMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
+use crate::appearance::CursorStyle;
+use crate::settings::{MAX_FONT_SIZE, MIN_FONT_SIZE};
+
 pub const MAX_PROFILES: usize = 32;
 pub const MAX_NAME_CHARS: usize = 64;
 pub const MAX_ENV_VARS: usize = 64;
 pub const MAX_ENV_KEY_CHARS: usize = 128;
 pub const MAX_ENV_VALUE_BYTES: usize = 4 * 1024;
+const MAX_THEME_ID_CHARS: usize = 64;
 
 /// The built-in profile: the top-level `shell` and `working_directory` of the settings.
 pub const DEFAULT_PROFILE_ID: &str = "default";
@@ -32,6 +36,11 @@ pub struct Profile {
     pub name: String,
     pub shell: Option<String>,
     pub working_directory: Option<String>,
+    /// The id of the theme the terminal of this profile uses; the app's theme when empty.
+    pub theme: Option<String>,
+    pub font_size: Option<f32>,
+    pub font_family: Option<String>,
+    pub cursor_style: Option<CursorStyle>,
     /// Extra environment variables. Kept last: TOML writes tables after plain values.
     pub env: BTreeMap<String, String>,
 }
@@ -143,6 +152,20 @@ pub(crate) fn normalize_profiles(profiles: Vec<Profile>) -> Vec<Profile> {
         };
         profile.shell = blank_to_none(profile.shell);
         profile.working_directory = blank_to_none(profile.working_directory);
+        profile.theme = profile
+            .theme
+            .map(|theme| {
+                slug(&theme)
+                    .chars()
+                    .take(MAX_THEME_ID_CHARS)
+                    .collect::<String>()
+            })
+            .filter(|theme| !theme.is_empty());
+        profile.font_family = blank_to_none(profile.font_family);
+        profile.font_size = profile
+            .font_size
+            .filter(|size| size.is_finite())
+            .map(|size| size.clamp(MIN_FONT_SIZE, MAX_FONT_SIZE));
         profile.env = std::mem::take(&mut profile.env)
             .into_iter()
             .filter(|(key, value)| {
@@ -223,6 +246,29 @@ mod tests {
         assert_eq!(cleaned[0].working_directory.as_deref(), Some("/srv"));
         assert_eq!(cleaned[1].name.chars().count(), MAX_NAME_CHARS);
         assert_eq!(cleaned[1].id, "custom-id");
+    }
+
+    #[test]
+    fn appearance_overrides_are_cleaned_and_empty_ones_inherit() {
+        let mut styled = profile("Styled");
+        styled.theme = Some("  Tokyo Night!  ".to_owned());
+        styled.font_size = Some(400.0);
+        styled.font_family = Some("   ".to_owned());
+        styled.cursor_style = Some(CursorStyle::Bar);
+        let mut broken = profile("Broken");
+        broken.theme = Some("???".to_owned());
+        broken.font_size = Some(f32::NAN);
+
+        let cleaned = normalize_profiles(vec![styled, broken, profile("Plain")]);
+
+        assert_eq!(cleaned[0].theme.as_deref(), Some("tokyo-night"));
+        assert_eq!(cleaned[0].font_size, Some(MAX_FONT_SIZE));
+        assert_eq!(cleaned[0].font_family, None);
+        assert_eq!(cleaned[0].cursor_style, Some(CursorStyle::Bar));
+        assert_eq!(cleaned[1].theme, None);
+        assert_eq!(cleaned[1].font_size, None);
+        assert_eq!(cleaned[2].theme, None);
+        assert_eq!(cleaned[2].cursor_style, None);
     }
 
     #[test]
