@@ -60,6 +60,34 @@ read when a session starts: restart the shell after changing them.
 The terminal font does not contain the glyphs your tools print (for example the icons from `eza --icons` need a Nerd
 Font). Install one and set it as **Font family** in Preferences.
 
+## The window is not translucent, or not blurred
+
+Lower **Window opacity** in Preferences → Appearance: at 100 % the window is opaque on purpose. **Blur** needs macOS or
+Windows; on Linux the desktop only shows through if your window manager composites windows (a compositor such as the
+one in GNOME, KDE or picom), and there is no blur. See [appearance](appearance.md#the-window).
+
+## A theme import failed
+
+The message says why. The usual causes: the file is not a theme TermZip reads (it reads TermZip, iTerm2 `.itermcolors`,
+Windows Terminal JSON, Ghostty, Kitty and Alacritty TOML; the old Alacritty YAML is not supported), a Windows Terminal
+`settings.json` still has comments (remove them), a color is a name (`red`) instead of `#rrggbb`, or the file is larger
+than 256 KiB. See [themes](themes.md#importing-a-theme).
+
+## A theme I added is missing
+
+The gallery lists the files it could not use, with the reason, under the cards: a file with a color that is not valid,
+more than 128 custom themes, an id already used by another theme, or a file that is not a regular file. Fix the file
+and reopen Preferences. A theme of the other appearance cannot be the dark or light choice and falls back to TermZip's
+own.
+
+## A shortcut I set does nothing, or the shell no longer gets a key
+
+Open **Preferences → Keyboard**: a shortcut that another action took shows **Not set**, and the note under the action
+that took it says so. TermZip receives the keys of every shortcut before the shell does, so a shortcut on a key the
+shell uses (Ctrl+R, Alt+B…) keeps that key from the shell; the editor warns when you choose one. **Reset** puts the
+default back. A `[keybindings]` entry that is not a well-formed chord (`"D"`, `"Shift+D"`) is ignored. See
+[keyboard](keyboard.md).
+
 ## Right-click does not open a menu
 
 There is no context menu yet. Copy with ⌘C (Ctrl+Shift+C on Windows and Linux) and paste with ⌘V (Ctrl+Shift+V).
