@@ -57,17 +57,15 @@ run again. Tabs and split panes keep several shells in one window, and your layo
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/termzip-dark.png" width="880" alt="TermZip in the dark theme: a zsh session on the left and the command blocks rail on the right" />
+  <img src="docs/images/termzip-tabs-light.png" width="880" alt="TermZip in the light theme with three tabs, two panes side by side, and the command blocks rail for the focused pane" />
   <br />
-  <sub>The dark theme. You type straight into the terminal; every finished command becomes a block with its exit
-  code, duration, and output.</sub>
+  <sub>Tabs and split panes. Each pane has its own shell, and the blocks rail follows the focused one.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/termzip-light.png" width="880" alt="TermZip in the light theme showing the same session, with a failed command marked exit 1" />
+  <img src="docs/images/termzip-tabs-dark.png" width="880" alt="TermZip in the dark theme with the find box open, highlighting two matches of PASS in the left pane" />
   <br />
-  <sub>The light theme. A failing command (<code>false</code>) is marked <b>exit 1</b>; each block can be copied or run
-  again.</sub>
+  <sub>The dark theme with the find box open: matches are highlighted and counted, and Enter steps through them.</sub>
 </p>
 
 ## Getting started
