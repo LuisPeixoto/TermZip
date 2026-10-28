@@ -19,6 +19,43 @@ pub struct SettingsPayload {
     pub scrollback_lines: usize,
     pub shell: Option<String>,
     pub working_directory: Option<String>,
+    pub restore_session: bool,
+    pub default_profile: Option<String>,
+    pub profiles: Vec<ProfilePayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfilePayload {
+    pub id: String,
+    pub name: String,
+    pub shell: Option<String>,
+    pub working_directory: Option<String>,
+    pub env: std::collections::BTreeMap<String, String>,
+}
+
+impl From<termzip_core::Profile> for ProfilePayload {
+    fn from(profile: termzip_core::Profile) -> Self {
+        Self {
+            id: profile.id,
+            name: profile.name,
+            shell: profile.shell,
+            working_directory: profile.working_directory,
+            env: profile.env,
+        }
+    }
+}
+
+impl From<ProfilePayload> for termzip_core::Profile {
+    fn from(payload: ProfilePayload) -> Self {
+        Self {
+            id: payload.id,
+            name: payload.name,
+            shell: payload.shell,
+            working_directory: payload.working_directory,
+            env: payload.env,
+        }
+    }
 }
 
 impl From<termzip_core::Settings> for SettingsPayload {
@@ -30,6 +67,9 @@ impl From<termzip_core::Settings> for SettingsPayload {
             scrollback_lines: settings.scrollback_lines,
             shell: settings.shell,
             working_directory: settings.working_directory,
+            restore_session: settings.restore_session,
+            default_profile: settings.default_profile,
+            profiles: settings.profiles.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -43,6 +83,9 @@ impl From<SettingsPayload> for termzip_core::Settings {
             scrollback_lines: payload.scrollback_lines,
             shell: payload.shell,
             working_directory: payload.working_directory,
+            restore_session: payload.restore_session,
+            default_profile: payload.default_profile,
+            profiles: payload.profiles.into_iter().map(Into::into).collect(),
         }
         .normalized()
     }
@@ -57,6 +100,15 @@ pub fn get_settings() -> Result<SettingsPayload, String> {
 
 #[tauri::command]
 pub fn save_settings(settings: SettingsPayload) -> Result<SettingsPayload, String> {
+    // Explain a bad profile as it is, before the clean-up quietly drops what cannot be used.
+    termzip_core::validate_profiles(
+        &settings
+            .profiles
+            .iter()
+            .cloned()
+            .map(Into::into)
+            .collect::<Vec<_>>(),
+    )?;
     let settings = termzip_core::Settings::from(settings);
     settings.save().map_err(|error| error.to_string())?;
     Ok(SettingsPayload::from(settings))
