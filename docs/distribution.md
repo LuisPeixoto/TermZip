@@ -24,10 +24,11 @@ npm run tauri build -- --debug --no-bundle
 
 Pushing a `v*` tag starts `.github/workflows/release.yml`:
 
-1. Creates a draft GitHub release.
-2. Builds bundles for Apple silicon, Intel macOS, Linux and Windows.
-3. Uploads the bundles to the draft release.
-4. Generates a `SHA256SUMS` manifest.
+1. Fails early when the tag does not match the workspace, Tauri, and npm versions.
+2. Creates a draft GitHub release.
+3. Builds bundles for Apple silicon, Intel macOS, Linux and Windows.
+4. Uploads the bundles to the draft release.
+5. Generates a `SHA256SUMS` manifest (a re-run never hashes the previous manifest).
 
 The draft is intentionally not published automatically. Review it, then publish it from GitHub. Signing and
 notarization are not configured yet; when certificates are available, wire them through repository secrets before
@@ -40,5 +41,5 @@ bundle names, checksums and installers have been verified on each platform.
 
 ## Versioning
 
-The workspace version, `apps/desktop/package.json`, and `apps/desktop/src-tauri/tauri.conf.json` must match. Use
-SemVer. Before 1.0, minor releases may include user-visible behavior changes; `CHANGELOG.md` records them.
+The workspace version, `apps/desktop/package.json`, and `apps/desktop/src-tauri/tauri.conf.json` must match, and the
+release workflow checks them against the tag. Use SemVer. Before 1.0, minor releases may include user-visible behavior changes; `CHANGELOG.md` records them.
