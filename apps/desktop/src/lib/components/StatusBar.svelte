@@ -5,7 +5,7 @@
 </script>
 
 <footer
-  class="flex h-7 shrink-0 items-center gap-3 border-t border-line bg-panel px-3 text-[10.5px] text-muted"
+  class="flex h-7 shrink-0 items-center gap-3 border-t border-line bg-window-panel px-3 text-[10.5px] text-muted"
 >
   <span class="flex items-center gap-1.5">
     <span

@@ -36,12 +36,18 @@
   onMount(() => {
     dialog?.focus();
     // Leaving the dialog, saved or not, hands the window back to the theme that is saved.
-    return () => app.previewTheme(null);
+    return () => app.previewAppearance(null);
   });
 
-  // The theme being picked is shown on the window right away; Cancel puts the saved one back.
+  // What is being picked (theme, opacity, blur) is shown on the window right away; Cancel puts the saved look back.
   $effect(() => {
-    app.previewTheme({ theme: draft.theme, darkTheme: draft.darkTheme, lightTheme: draft.lightTheme });
+    app.previewAppearance({
+      theme: draft.theme,
+      darkTheme: draft.darkTheme,
+      lightTheme: draft.lightTheme,
+      backgroundOpacity: draft.backgroundOpacity,
+      backgroundBlur: draft.backgroundBlur,
+    });
   });
 
   // Arrow keys move between the sections, as in any tab list; only the selected one is a tab stop.

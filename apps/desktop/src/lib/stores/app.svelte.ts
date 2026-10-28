@@ -2,7 +2,7 @@ import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
 import { focusTerminal } from "../focus";
 import { defaultSettings } from "../settings";
-import { applyTheme, resolveTheme, type ThemeChoice } from "../theme";
+import { applyTheme, resolveTheme, type AppearanceChoice } from "../theme";
 import { currentToasts, toast, type Toast } from "./toasts.svelte";
 import { themes } from "./themes.svelte";
 
@@ -18,19 +18,28 @@ function createAppStore() {
   let shells = $state<ShellOption[]>([]);
 
   // While the preferences are open, the choices of the dialog are shown before they are saved.
-  let preview = $state.raw<ThemeChoice | null>(null);
+  let preview = $state.raw<AppearanceChoice | null>(null);
+  let blurSupported = $state(false);
 
+  const shown = $derived(preview ?? settings);
   // The theme in use: the one chosen for the current appearance, or TermZip's own when it is gone.
-  const theme = $derived(resolveTheme(themes.entries, preview ?? settings));
+  const theme = $derived(resolveTheme(themes.entries, shown));
+  const opacity = $derived(shown.backgroundOpacity);
+  const translucent = $derived(opacity < 1);
 
   /** Paints the window with the theme in use. */
   function paint(): void {
-    if (theme) applyTheme(theme);
+    if (theme) applyTheme(theme, opacity);
   }
 
-  // Whatever changes the theme in use (a save, the toggle, a preview, a deleted theme) repaints the window.
+  // Whatever changes the look (a save, the toggle, a preview, a deleted theme) repaints the window, and
+  // the system blurs what shows through only while the window is translucent.
   $effect.root(() => {
     $effect(paint);
+    $effect(() => {
+      if (!ready) return;
+      void api.setWindowEffects(blurSupported && translucent && shown.backgroundBlur).catch(() => {});
+    });
   });
 
   async function init(): Promise<void> {
@@ -42,6 +51,7 @@ function createAppStore() {
     ]);
     settings = loaded;
     platform = info.platform;
+    blurSupported = info.blurSupported;
     version = info.version;
     shells = detected;
     document.documentElement.dataset.platform = info.platform;
@@ -108,9 +118,16 @@ function createAppStore() {
     init,
     toggleTheme,
     updateSettings,
-    /** Shows these theme choices as if they were saved; `null` goes back to the saved ones. */
-    previewTheme(choice: ThemeChoice | null) {
+    /** Shows these choices as if they were saved; `null` goes back to the saved ones. */
+    previewAppearance(choice: AppearanceChoice | null) {
       preview = choice;
+    },
+    /** Whether the window lets the desktop show through (the opacity is below 100%). */
+    get translucent() {
+      return translucent;
+    },
+    get blurSupported() {
+      return blurSupported;
     },
     toast,
     toggleBlocks() {

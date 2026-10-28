@@ -12,6 +12,7 @@ import {
   parseColor,
   resolveTheme,
   toHex,
+  windowTokens,
   xtermTheme,
 } from "../src/lib/theme";
 import { appCssTokens, builtIn, builtInThemes } from "./helpers/themes";
@@ -209,5 +210,31 @@ describe("the gallery", () => {
     const imported = { ...builtIn("nord"), author: undefined, license: undefined };
     expect(describeCredit(imported)).toBe("");
     expect(describeCredit({ ...imported, license: "MIT" })).toBe("MIT");
+  });
+});
+
+describe("a translucent window", () => {
+  const dark = builtIn("termzip-dark");
+
+  it("is exactly as opaque as the tokens at full opacity", () => {
+    const tokens = chromeTokens(dark);
+    expect(windowTokens(dark, 1)).toEqual({ "--window-bg": tokens["--bg"], "--window-panel": tokens["--panel"] });
+  });
+
+  it("lets the desktop through the background and the panels only", () => {
+    expect(windowTokens(dark, 0.8)).toEqual({
+      "--window-bg": "rgb(9 9 11 / 0.8)",
+      "--window-panel": "rgb(18 18 20 / 0.8)",
+    });
+    expect(windowTokens(dark, 0.5)["--window-bg"]).toBe("rgb(9 9 11 / 0.5)");
+  });
+
+  it("leaves the terminal background clear so the opacity is applied once", () => {
+    expect(xtermTheme(dark, true).background).toBe("#00000000");
+    expect(xtermTheme(dark, false).background).toBe("#09090b");
+    expect(xtermTheme(dark).background).toBe("#09090b");
+    // Only the background is clear: text, cursor and selection keep their colors.
+    expect(xtermTheme(dark, true).foreground).toBe(dark.colors.foreground);
+    expect(xtermTheme(dark, true).selectionBackground).toBe(dark.colors.selection);
   });
 });

@@ -5,6 +5,9 @@
 @theme inline {
   --color-bg: var(--bg);
   --color-panel: var(--panel);
+  /* The big surfaces: translucent when the window opacity is below 100%. */
+  --color-window: var(--window-bg);
+  --color-window-panel: var(--window-panel);
   --color-panel-2: var(--panel-2);
   --color-elevated: var(--elevated);
   --color-hover: var(--hover);
@@ -24,6 +27,8 @@
 }
 
 :root {
+  --window-bg: var(--bg);
+  --window-panel: var(--panel);
   --bg: #fafafa;
   --panel: #ffffff;
   --panel-2: #f4f4f5;
@@ -76,7 +81,7 @@
   }
 
   body {
-    background: var(--bg);
+    background: var(--window-bg);
     color: var(--fg);
     font-family: var(--font-sans);
     font-size: 13px;
