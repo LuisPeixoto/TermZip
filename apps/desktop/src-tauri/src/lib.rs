@@ -21,6 +21,8 @@ pub fn run() {
             commands::write_session,
             commands::resize_session,
             commands::ack_session,
+            commands::load_workspace,
+            commands::save_workspace,
             commands::list_blocks,
         ])
         .build(tauri::generate_context!())

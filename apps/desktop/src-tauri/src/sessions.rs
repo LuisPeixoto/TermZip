@@ -49,6 +49,16 @@ pub enum SessionEvent {
     Cwd { path: String },
 }
 
+/// Everything needed to start a shell, after the profile was resolved.
+pub struct SessionRequest {
+    pub rows: u16,
+    pub columns: u16,
+    pub working_directory: Option<String>,
+    pub shell: Option<String>,
+    /// The profile's variables; the integration's own win over them.
+    pub env: BTreeMap<String, String>,
+}
+
 pub struct SessionHandle {
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     master: Mutex<Box<dyn termzip_pty::MasterPty + Send>>,
@@ -121,14 +131,20 @@ impl Sessions {
     pub fn create(
         &self,
         events: Channel<SessionEvent>,
-        rows: u16,
-        columns: u16,
-        working_directory: Option<String>,
-        shell_override: Option<String>,
+        request: SessionRequest,
         integration_dir: &Path,
     ) -> anyhow::Result<SessionInfo> {
+        let SessionRequest {
+            rows,
+            columns,
+            working_directory,
+            shell: shell_override,
+            env: profile_env,
+        } = request;
         let launch = termzip_shell::launch_config(shell_override.as_deref(), integration_dir);
-        let environment: BTreeMap<String, String> = launch.env.iter().cloned().collect();
+        // The profile's variables go first: the integration's own (ZDOTDIR and friends) win.
+        let mut environment = profile_env;
+        environment.extend(launch.env.iter().cloned());
         let options = PtyOptions {
             shell: Some(launch.program.clone()),
             args: launch.args.clone(),
@@ -364,7 +380,17 @@ mod tests {
         let dir = std::env::temp_dir().join("termzip-sessions-test");
         // `sh` is not an integrated shell, so the script runs without injected startup files.
         let info = sessions
-            .create(channel, 24, 80, None, Some("/bin/sh".to_owned()), &dir)
+            .create(
+                channel,
+                SessionRequest {
+                    rows: 24,
+                    columns: 80,
+                    working_directory: None,
+                    shell: Some("/bin/sh".to_owned()),
+                    env: BTreeMap::new(),
+                },
+                &dir,
+            )
             .unwrap();
         sessions
             .get(info.id)
@@ -576,5 +602,55 @@ mod tests {
             thread::sleep(Duration::from_millis(50));
         }
         panic!("the reader of a destroyed, paused session is still running");
+    }
+
+    #[test]
+    fn a_profile_variable_reaches_the_shell() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let dir = std::env::temp_dir().join("termzip-sessions-test");
+        let mut env = BTreeMap::new();
+        env.insert(
+            "TERMZIP_TEST_PROFILE_VAR".to_owned(),
+            "from-the-profile".to_owned(),
+        );
+        let info = sessions
+            .create(
+                channel,
+                SessionRequest {
+                    rows: 24,
+                    columns: 80,
+                    working_directory: None,
+                    shell: Some("/bin/sh".to_owned()),
+                    env,
+                },
+                &dir,
+            )
+            .unwrap();
+        sessions
+            .get(info.id)
+            .unwrap()
+            .write(b"printf '[%s]' \"$TERMZIP_TEST_PROFILE_VAR\"; exit 0\n")
+            .unwrap();
+
+        assert!(wait_for(&collected, "exit"));
+        let output = received_text(&collected);
+        assert!(output.contains("[from-the-profile]"), "{output}");
+    }
+
+    fn received_text(collected: &Collected) -> String {
+        use base64::Engine as _;
+        let bytes: Vec<u8> = collected
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| event["type"] == "data")
+            .flat_map(|event| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(event["data"].as_str().unwrap())
+                    .unwrap()
+            })
+            .collect();
+        String::from_utf8_lossy(&bytes).into_owned()
     }
 }

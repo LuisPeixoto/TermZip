@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 use tauri::ipc::Channel;
 
-use crate::sessions::{SessionEvent, SessionInfo, Sessions};
+use crate::sessions::{SessionEvent, SessionInfo, SessionRequest, Sessions};
 
 const DEFAULT_ROWS: u16 = 24;
 const DEFAULT_COLUMNS: u16 = 80;
@@ -240,27 +240,82 @@ fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
             .is_some_and(|(a, b)| a == b)
 }
 
-/// Starts a shell. Output, block updates and the exit all arrive on `on_event`.
+/// What a new session starts with, once its profile was resolved against the saved settings.
+struct SessionStart {
+    shell: Option<String>,
+    working_directory: Option<String>,
+    env: std::collections::BTreeMap<String, String>,
+}
+
+/// `restored` is the folder a pane was in when the layout was saved: it wins while it still exists,
+/// otherwise the profile's own folder applies.
+fn resolve_start(
+    settings: &termzip_core::Settings,
+    profile_id: Option<&str>,
+    restored: Option<&str>,
+) -> SessionStart {
+    let launch = settings.launch_profile(profile_id);
+    let restored = restored
+        .filter(|directory| !directory.is_empty() && std::path::Path::new(directory).is_dir())
+        .map(str::to_owned);
+    SessionStart {
+        shell: launch.shell,
+        working_directory: restored.or(launch.working_directory),
+        env: launch.env,
+    }
+}
+
+/// Starts a shell. Output, block updates and the exit all arrive on `on_event`. The profile, its
+/// shell, folder and environment are resolved here from the saved settings.
 #[tauri::command]
 pub fn create_session(
     sessions: State<'_, Sessions>,
     on_event: Channel<SessionEvent>,
     rows: Option<u16>,
     columns: Option<u16>,
-    working_directory: Option<String>,
-    shell: Option<String>,
+    profile_id: Option<String>,
+    restore_directory: Option<String>,
 ) -> Result<SessionInfo, String> {
+    let settings = termzip_core::Settings::load().map_err(|error| error.to_string())?;
+    let start = resolve_start(
+        &settings,
+        profile_id.as_deref(),
+        restore_directory.as_deref(),
+    );
     let integration_dir = termzip_core::integration_dir().map_err(|error| error.to_string())?;
     sessions
         .create(
             on_event,
-            rows.unwrap_or(DEFAULT_ROWS).max(1),
-            columns.unwrap_or(DEFAULT_COLUMNS).max(1),
-            working_directory,
-            shell,
+            SessionRequest {
+                rows: rows.unwrap_or(DEFAULT_ROWS).max(1),
+                columns: columns.unwrap_or(DEFAULT_COLUMNS).max(1),
+                working_directory: start.working_directory,
+                shell: start.shell,
+                env: start.env,
+            },
             &integration_dir,
         )
         .map_err(|error| error.to_string())
+}
+
+/// The layout saved by the last run, or nothing when restore is off or there is none.
+#[tauri::command]
+pub fn load_workspace() -> Result<Option<termzip_core::Workspace>, String> {
+    let settings = termzip_core::Settings::load().map_err(|error| error.to_string())?;
+    if !settings.restore_session {
+        return Ok(None);
+    }
+    termzip_core::Workspace::load().map_err(|error| error.to_string())
+}
+
+/// Saves the layout. With restore off nothing is kept, and a layout saved earlier is deleted.
+#[tauri::command]
+pub fn save_workspace(workspace: termzip_core::Workspace) -> Result<(), String> {
+    let settings = termzip_core::Settings::load().map_err(|error| error.to_string())?;
+    if !settings.restore_session {
+        return termzip_core::Workspace::forget().map_err(|error| error.to_string());
+    }
+    workspace.save().map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -317,4 +372,55 @@ pub fn list_blocks(
     sessions
         .blocks_snapshot(session_id)
         .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use termzip_core::{Profile, Settings};
+
+    use super::resolve_start;
+
+    fn settings() -> Settings {
+        let mut work = Profile {
+            name: "Work".to_owned(),
+            working_directory: Some("/srv/work".to_owned()),
+            ..Profile::default()
+        };
+        work.env.insert("MODE".to_owned(), "work".to_owned());
+        Settings {
+            shell: Some("/bin/zsh".to_owned()),
+            working_directory: Some("/home/me".to_owned()),
+            profiles: vec![work],
+            ..Settings::default()
+        }
+        .normalized()
+    }
+
+    #[test]
+    fn a_restored_folder_that_still_exists_wins_over_the_profile() {
+        let here = std::env::temp_dir();
+        let start = resolve_start(&settings(), Some("work"), here.to_str());
+        assert_eq!(start.working_directory.as_deref(), here.to_str());
+        assert_eq!(start.env.get("MODE").map(String::as_str), Some("work"));
+        assert_eq!(start.shell.as_deref(), Some("/bin/zsh"));
+    }
+
+    #[test]
+    fn a_restored_folder_that_is_gone_falls_back_to_the_profile() {
+        let start = resolve_start(&settings(), Some("work"), Some("/definitely/not/here"));
+        assert_eq!(start.working_directory.as_deref(), Some("/srv/work"));
+    }
+
+    #[test]
+    fn a_blank_restored_folder_is_ignored() {
+        let start = resolve_start(&settings(), None, Some(""));
+        assert_eq!(start.working_directory.as_deref(), Some("/home/me"));
+    }
+
+    #[test]
+    fn an_unknown_profile_still_starts_a_shell() {
+        let start = resolve_start(&settings(), Some("ghost"), None);
+        assert_eq!(start.working_directory.as_deref(), Some("/home/me"));
+        assert!(start.env.is_empty());
+    }
 }
