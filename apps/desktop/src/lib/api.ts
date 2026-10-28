@@ -110,6 +110,8 @@ export const api = {
   ackSession: (sessionId: number, bytes: number) =>
     invoke<void>("ack_session", { sessionId, bytes }),
   listBlocks: (sessionId: number) => invoke<Block[]>("list_blocks", { sessionId }),
+  /** Opens a URL or a file path that was clicked in the terminal; the backend decides what is allowed. */
+  openLink: (target: string, cwd: string | null) => invoke<void>("open_link", { target, cwd }),
   loadWorkspace: () => invoke<Workspace | null>("load_workspace"),
   saveWorkspace: (workspace: Workspace) => invoke<void>("save_workspace", { workspace }),
 };
