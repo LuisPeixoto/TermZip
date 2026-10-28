@@ -154,6 +154,8 @@ pub struct AppInfo {
     pub version: String,
     pub platform: String,
     pub config_path: String,
+    /// Whether a translucent window can be blurred on this system.
+    pub blur_supported: bool,
 }
 
 #[tauri::command]
@@ -164,7 +166,20 @@ pub fn app_info() -> Result<AppInfo, String> {
         config_path: termzip_core::settings_path()
             .map(|path| path.display().to_string())
             .unwrap_or_default(),
+        blur_supported: crate::window::BLUR_SUPPORTED,
     })
+}
+
+/// Blurs what shows through the window, or stops. The page decides when: only while the opacity is
+/// below 100 %. Where the system cannot blur this does nothing.
+#[tauri::command]
+pub fn set_window_effects(window: tauri::WebviewWindow, blur: bool) -> Result<(), String> {
+    if !crate::window::BLUR_SUPPORTED {
+        return Ok(());
+    }
+    window
+        .set_effects(crate::window::effects(blur))
+        .map_err(|error| error.to_string())
 }
 
 #[derive(Debug, Clone, Serialize)]
