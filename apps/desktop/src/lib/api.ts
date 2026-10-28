@@ -74,6 +74,9 @@ export const api = {
     }),
   resizeSession: (sessionId: number, rows: number, columns: number) =>
     invoke<void>("resize_session", { sessionId, rows, columns }),
+  /** Tells the backend how much output the terminal has finished drawing (flow control). */
+  ackSession: (sessionId: number, bytes: number) =>
+    invoke<void>("ack_session", { sessionId, bytes }),
   listBlocks: (sessionId: number) => invoke<Block[]>("list_blocks", { sessionId }),
 };
 
