@@ -66,15 +66,21 @@ run again. Tabs and split panes keep several shells in one window, and your layo
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/termzip-tabs-light.png" width="880" alt="TermZip in the light theme with three tabs, two panes side by side, and the command blocks rail for the focused pane" />
+  <img src="docs/images/termzip-dracula.png" width="880" alt="TermZip in the Dracula theme with two tabs, two panes side by side, and the command blocks rail for the focused pane" />
   <br />
-  <sub>Tabs and split panes. Each pane has its own shell, and the blocks rail follows the focused one.</sub>
+  <sub>Dracula, one of the twelve built-in themes. A theme recolors the whole window: the terminal, the blocks, and the interface around them.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/images/termzip-tabs-dark.png" width="880" alt="TermZip in the dark theme with the find box open, highlighting two matches of PASS in the left pane" />
+  <img src="docs/images/termzip-themes.png" width="880" alt="The Appearance preferences listing the themes as cards, each previewed in its own colors, with Dracula marked as in use" />
   <br />
-  <sub>The dark theme with the find box open: matches are highlighted and counted, and Enter steps through them.</sub>
+  <sub>Preferences → Appearance. Every theme is previewed in its own colors, and the window follows your choice before you save.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/termzip-palette-light.png" width="880" alt="TermZip in the Catppuccin Latte theme with the command palette open, listing actions with their shortcuts" />
+  <br />
+  <sub>Catppuccin Latte with the command palette (⇧⌘P): every action, tab, profile, and theme, with the shortcut you set.</sub>
 </p>
 
 ## Getting started
