@@ -6,8 +6,8 @@ TermZip stores optional TOML settings in the operating system's standard per-use
 - Linux: `$XDG_CONFIG_HOME/termzip/config.toml` or `~/.config/termzip/config.toml`
 - Windows: `%APPDATA%\termzip\config.toml`
 
-Missing files use built-in defaults. Theme, font, and scrollback can also be changed in **Preferences** (⌘,); TermZip
-saves them automatically. The file contains preferences only — no shell history or terminal output.
+Missing files use built-in defaults. Every option can be changed in **Preferences** (⌘, on macOS, Ctrl+, elsewhere)
+and is written when you press Save. The file contains preferences only — no shell history or terminal output.
 
 ```toml
 theme = "dark"            # "dark" | "light"
@@ -18,8 +18,30 @@ scrollback_lines = 10000  # clamped to 1_000..200_000
 # working_directory = "/path/to/project"
 ```
 
-Unknown or malformed values fall back to defaults; out-of-range values are clamped. `shell` and `working_directory`
-are applied when a session starts — restart the shell (⌘R) after changing them.
+Out-of-range values are clamped and unknown keys are ignored. Font size, font family, scrollback, and theme apply to
+the running terminal as soon as you save; `shell` and `working_directory` are read when a session starts, so restart
+the shell (⌘R, or Ctrl+Shift+R on Windows and Linux) after changing them.
+
+## A file that cannot be read
+
+If the file is not valid TOML or a value has the wrong type, TermZip does not overwrite it. It renames the file to
+`config.toml.invalid` next to the original, starts with the defaults, and your next save creates a fresh
+`config.toml`. Fix the old file by hand and rename it back if you want your settings again.
+
+Saves are atomic: the new contents go to a temporary file that is renamed into place, so a crash cannot leave a
+half-written config. On macOS and Linux the folder is private to you (`0700`) and the file is `0600`.
+
+## Moving the data folder
+
+Set `TERMZIP_HOME` to use another folder for everything TermZip stores (the config file and the shell-integration
+scripts). Tests, demos, and a second profile can use it without touching your real settings:
+
+```bash
+TERMZIP_HOME=/tmp/termzip-demo npm run tauri dev
+```
+
+An empty value is ignored. The folder is created on the first save and, on macOS and Linux, restricted to your user
+(`0700`) — point it at a folder that only TermZip uses.
 
 ## Shell integration files
 
