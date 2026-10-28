@@ -23,6 +23,9 @@ function createAppStore() {
   let blurSupported = $state(false);
   // While a shortcut is being recorded, no shortcut may act: the keys are the answer, not commands.
   let recordingShortcut = $state(false);
+  let paletteOpen = $state(false);
+  // The commands used last, newest first, so the palette opens on what is likely wanted again.
+  let recentActions = $state.raw<string[]>([]);
 
   const shown = $derived(preview ?? settings);
   // The theme in use: the one chosen for the current appearance, or TermZip's own when it is gone.
@@ -85,6 +88,7 @@ function createAppStore() {
 
   function setSettingsOpen(open: boolean): void {
     settingsOpen = open;
+    if (open) paletteOpen = false;
     // The modal held the keyboard; give it back to the terminal once the modal is gone.
     if (!open) focusTerminal();
   }
@@ -133,6 +137,25 @@ function createAppStore() {
     hint(action: AppShortcut): string {
       const label = shortcutLabel(action, platform, settings.keybindings);
       return label ? ` (${label})` : "";
+    },
+    get paletteOpen() {
+      return paletteOpen;
+    },
+    get recentActions() {
+      return recentActions;
+    },
+    rememberAction(id: string) {
+      recentActions = [id, ...recentActions.filter((known) => known !== id)].slice(0, 8);
+    },
+    togglePalette() {
+      // The palette and the preferences both take the keyboard; only one at a time.
+      if (settingsOpen) return;
+      paletteOpen = !paletteOpen;
+      if (!paletteOpen) focusTerminal();
+    },
+    closePalette() {
+      paletteOpen = false;
+      focusTerminal();
     },
     get recordingShortcut() {
       return recordingShortcut;

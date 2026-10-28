@@ -4,13 +4,14 @@
   import { app } from "./lib/stores/app.svelte";
   import { persistWorkspace, type Persistence } from "./lib/stores/persist.svelte";
   import { workspace } from "./lib/stores/workspace.svelte";
-  import { matchShortcut, tabPosition, type AppShortcut } from "./lib/shortcuts";
-  import { focusTerminal } from "./lib/focus";
+  import { matchShortcut } from "./lib/shortcuts";
+  import { runAction } from "./lib/runAction";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import PaneGrid from "./lib/components/PaneGrid.svelte";
   import BlocksRail from "./lib/components/BlocksRail.svelte";
   import StatusBar from "./lib/components/StatusBar.svelte";
   import SettingsModal from "./lib/components/SettingsModal.svelte";
+  import CommandPalette from "./lib/components/CommandPalette.svelte";
   import Toasts from "./lib/components/Toasts.svelte";
 
   onMount(() => {
@@ -41,53 +42,6 @@
     };
   });
 
-  function runShortcut(shortcut: AppShortcut) {
-    const position = tabPosition(shortcut);
-    if (position !== null) {
-      workspace.activateAt(position);
-      focusTerminal();
-      return;
-    }
-    switch (shortcut) {
-      case "restart":
-        window.dispatchEvent(new CustomEvent("termzip:restart"));
-        break;
-      case "blocks":
-        app.toggleBlocks();
-        break;
-      case "find":
-        workspace.activePane.openSearch();
-        break;
-      case "newTab":
-        if (!workspace.newTab()) app.toast("warn", "That is the most tabs a window can hold");
-        focusTerminal();
-        break;
-      case "closePane":
-        workspace.closeActivePane();
-        focusTerminal();
-        break;
-      case "splitRight":
-      case "splitDown":
-        if (!workspace.splitActive(shortcut === "splitRight" ? "row" : "column")) {
-          app.toast("warn", "This tab cannot hold another pane");
-        }
-        focusTerminal();
-        break;
-      case "focusLeft":
-      case "focusRight":
-      case "focusUp":
-      case "focusDown":
-        workspace.activeTab.focusSide(shortcut.slice(5).toLowerCase() as "left" | "right" | "up" | "down");
-        focusTerminal();
-        break;
-      case "nextTab":
-      case "prevTab":
-        workspace.cycle(shortcut === "nextTab" ? 1 : -1);
-        focusTerminal();
-        break;
-    }
-  }
-
   function onWindowKeydown(event: KeyboardEvent) {
     if (app.recordingShortcut) return;
     // xterm keeps focus in a hidden textarea of its own; that is the terminal, not a form field.
@@ -103,9 +57,10 @@
     if (shortcut === "preferences") {
       event.preventDefault();
       app.toggleSettings();
-    } else if (shortcut && !inField && !app.settingsOpen) {
+    } else if (shortcut === "commandPalette" || (shortcut && !inField && !app.settingsOpen)) {
+      // The palette's own key also closes it, though the palette's search box has the focus.
       event.preventDefault();
-      runShortcut(shortcut);
+      runAction(shortcut);
     } else if (event.key === "Escape") {
       if (app.settingsOpen) {
         event.preventDefault();
@@ -119,7 +74,7 @@
 
 <svelte:window onkeydown={onWindowKeydown} oncontextmenu={(event) => event.preventDefault()} />
 
-<div class="flex h-full flex-col bg-window" inert={app.settingsOpen}>
+<div class="flex h-full flex-col bg-window" inert={app.settingsOpen || app.paletteOpen}>
   <Toolbar />
   {#if app.ready && workspace.loaded}
     <div class="flex min-h-0 flex-1">
@@ -145,5 +100,8 @@
 
 {#if app.settingsOpen}
   <SettingsModal />
+{/if}
+{#if app.paletteOpen}
+  <CommandPalette />
 {/if}
 <Toasts />
