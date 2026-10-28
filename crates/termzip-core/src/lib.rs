@@ -1,9 +1,13 @@
+mod appearance;
+mod keybindings;
 mod profile;
 mod settings;
 mod storage;
 mod theme;
 mod workspace;
 
+pub use appearance::CursorStyle;
+pub use keybindings::{MAX_KEYBINDINGS, normalize_chord, validate_keybindings};
 pub use profile::{DEFAULT_PROFILE_ID, LaunchProfile, Profile, slug, validate_profiles};
 pub use settings::{HOME_ENV, Settings, SettingsError, data_dir, integration_dir, settings_path};
 pub use theme::{
