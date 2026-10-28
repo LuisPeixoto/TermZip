@@ -21,6 +21,8 @@ function createAppStore() {
   // While the preferences are open, the choices of the dialog are shown before they are saved.
   let preview = $state.raw<AppearanceChoice | null>(null);
   let blurSupported = $state(false);
+  // While a shortcut is being recorded, no shortcut may act: the keys are the answer, not commands.
+  let recordingShortcut = $state(false);
 
   const shown = $derived(preview ?? settings);
   // The theme in use: the one chosen for the current appearance, or TermZip's own when it is gone.
@@ -131,6 +133,12 @@ function createAppStore() {
     hint(action: AppShortcut): string {
       const label = shortcutLabel(action, platform, settings.keybindings);
       return label ? ` (${label})` : "";
+    },
+    get recordingShortcut() {
+      return recordingShortcut;
+    },
+    setRecordingShortcut(on: boolean) {
+      recordingShortcut = on;
     },
     get opacity() {
       return opacity;

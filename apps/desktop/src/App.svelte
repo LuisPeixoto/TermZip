@@ -89,6 +89,7 @@
   }
 
   function onWindowKeydown(event: KeyboardEvent) {
+    if (app.recordingShortcut) return;
     // xterm keeps focus in a hidden textarea of its own; that is the terminal, not a form field.
     const target = event.target instanceof Element ? event.target : null;
     const inField =

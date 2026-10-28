@@ -4,6 +4,7 @@
   import Icon from "./Icon.svelte";
   import AppearanceSection from "./preferences/AppearanceSection.svelte";
   import GeneralSection from "./preferences/GeneralSection.svelte";
+  import KeyboardSection from "./preferences/KeyboardSection.svelte";
   import ProfilesSection from "./preferences/ProfilesSection.svelte";
   import TerminalSection from "./preferences/TerminalSection.svelte";
   import { app } from "../stores/app.svelte";
@@ -15,6 +16,7 @@
     { id: "general", label: "General", component: GeneralSection },
     { id: "appearance", label: "Appearance", component: AppearanceSection },
     { id: "terminal", label: "Terminal", component: TerminalSection },
+    { id: "keyboard", label: "Keyboard", component: KeyboardSection },
     { id: "profiles", label: "Profiles", component: ProfilesSection },
   ];
 
