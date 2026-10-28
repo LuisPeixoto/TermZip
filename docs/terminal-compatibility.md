@@ -11,7 +11,8 @@ This document tracks what is verified, what is implemented but not exhaustively 
 - Selection with copy (⌘C / Ctrl+Shift+C), paste (⌘V / Ctrl+Shift+V), select-all (⌘A / Ctrl+Shift+A).
 - Command blocks with command text, exit code, duration, working directory, and a bounded output preview on
   integrated shells.
-- Bottom composer with multiline input and local history navigation.
+- The terminal is the only input: your shell's line editor, history, completion, and keybindings apply unchanged.
+- Application shortcuts that never collide with shell keys (⌘ on macOS, Ctrl+Shift elsewhere).
 
 ## Verified locally (macOS)
 
