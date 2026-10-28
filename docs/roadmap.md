@@ -44,18 +44,25 @@ Binary inspection does not establish runtime performance or reconstruct propriet
   per-shell quoting of the integration path · UTF-8 safe block text · `TERMZIP_HOME` · a broken config is kept as
   `config.toml.invalid` · atomic saves · a release workflow that checks the tag and builds both macOS targets.
 
-## 📋 Phase 3: Everyday productivity · v0.2
+## ✅ Phase 3: Everyday productivity · v0.2
 
-- [ ] Multiple tabs and split panes.
-- [ ] Search terminal history and output; block filtering.
-- [ ] Session restore, profiles, links, and keyboard customization.
-- [ ] Large-output virtualization and incremental rendering budgets.
+- ✅ Multiple tabs and split panes: new, close, rename, reorder, drag the dividers, move between panes by keyboard;
+  every tab stays mounted. See [tabs and panes](tabs-and-panes.md).
+- ✅ Search the terminal (⌘F, case and regular expression, a count) and filter the blocks by text and status. See
+  [search and filter](search-and-filter.md).
+- ✅ Session restore of tabs, splits, and folders (structure only, never output) and profiles with a shell, folder, and
+  environment, edited in Preferences. See [profiles and restore](profiles-and-restore.md).
+- ✅ Clickable URLs, OSC 8 hyperlinks, and file paths with ⌘+click; the backend only opens what exists and never starts
+  a program. See [links](links.md).
+- ✅ Large-output budgets: one event per block instead of the whole list, flow control between the shell and the
+  terminal, and a virtual list of blocks. See [performance](performance.md).
+- Keyboard customization moved to Phase 4, where the shortcut editor lives.
 
 ## 📋 Phase 4: Personalization · v0.3
 
 - [ ] Theme import/export and a gallery of audited themes.
 - [ ] Cursor styles, opacity, spacing, per-profile shell settings.
-- [ ] A complete keyboard shortcut editor and discoverable command palette.
+- [ ] A complete keyboard shortcut editor (customization moved here from Phase 3) and a discoverable command palette.
 
 ## 📋 Phase 5: Extensions · v0.4
 
