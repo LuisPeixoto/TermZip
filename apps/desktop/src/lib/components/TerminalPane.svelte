@@ -5,14 +5,7 @@
   import { WebglAddon } from "@xterm/addon-webgl";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import "@xterm/xterm/css/xterm.css";
-  import {
-    api,
-    base64ToBytes,
-    onPtyData,
-    onPtyExit,
-    type PtyData,
-    type PtyExit,
-  } from "../api";
+  import { api, base64ToBytes, type SessionEvent } from "../api";
   import { xtermTheme } from "../terminal/xtermTheme";
   import { app } from "../stores/app.svelte";
 
@@ -28,9 +21,9 @@
   let fitAddon: FitAddon | undefined;
   let webgl: WebglAddon | undefined;
   let sessionInfo: { id: number; shell: string; integrated: boolean } | null = null;
-  let hydrated = false;
-  let deferred: Uint8Array[] = [];
   let disposed = false;
+  // Each shell gets a number; events of an older shell (a restart is in flight) are ignored.
+  let generation = 0;
 
   $effect(() => {
     if (terminal && sessionInfo) {
@@ -124,75 +117,62 @@
     void document.fonts.ready.then(() => fit());
     const fitTimer = window.setTimeout(() => fit(), 250);
 
-    let unlistenData: (() => void) | undefined;
-    let unlistenExit: (() => void) | undefined;
-
-    void (async () => {
-      unlistenData = await onPtyData((event: PtyData) => {
-        if (!terminal || !sessionInfo || event.sessionId !== sessionInfo.id) return;
-        const bytes = base64ToBytes(event.data);
-        if (!hydrated) {
-          deferred.push(bytes);
-          return;
-        }
-        terminal.write(bytes);
-      });
-      unlistenExit = await onPtyExit((event: PtyExit) => {
-        if (!sessionInfo || event.sessionId !== sessionInfo.id) return;
-        app.markExited(event.code);
-        app.toast(
-          event.code === 0 ? "warn" : "err",
-          `Shell exited${event.code != null ? ` with code ${event.code}` : ""}`,
-        );
-      });
-      await startSession();
-    })();
+    void startSession();
 
     return () => {
       disposed = true;
       observer.disconnect();
       window.removeEventListener("resize", onWindowResize);
       window.clearTimeout(fitTimer);
-      unlistenData?.();
-      unlistenExit?.();
       if (sessionInfo) void api.destroySession(sessionInfo.id).catch(() => {});
       terminal?.dispose();
     };
   });
 
+  function onSessionEvent(owner: number, event: SessionEvent): void {
+    if (disposed || owner !== generation || !terminal) return;
+    switch (event.type) {
+      case "data":
+        terminal.write(base64ToBytes(event.data));
+        break;
+      case "blocks":
+        app.setBlocks(event.blocks);
+        break;
+      case "exit":
+        app.markExited(event.code);
+        app.toast(
+          event.code === 0 ? "warn" : "err",
+          `Shell exited${event.code != null ? ` with code ${event.code}` : ""}`,
+        );
+        break;
+    }
+  }
+
   async function startSession(): Promise<void> {
     if (!terminal || disposed) return;
-    hydrated = false;
-    deferred = [];
+    const owner = ++generation;
+    app.beginSession();
     fit();
     const rows = Math.max(terminal.rows, 10);
     const columns = Math.max(terminal.cols, 20);
 
     try {
-      const info = await api.createSession({
-        rows,
-        columns,
-        workingDirectory: app.settings.workingDirectory,
-        shell: app.settings.shell,
-      });
-      if (disposed) {
+      const info = await api.createSession(
+        {
+          rows,
+          columns,
+          workingDirectory: app.settings.workingDirectory,
+          shell: app.settings.shell,
+        },
+        (event) => onSessionEvent(owner, event),
+      );
+      if (disposed || owner !== generation) {
+        // A newer shell (or the window closing) replaced this one while it started.
         void api.destroySession(info.id).catch(() => {});
         return;
       }
       sessionInfo = info;
       app.setSession(info);
-
-      const backlog = await api.takeBacklog(info.id);
-      if (backlog) terminal.write(base64ToBytes(backlog));
-      for (const chunk of deferred) terminal.write(chunk);
-      deferred = [];
-      hydrated = true;
-
-      try {
-        app.setBlocks(await api.listBlocks(info.id));
-      } catch {
-        /* blocks may be empty */
-      }
       terminal.focus();
     } catch (error) {
       app.toast("err", `Could not start the shell: ${error}`);

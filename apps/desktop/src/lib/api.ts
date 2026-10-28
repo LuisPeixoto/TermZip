@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 export interface Settings {
   theme: "dark" | "light";
@@ -41,17 +40,31 @@ export interface Block {
   output: string | null;
 }
 
+/** Everything one shell session reports, in order, on its own channel. */
+export type SessionEvent =
+  | { type: "data"; data: string }
+  | { type: "exit"; code: number | null }
+  | { type: "blocks"; blocks: Block[] };
+
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   appInfo: () => invoke<AppInfo>("app_info"),
   detectShells: () => invoke<ShellOption[]>("detect_shells"),
-  createSession: (options: {
-    rows: number;
-    columns: number;
-    workingDirectory?: string | null;
-    shell?: string | null;
-  }) => invoke<SessionInfo>("create_session", options),
+  /** Events can arrive before the returned promise settles; `onEvent` must not need the id. */
+  createSession: (
+    options: {
+      rows: number;
+      columns: number;
+      workingDirectory?: string | null;
+      shell?: string | null;
+    },
+    onEvent: (event: SessionEvent) => void,
+  ) => {
+    const channel = new Channel<SessionEvent>();
+    channel.onmessage = onEvent;
+    return invoke<SessionInfo>("create_session", { ...options, onEvent: channel });
+  },
   destroySession: (sessionId: number) => invoke<void>("destroy_session", { sessionId }),
   writeSession: (sessionId: number, bytes: Uint8Array) =>
     invoke<void>("write_session", {
@@ -60,36 +73,8 @@ export const api = {
     }),
   resizeSession: (sessionId: number, rows: number, columns: number) =>
     invoke<void>("resize_session", { sessionId, rows, columns }),
-  takeBacklog: (sessionId: number) => invoke<string>("take_backlog", { sessionId }),
   listBlocks: (sessionId: number) => invoke<Block[]>("list_blocks", { sessionId }),
 };
-
-export interface PtyData {
-  sessionId: number;
-  data: string;
-}
-
-export interface PtyExit {
-  sessionId: number;
-  code: number | null;
-}
-
-export interface BlocksUpdate {
-  sessionId: number;
-  blocks: Block[];
-}
-
-export function onPtyData(handler: (event: PtyData) => void): Promise<UnlistenFn> {
-  return listen<PtyData>("pty-data", (event) => handler(event.payload));
-}
-
-export function onPtyExit(handler: (event: PtyExit) => void): Promise<UnlistenFn> {
-  return listen<PtyExit>("pty-exit", (event) => handler(event.payload));
-}
-
-export function onBlocksUpdate(handler: (event: BlocksUpdate) => void): Promise<UnlistenFn> {
-  return listen<BlocksUpdate>("blocks-update", (event) => handler(event.payload));
-}
 
 export function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";

@@ -169,7 +169,9 @@ fn parse_body(body: &[u8]) -> Option<Marker> {
 
 /// Reduce a captured byte region to plain text by removing escape sequences.
 pub fn strip_ansi(bytes: &[u8]) -> String {
-    let mut out = String::new();
+    // Work on bytes and decode once at the end: a multibyte character is several
+    // bytes and must not be widened one byte at a time.
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut chars = bytes.iter().copied().peekable();
     while let Some(byte) = chars.next() {
         match byte {
@@ -196,14 +198,17 @@ pub fn strip_ansi(bytes: &[u8]) -> String {
                 }
             }
             0x07 => {}
-            0x08 | 0x7f => {
-                out.pop();
-            }
+            0x08 | 0x7f => pop_char(&mut out),
             0x0d => {}
-            _ => out.push(char::from_u32(u32::from(byte)).unwrap_or(' ')),
+            _ => out.push(byte),
         }
     }
-    out.trim().to_owned()
+    String::from_utf8_lossy(&out).trim().to_owned()
+}
+
+/// Removes the last character, which is the last byte plus its continuation bytes.
+fn pop_char(out: &mut Vec<u8>) {
+    while out.pop().is_some_and(|byte| (0x80..0xc0).contains(&byte)) {}
 }
 
 #[cfg(test)]
@@ -314,5 +319,23 @@ mod tests {
         let text = strip_ansi(b"\x1b[38;2;10;20;30mecho \x1b[0m\x1b]133;C\x07done\x08\r\n");
 
         assert_eq!(text, "echo don");
+    }
+
+    #[test]
+    fn strip_ansi_keeps_multibyte_text_intact() {
+        let bytes = "echo h\u{e9}llo \u{4f60}\u{597d} \u{1f680}".as_bytes();
+        assert_eq!(
+            strip_ansi(bytes),
+            "echo h\u{e9}llo \u{4f60}\u{597d} \u{1f680}"
+        );
+        let colored = b"\x1b[31mcaf\xc3\xa9\x1b[0m";
+        assert_eq!(strip_ansi(colored), "caf\u{e9}");
+    }
+
+    #[test]
+    fn strip_ansi_survives_a_character_cut_in_half() {
+        // A capture limit can end in the middle of a multibyte character.
+        let cut = &"\u{e9}".as_bytes()[..1];
+        assert_eq!(strip_ansi(cut), "\u{fffd}");
     }
 }

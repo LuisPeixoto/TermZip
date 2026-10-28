@@ -19,7 +19,6 @@ pub fn run() {
             commands::destroy_session,
             commands::write_session,
             commands::resize_session,
-            commands::take_backlog,
             commands::list_blocks,
         ])
         .build(tauri::generate_context!())

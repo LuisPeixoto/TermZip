@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { onBlocksUpdate } from "./lib/api";
   import { app } from "./lib/stores/app.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import TerminalPane from "./lib/components/TerminalPane.svelte";
@@ -14,14 +13,6 @@
     void app
       .init()
       .catch((error) => app.toast("err", `Could not load preferences: ${error}`));
-    let unlisten: (() => void) | undefined;
-    void onBlocksUpdate((event) => {
-      const session = app.session;
-      if (session && event.sessionId === session.id) {
-        app.setBlocks(event.blocks);
-      }
-    }).then((unlistenFn) => (unlisten = unlistenFn));
-    return () => unlisten?.();
   });
 
   function onWindowKeydown(event: KeyboardEvent) {

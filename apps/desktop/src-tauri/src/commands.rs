@@ -2,8 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use tauri::ipc::Channel;
 
-use crate::sessions::{SessionInfo, Sessions};
+use crate::sessions::{SessionEvent, SessionInfo, Sessions};
 
 const DEFAULT_ROWS: u16 = 24;
 const DEFAULT_COLUMNS: u16 = 80;
@@ -187,10 +188,11 @@ fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
             .is_some_and(|(a, b)| a == b)
 }
 
+/// Starts a shell. Output, block updates and the exit all arrive on `on_event`.
 #[tauri::command]
 pub fn create_session(
-    app: tauri::AppHandle,
     sessions: State<'_, Sessions>,
+    on_event: Channel<SessionEvent>,
     rows: Option<u16>,
     columns: Option<u16>,
     working_directory: Option<String>,
@@ -199,7 +201,7 @@ pub fn create_session(
     let integration_dir = termzip_core::integration_dir().map_err(|error| error.to_string())?;
     sessions
         .create(
-            &app,
+            on_event,
             rows.unwrap_or(DEFAULT_ROWS).max(1),
             columns.unwrap_or(DEFAULT_COLUMNS).max(1),
             working_directory,
@@ -240,14 +242,6 @@ pub fn resize_session(
         .get(session_id)
         .and_then(|handle| handle.resize(rows.max(1), columns.max(1)))
         .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-pub fn take_backlog(sessions: State<'_, Sessions>, session_id: u32) -> Result<String, String> {
-    let handle = sessions
-        .get(session_id)
-        .map_err(|error| error.to_string())?;
-    Ok(handle.take_backlog())
 }
 
 #[tauri::command]

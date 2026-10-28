@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { base64ToBytes, bytesToBase64 } from "../src/lib/api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@tauri-apps/api/core", () => {
+  class Channel<T> {
+    onmessage: (message: T) => void = () => {};
+  }
+  return { Channel, invoke: vi.fn() };
+});
+
+import { Channel, invoke } from "@tauri-apps/api/core";
+import { api, base64ToBytes, bytesToBase64, type SessionEvent } from "../src/lib/api";
 
 describe("base64 transport helpers", () => {
   it("round-trips arbitrary binary payloads", () => {
@@ -21,5 +30,38 @@ describe("base64 transport helpers", () => {
   it("encodes empty payloads", () => {
     expect(bytesToBase64(new Uint8Array(0))).toBe("");
     expect(base64ToBytes("").length).toBe(0);
+  });
+});
+
+describe("session stream", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+  });
+
+  it("opens the session with a channel that feeds the handler in order", async () => {
+    vi.mocked(invoke).mockResolvedValue({ id: 7, shell: "zsh", integrated: true });
+    const received: SessionEvent[] = [];
+
+    const info = await api.createSession({ rows: 24, columns: 80 }, (event) =>
+      received.push(event),
+    );
+
+    expect(info.id).toBe(7);
+    const [command, args] = vi.mocked(invoke).mock.calls[0] as [
+      string,
+      { rows: number; columns: number; onEvent: Channel<SessionEvent> },
+    ];
+    expect(command).toBe("create_session");
+    expect(args.rows).toBe(24);
+    expect(args.onEvent).toBeInstanceOf(Channel);
+
+    args.onEvent.onmessage({ type: "data", data: "aGk=" });
+    args.onEvent.onmessage({ type: "blocks", blocks: [] });
+    args.onEvent.onmessage({ type: "exit", code: 3 });
+    expect(received.map((event) => event.type)).toEqual(["data", "blocks", "exit"]);
+  });
+
+  it("has no backlog call: the channel carries the startup output", () => {
+    expect("takeBacklog" in api).toBe(false);
   });
 });
