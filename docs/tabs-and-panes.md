@@ -5,6 +5,9 @@ own PTY with its own command blocks.
 
 ## Using them
 
+These are the defaults; every shortcut can be changed in **Preferences → Keyboard** (see [keyboard](keyboard.md)), and
+the command palette (⇧⌘P) lists every action and tab.
+
 | Action | macOS | Windows and Linux |
 |---|---|---|
 | New tab | ⌘T, or the **+** button | Ctrl+Shift+T |
