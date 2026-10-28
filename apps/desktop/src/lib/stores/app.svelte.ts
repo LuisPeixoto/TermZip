@@ -1,5 +1,6 @@
 import type { Block, SessionInfo, Settings, ShellOption } from "../api";
 import { api } from "../api";
+import { appendBlock } from "../blocks";
 
 export interface Toast {
   id: number;
@@ -36,6 +37,7 @@ function createAppStore() {
   let ready = $state(false);
   let shells = $state<ShellOption[]>([]);
   let title = $state<string | null>(null);
+  let cwd = $state<string | null>(null);
 
   function applyTheme(theme: Settings["theme"]): void {
     document.documentElement.dataset.theme = theme;
@@ -92,6 +94,7 @@ function createAppStore() {
     exited = false;
     exitCode = null;
     title = null;
+    cwd = null;
     blocks = [];
   }
 
@@ -178,8 +181,17 @@ function createAppStore() {
     get title() {
       return title;
     },
+    get cwd() {
+      return cwd;
+    },
     setTitle(value: string | null) {
       title = value;
+    },
+    setCwd(path: string | null) {
+      cwd = path;
+    },
+    addBlock(block: Block) {
+      blocks = appendBlock(blocks, block);
     },
     init,
     toggleTheme,

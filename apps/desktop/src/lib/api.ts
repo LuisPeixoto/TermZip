@@ -44,7 +44,8 @@ export interface Block {
 export type SessionEvent =
   | { type: "data"; data: string }
   | { type: "exit"; code: number | null }
-  | { type: "blocks"; blocks: Block[] };
+  | { type: "block"; block: Block }
+  | { type: "cwd"; path: string };
 
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),

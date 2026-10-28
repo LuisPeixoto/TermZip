@@ -158,8 +158,11 @@
       case "data":
         terminal.write(base64ToBytes(event.data));
         break;
-      case "blocks":
-        app.setBlocks(event.blocks);
+      case "block":
+        app.addBlock(event.block);
+        break;
+      case "cwd":
+        app.setCwd(event.path);
         break;
       case "exit":
         app.markExited(event.code);
