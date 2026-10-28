@@ -4,6 +4,32 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
+Everyday productivity: tabs, split panes, search, links, profiles, and a layout that comes back.
+
+### Added
+
+- Tabs and split panes: ⌘T, ⌘W, ⌘D, ⇧⌘D, ⌘1…9, ⇧⌘[ ⇧⌘], and ⌥⌘ + arrows on macOS (Ctrl+Shift or Ctrl+Alt elsewhere),
+  draggable dividers, rename by double click, reorder by dragging. Every tab keeps its shell and its buffer.
+- Session restore: tabs, names, splits, profiles, and the folder of each pane come back on the next launch. Only structure
+  is saved, never terminal output; it can be turned off in Preferences, which also deletes what was saved.
+- Profiles with a shell, a folder, and environment variables, edited in Preferences, with a default one and a menu next
+  to the new-tab button.
+- Find in the terminal with ⌘F: highlights, a count, next and previous, case and regular-expression toggles.
+- A filter for the blocks rail by text (command and output, ignoring colors) and by status.
+- Clickable URLs, OSC 8 hyperlinks, and file paths with `:line:column`, opened with ⌘+click (Ctrl+click elsewhere). A
+  click opens only http, https, mailto, and files that exist, and never starts a program: scripts, installers, and
+  applications only have their folder opened.
+- Guides: tabs and panes, search and filter, links, profiles and restore, and performance and limits.
+
+### Changed
+
+- The blocks rail draws only the cards in view, and a finished command is sent as one event instead of the whole list.
+- A shell that prints faster than the terminal can draw is paused at 1 MiB of undrawn output instead of queueing it
+  without limit, so the screen stays close to a program such as `yes` or a huge `cat`, and Ctrl+C stops it.
+- The terminal now takes the folder of the pane you were in for a new tab or split.
+
 ## [0.1.0] - 2026-10-27
 
 First release: a usable terminal with command blocks.

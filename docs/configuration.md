@@ -16,11 +16,43 @@ font_size = 14.0          # clamped to 10..28
 scrollback_lines = 10000  # clamped to 1_000..200_000
 # shell = "/bin/zsh"      # default: $SHELL / %COMSPEC%
 # working_directory = "/path/to/project"
+restore_session = true    # reopen tabs, splits, and folders on launch
+# default_profile = "work"  # which profile a plain new tab uses; empty: the built-in one
 ```
 
 Out-of-range values are clamped and unknown keys are ignored. Font size, font family, scrollback, and theme apply to
 the running terminal as soon as you save; `shell` and `working_directory` are read when a session starts, so restart
 the shell (⌘R, or Ctrl+Shift+R on Windows and Linux) after changing them.
+
+## Profiles
+
+A profile is a shell, a folder, and some environment variables. Empty fields come from the built-in profile (the
+`shell` and `working_directory` above). Profiles can be edited in **Preferences → Profiles** or written by hand:
+
+```toml
+default_profile = "work"
+
+[[profiles]]
+id = "work"                       # derived from the name when missing
+name = "Work"
+# shell = "/bin/bash"
+working_directory = "/srv/work"
+
+[profiles.env]
+AWS_PROFILE = "work"
+```
+
+Bounds: 32 profiles, names up to 64 characters, 64 variables each, names of letters, digits and `_` (up to 128
+characters), values up to 4 KiB. `TERM`, `COLORTERM`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `ZDOTDIR`, and anything
+starting with `TERMZIP_` cannot be set. Variables reach new shells only. See
+[profiles and restore](profiles-and-restore.md).
+
+## The saved layout
+
+With `restore_session = true` TermZip writes `workspace.json` next to `config.toml`: tabs, their names, the splits, the
+profile and folder of each pane. It never holds terminal output, commands, or environment. Turning `restore_session`
+off (in Preferences or here) deletes it. A file that breaks a limit or cannot be parsed is kept as
+`workspace.json.invalid`.
 
 ## A file that cannot be read
 
