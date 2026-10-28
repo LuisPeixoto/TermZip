@@ -23,7 +23,7 @@ beforeEach(() => {
 function build(): WorkspaceStore {
   const first = store.activePane;
   first.cwd = "/srv/one";
-  const second = store.newTab();
+  const second = store.newTab()!;
   second.active.cwd = "/srv/two";
   second.active.profileId = "work";
   const right = store.splitActive("row")!;

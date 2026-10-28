@@ -7,7 +7,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-import { WorkspaceStore } from "../src/lib/stores/workspace.svelte";
+import { MAX_TABS, WorkspaceStore } from "../src/lib/stores/workspace.svelte";
 
 let store: WorkspaceStore;
 
@@ -25,29 +25,29 @@ describe("tabs", () => {
   });
 
   it("opens a tab and switches to it", () => {
-    const tab = store.newTab();
+    const tab = store.newTab()!;
     expect(store.tabs).toHaveLength(2);
     expect(store.activeId).toBe(tab.id);
   });
 
   it("starts a new tab in the folder of the pane you were in", () => {
     store.activePane.cwd = "/srv/app";
-    const tab = store.newTab();
+    const tab = store.newTab()!;
     expect(tab.active.restoreDirectory).toBe("/srv/app");
     expect(tab.active.profileId).toBeNull();
   });
 
   it("starts a tab with an explicit profile in that profile's own folder", () => {
     store.activePane.cwd = "/srv/app";
-    const tab = store.newTab("work");
+    const tab = store.newTab("work")!;
     expect(tab.active.profileId).toBe("work");
     expect(tab.active.restoreDirectory).toBeNull();
   });
 
   it("closing the active tab activates its neighbor", () => {
     const [first] = store.tabs;
-    const second = store.newTab();
-    const third = store.newTab();
+    const second = store.newTab()!;
+    const third = store.newTab()!;
 
     store.activate(second.id);
     store.closeTab(second.id);
@@ -59,7 +59,7 @@ describe("tabs", () => {
 
   it("closing another tab keeps the active one", () => {
     const [first] = store.tabs;
-    const second = store.newTab();
+    const second = store.newTab()!;
     store.closeTab(first.id);
     expect(store.activeId).toBe(second.id);
   });
@@ -85,8 +85,8 @@ describe("tabs", () => {
 
   it("switches by position and cycles around the ends", () => {
     const [a] = store.tabs;
-    const b = store.newTab();
-    const c = store.newTab();
+    const b = store.newTab()!;
+    const c = store.newTab()!;
 
     store.activateAt(0);
     expect(store.activeId).toBe(a.id);
@@ -100,8 +100,8 @@ describe("tabs", () => {
 
   it("reorders and clamps to the ends", () => {
     const [a] = store.tabs;
-    const b = store.newTab();
-    const c = store.newTab();
+    const b = store.newTab()!;
+    const c = store.newTab()!;
 
     store.moveTab(a.id, 2);
     expect(ids()).toEqual([b.id, c.id, a.id]);
@@ -195,7 +195,7 @@ describe("panes", () => {
 
   it("closing the only pane of a tab closes the tab", () => {
     const [first] = store.tabs;
-    const second = store.newTab();
+    const second = store.newTab()!;
     expect(second.closePane(second.active.id)).toBe(false);
 
     store.closeActivePane();
@@ -232,5 +232,30 @@ describe("panes", () => {
     expect(store.activeTab.layout.kind === "split" && store.activeTab.layout.ratio).toBe(0.7);
     store.activeTab.setRatio(layout.id, 5);
     expect(store.activeTab.layout.kind === "split" && store.activeTab.layout.ratio).toBe(0.9);
+  });
+});
+
+describe("the tab limit", () => {
+  it("refuses a tab past the limit the saved file allows, and says so by returning nothing", () => {
+    for (let attempt = 0; attempt < MAX_TABS - 1; attempt += 1) expect(store.newTab()).not.toBeNull();
+    expect(store.tabs).toHaveLength(MAX_TABS);
+
+    const active = store.activeId;
+    expect(store.newTab()).toBeNull();
+    expect(store.newTab("work")).toBeNull();
+    expect(store.tabs).toHaveLength(MAX_TABS);
+    expect(store.activeId).toBe(active);
+  });
+
+  it("opens one again as soon as a tab is closed", () => {
+    for (let attempt = 0; attempt < MAX_TABS + 8; attempt += 1) store.newTab();
+    store.closeTab(store.tabs[0].id);
+    expect(store.newTab()).not.toBeNull();
+  });
+
+  it("keeps a full set of tabs savable, which is what the limit is for", () => {
+    // Bounded on purpose: a missing limit must fail this test, not hang it.
+    for (let attempt = 0; attempt < MAX_TABS + 8; attempt += 1) store.newTab();
+    expect(store.snapshot().tabs.length).toBeLessThanOrEqual(MAX_TABS);
   });
 });

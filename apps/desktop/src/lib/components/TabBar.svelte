@@ -15,7 +15,7 @@
 
   function openWithProfile(profileId: string) {
     menuOpen = false;
-    workspace.newTab(profileId);
+    if (!workspace.newTab(profileId)) app.toast("warn", "That is the most tabs a window can hold");
     focusTerminal();
   }
 
@@ -158,7 +158,7 @@
     title="New tab ({shortcutLabel('newTab', app.platform)})"
     aria-label="New tab"
     onclick={() => {
-      workspace.newTab();
+      if (!workspace.newTab()) app.toast("warn", "That is the most tabs a window can hold");
       focusTerminal();
     }}
   >
