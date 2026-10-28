@@ -1,5 +1,6 @@
 import { api, type Block, type SessionInfo } from "../api";
-import { appendBlock } from "../blocks";
+import { appendBlock, type StatusFilter } from "../blocks";
+import { NO_RESULTS, type SearchResults } from "../terminal/search";
 import { toast } from "./toasts.svelte";
 
 /** What the terminal component lets the rest of the app do to its pane. */
@@ -25,6 +26,16 @@ export class Pane {
   // Replaced as a whole on every change, so there is nothing to gain from a deep proxy.
   blocks = $state.raw<Block[]>([]);
 
+  /** What the blocks rail is narrowed to for this pane. */
+  blockQuery = $state("");
+  blockStatus = $state<StatusFilter>("all");
+
+  /** The find box of this pane, and what its last search found. */
+  searchOpen = $state(false);
+  searchResults = $state.raw<SearchResults>(NO_RESULTS);
+  /** Goes up on every request to find, so an open box takes the keyboard again. */
+  searchFocus = $state(0);
+
   /** Set by the terminal component while it is mounted. */
   controller: PaneController | null = null;
 
@@ -42,6 +53,16 @@ export class Pane {
     this.title = null;
     this.cwd = null;
     this.blocks = [];
+  }
+
+  openSearch(): void {
+    this.searchOpen = true;
+    this.searchFocus += 1;
+  }
+
+  closeSearch(): void {
+    this.searchOpen = false;
+    this.searchResults = NO_RESULTS;
   }
 
   setSession(info: SessionInfo): void {

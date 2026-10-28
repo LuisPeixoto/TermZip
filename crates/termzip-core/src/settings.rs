@@ -125,9 +125,14 @@ impl Settings {
     /// back to the default profile, and anything a profile leaves empty comes from the built-in one.
     pub fn launch_profile(&self, requested: Option<&str>) -> LaunchProfile {
         let find = |id: &str| self.profiles.iter().find(|profile| profile.id == id);
-        let chosen = requested
-            .and_then(find)
-            .or_else(|| self.default_profile.as_deref().and_then(find));
+        // Asking for the built-in profile by name means exactly that, not the default profile.
+        let chosen = if requested == Some(DEFAULT_PROFILE_ID) {
+            None
+        } else {
+            requested
+                .and_then(find)
+                .or_else(|| self.default_profile.as_deref().and_then(find))
+        };
         match chosen {
             Some(profile) => LaunchProfile {
                 id: profile.id.clone(),
@@ -438,5 +443,29 @@ mod tests {
         let launch = settings.launch_profile(Some("anything"));
         assert_eq!(launch.id, "default");
         assert_eq!(launch.shell.as_deref(), Some("/bin/fish"));
+    }
+
+    #[test]
+    fn the_built_in_profile_can_be_asked_for_even_when_a_default_profile_is_set() {
+        let settings = Settings {
+            shell: Some("/bin/zsh".to_owned()),
+            working_directory: Some("/home/me".to_owned()),
+            default_profile: Some("work".to_owned()),
+            profiles: vec![Profile {
+                name: "Work".to_owned(),
+                shell: Some("/bin/bash".to_owned()),
+                ..Profile::default()
+            }],
+            ..Settings::default()
+        }
+        .normalized();
+
+        // Nothing requested: the default profile.
+        assert_eq!(settings.launch_profile(None).id, "work");
+        // Asking for "default" means the built-in one, not the default profile.
+        let built_in = settings.launch_profile(Some("default"));
+        assert_eq!(built_in.id, "default");
+        assert_eq!(built_in.shell.as_deref(), Some("/bin/zsh"));
+        assert_eq!(built_in.working_directory.as_deref(), Some("/home/me"));
     }
 }

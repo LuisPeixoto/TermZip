@@ -5,6 +5,9 @@ import { leaf, leaves, type Layout, type Side } from "../layout";
 import { basename } from "../paths";
 import { Pane } from "./pane.svelte";
 
+/** The most tabs a saved workspace may hold (`workspace.rs` refuses more, and the whole file with it). */
+export const MAX_TABS = 32;
+
 /** One tab: a layout of panes and which of them has the keyboard. */
 export class Tab {
   readonly id: string;
@@ -172,9 +175,11 @@ export class WorkspaceStore {
 
   /**
    * Opens a tab and switches to it. Without a profile it starts in the folder of the pane you were in,
-   * like most terminals; choosing a profile starts in that profile's own folder.
+   * like most terminals; choosing a profile starts in that profile's own folder. `null` at the limit
+   * of tabs: past it the layout could no longer be saved.
    */
-  newTab(profileId: string | null = null): Tab {
+  newTab(profileId: string | null = null): Tab | null {
+    if (this.tabs.length >= MAX_TABS) return null;
     const inherited = profileId === null && this.tabs.length > 0 ? this.activePane.cwd : null;
     const tab = new Tab(newId(), new Pane(newId(), profileId, inherited));
     this.tabs = [...this.tabs, tab];

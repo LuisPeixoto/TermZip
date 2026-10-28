@@ -55,8 +55,11 @@
       case "blocks":
         app.toggleBlocks();
         break;
+      case "find":
+        workspace.activePane.openSearch();
+        break;
       case "newTab":
-        workspace.newTab();
+        if (!workspace.newTab()) app.toast("warn", "That is the most tabs a window can hold");
         focusTerminal();
         break;
       case "closePane":

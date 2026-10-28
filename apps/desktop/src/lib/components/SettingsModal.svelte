@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import Icon from "./Icon.svelte";
+  import ProfilesEditor from "./ProfilesEditor.svelte";
   import { app } from "../stores/app.svelte";
   import { shortcutLabel } from "../shortcuts";
   import { api, type Settings } from "../api";
@@ -18,6 +19,7 @@
     profiles: [],
   });
   let saving = $state(false);
+  let saveError = $state<string | null>(null);
   let dialog: HTMLDivElement | undefined = $state();
 
   const SCROLLBACK_OPTIONS = [1000, 5000, 10000, 50000, 100000, 200000];
@@ -36,6 +38,7 @@
 
   async function save() {
     saving = true;
+    saveError = null;
     try {
       await app.updateSettings(draft);
       // Turning restore off must also forget what was saved, so write once now: the backend deletes
@@ -47,7 +50,8 @@
         `Preferences saved. Restart the shell (${shortcutLabel("restart", app.platform)}) to apply shell changes`,
       );
     } catch (error) {
-      app.toast("err", `Could not save preferences: ${error}`);
+      // The backend explains what is wrong with a profile in a sentence; show it where it can be read.
+      saveError = String(error);
     } finally {
       saving = false;
     }
@@ -197,7 +201,18 @@
           }}
         />
       </section>
+
+      <section>
+        <h3 id="pref-profiles" class={heading}>Profiles</h3>
+        <ProfilesEditor bind:profiles={draft.profiles} bind:defaultProfile={draft.defaultProfile} />
+      </section>
     </div>
+
+    {#if saveError}
+      <p class="shrink-0 border-t border-line bg-err/10 px-4 py-2 text-[11.5px] text-err" role="alert">
+        {saveError}
+      </p>
+    {/if}
 
     <div class="flex shrink-0 items-center justify-end gap-2 border-t border-line px-4 py-3">
       <button

@@ -283,3 +283,11 @@ export function ansiToSpans(input: string, palette: AnsiPalette = DEFAULT_PALETT
 
   return spans;
 }
+const CSI = /\x1b\[[0-?]*[ -/]*[@-~]/g;
+const OSC = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
+const OTHER_ESCAPES = /\x1b[@-Z\\-_]/g;
+
+/** The text a person sees: colors, cursor moves and window-title sequences removed. */
+export function stripAnsi(input: string): string {
+  return input.replace(OSC, "").replace(CSI, "").replace(OTHER_ESCAPES, "");
+}
