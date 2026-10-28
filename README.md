@@ -22,6 +22,7 @@
   <a href="#getting-started">Getting started</a> ·
   <a href="docs/roadmap.md">Roadmap</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/tabs-and-panes.md">Tabs and panes</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/shell-integration.md">Shell integration</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a> ·
@@ -33,7 +34,7 @@
 
 TermZip is a native desktop terminal for macOS, Windows, and Linux. You type straight into a real terminal, and a
 side rail turns every finished command into a **block** with its exit code, duration, and output — ready to copy or
-run again.
+run again. Tabs and split panes keep several shells in one window, and your layout comes back on the next launch.
 
 ## Highlights
 
@@ -41,6 +42,12 @@ run again.
   keybindings work exactly as they do in any terminal.
 - **Real command blocks.** With an integrated shell, every command becomes a card with its command text, exit code,
   duration, working directory, and an ANSI-colored output preview — copyable and re-runnable in one click.
+- **Tabs and split panes.** Several shells in one window, split right or down, resizable, each with its own blocks.
+  Your tabs, splits, and folders are restored on the next launch (structure only, never terminal output).
+- **Find and filter.** ⌘F searches the scrollback with highlights and a count; the blocks rail filters by text and by
+  status.
+- **Links that are safe to click.** ⌘+click opens URLs, hyperlinks, and files; a click can never start a program.
+- **Profiles.** A shell, folder, and environment per profile, one click away from the new-tab button.
 - **A real terminal, always.** The canvas is a full terminal emulator: vim, htop, tmux, SSH, and REPLs work as usual,
   with selection, clipboard, bracketed paste, and resize.
 - **Private by design.** No accounts, no telemetry, no cloud. Terminal contents never leave your machine.
@@ -97,6 +104,13 @@ See [docs/shell-integration.md](docs/shell-integration.md) and
 
 | Action | macOS | Windows and Linux |
 |---|---|---|
+| New tab | ⌘T | Ctrl+Shift+T |
+| Close the active pane (the last one closes the tab) | ⌘W | Ctrl+Shift+W |
+| Split right / split down | ⌘D / ⇧⌘D | Ctrl+Shift+D / Ctrl+Shift+E |
+| Move between panes | ⌥⌘ + arrow | Ctrl+Alt + arrow |
+| Next / previous tab | ⇧⌘] / ⇧⌘[ | Ctrl+Tab / Ctrl+Shift+Tab |
+| Go to tab 1 to 9 | ⌘1 … ⌘9 | Ctrl+Shift+1 … 9 |
+| Find in the terminal | ⌘F | Ctrl+Shift+F |
 | Toggle the blocks rail | ⌘B | Ctrl+Shift+B |
 | Restart the shell | ⌘R | Ctrl+Shift+R |
 | Preferences | ⌘, | Ctrl+, |
@@ -110,6 +124,11 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command.
 | Guide | What it covers |
 |---|---|
 | [Configuration](docs/configuration.md) | Where settings live, every option, `TERMZIP_HOME`, what happens to a broken file. |
+| [Tabs and panes](docs/tabs-and-panes.md) | Tabs, splits, focus, the layout tree, and the limits. |
+| [Search and filter](docs/search-and-filter.md) | Find in the terminal and filter the blocks. |
+| [Links](docs/links.md) | What is recognized, what opens, and why a click never starts a program. |
+| [Profiles and restore](docs/profiles-and-restore.md) | Shell, folder, and environment per profile; what is saved between launches. |
+| [Performance and limits](docs/performance.md) | Flow control for floods of output, block events, and every bound. |
 | [Shell integration](docs/shell-integration.md) | The OSC 133 markers, supported shells, and the limits of block capture. |
 | [Terminal compatibility](docs/terminal-compatibility.md) | What is implemented, verified, and still missing. |
 | [Compatibility matrix](docs/compatibility-matrix.md) | What has been exercised on each operating system. |
