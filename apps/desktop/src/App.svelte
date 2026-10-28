@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { api } from "./lib/api";
   import { app } from "./lib/stores/app.svelte";
+  import { persistWorkspace, type Persistence } from "./lib/stores/persist.svelte";
   import { workspace } from "./lib/stores/workspace.svelte";
   import { matchShortcut, tabPosition, type AppShortcut } from "./lib/shortcuts";
   import { focusTerminal } from "./lib/focus";
@@ -12,9 +14,31 @@
   import Toasts from "./lib/components/Toasts.svelte";
 
   onMount(() => {
-    void app
-      .init()
-      .catch((error) => app.toast("err", `Could not load preferences: ${error}`));
+    let persistence: Persistence | undefined;
+
+    void (async () => {
+      try {
+        await app.init();
+      } catch (error) {
+        app.toast("err", `Could not load preferences: ${error}`);
+      }
+      // The saved layout goes in before anything is shown, or a shell would start for the fresh tab and be thrown away.
+      try {
+        workspace.restore(await api.loadWorkspace());
+      } catch (error) {
+        app.toast("warn", `Could not restore the last session: ${error}`);
+        workspace.restore(null);
+      }
+      persistence = persistWorkspace(workspace, api.saveWorkspace);
+    })();
+
+    // A window that is closing cannot wait for the debounce.
+    const flush = () => persistence?.flush();
+    window.addEventListener("beforeunload", flush);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      persistence?.stop();
+    };
   });
 
   function runShortcut(shortcut: AppShortcut) {
@@ -93,7 +117,7 @@
 
 <div class="flex h-full flex-col bg-bg" inert={app.settingsOpen}>
   <Toolbar />
-  {#if app.ready}
+  {#if app.ready && workspace.loaded}
     <div class="flex min-h-0 flex-1">
       <!-- Every tab stays mounted, so its terminal keeps its buffer; only the active one is shown. -->
       <div class="relative min-h-0 min-w-0 flex-1">
