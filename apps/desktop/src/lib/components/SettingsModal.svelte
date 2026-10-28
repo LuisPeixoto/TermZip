@@ -1,23 +1,31 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import type { Component } from "svelte";
   import Icon from "./Icon.svelte";
-  import ProfilesEditor from "./ProfilesEditor.svelte";
+  import AppearanceSection from "./preferences/AppearanceSection.svelte";
+  import GeneralSection from "./preferences/GeneralSection.svelte";
+  import ProfilesSection from "./preferences/ProfilesSection.svelte";
+  import TerminalSection from "./preferences/TerminalSection.svelte";
   import { app } from "../stores/app.svelte";
   import { shortcutLabel } from "../shortcuts";
   import { api, type Settings } from "../api";
   import { defaultSettings } from "../settings";
   import { workspace } from "../stores/workspace.svelte";
 
+  const SECTIONS: { id: string; label: string; component: Component<{ draft: Settings }> }[] = [
+    { id: "general", label: "General", component: GeneralSection },
+    { id: "appearance", label: "Appearance", component: AppearanceSection },
+    { id: "terminal", label: "Terminal", component: TerminalSection },
+    { id: "profiles", label: "Profiles", component: ProfilesSection },
+  ];
+
   let draft: Settings = $state(defaultSettings());
+  let section = $state(SECTIONS[0].id);
   let saving = $state(false);
   let saveError = $state<string | null>(null);
   let dialog: HTMLDivElement | undefined = $state();
 
-  const SCROLLBACK_OPTIONS = [1000, 5000, 10000, 50000, 100000, 200000];
-
-  const heading = "mb-2 block text-[11px] font-semibold uppercase tracking-wide text-muted";
-  const field =
-    "mono w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-[12px] outline-none focus:border-accent";
+  const Active = $derived(SECTIONS.find((entry) => entry.id === section)?.component ?? GeneralSection);
 
   $effect(() => {
     if (app.settingsOpen) {
@@ -26,6 +34,17 @@
   });
 
   onMount(() => dialog?.focus());
+
+  // Arrow keys move between the sections, as in any tab list; only the selected one is a tab stop.
+  function onNavKeydown(event: KeyboardEvent) {
+    const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const index = SECTIONS.findIndex((entry) => entry.id === section);
+    const next = SECTIONS[(index + step + SECTIONS.length) % SECTIONS.length];
+    section = next.id;
+    document.getElementById(`pref-tab-${next.id}`)?.focus();
+  }
 
   async function save() {
     saving = true;
@@ -56,7 +75,7 @@
 >
   <div
     bind:this={dialog}
-    class="shadow-pop flex max-h-[calc(100vh-2rem)] w-full max-w-[420px] flex-col rounded-xl border border-line bg-panel outline-none"
+    class="shadow-pop flex h-[min(560px,calc(100vh-2rem))] w-full max-w-[720px] flex-col rounded-xl border border-line bg-panel outline-none"
     role="dialog"
     aria-modal="true"
     aria-labelledby="preferences-title"
@@ -74,129 +93,39 @@
       </button>
     </div>
 
-    <div class="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-      <section>
-        <h3 id="pref-theme" class={heading}>Theme</h3>
-        <div
-          class="flex gap-1 rounded-lg border border-line bg-panel-2 p-1"
-          role="group"
-          aria-labelledby="pref-theme"
-        >
-          {#each ["dark", "light"] as option (option)}
-            <button
-              type="button"
-              class="flex-1 rounded-md px-3 py-1.5 text-[12px] transition-colors
-                {draft.theme === option ? 'bg-elevated font-medium text-fg' : 'text-muted'}"
-              aria-pressed={draft.theme === option}
-              onclick={() => (draft = { ...draft, theme: option as Settings["theme"] })}
-            >
-              {option === "dark" ? "Dark" : "Light"}
-            </button>
-          {/each}
-        </div>
-      </section>
+    <div class="flex min-h-0 flex-1">
+      <div
+        class="flex w-[168px] shrink-0 flex-col gap-0.5 border-r border-line p-2"
+        role="tablist"
+        aria-orientation="vertical"
+        aria-label="Preferences sections"
+      >
+        {#each SECTIONS as entry (entry.id)}
+          <button
+            type="button"
+            id="pref-tab-{entry.id}"
+            role="tab"
+            aria-selected={section === entry.id}
+            aria-controls="pref-panel"
+            tabindex={section === entry.id ? 0 : -1}
+            class="rounded-md px-2.5 py-1.5 text-left text-[12px] transition-colors
+              {section === entry.id ? 'bg-elevated font-medium text-fg' : 'text-muted hover:bg-hover hover:text-fg'}"
+            onclick={() => (section = entry.id)}
+            onkeydown={onNavKeydown}
+          >
+            {entry.label}
+          </button>
+        {/each}
+      </div>
 
-      <section>
-        <label for="pref-font-size" class={heading}>
-          Font size · <span class="text-fg">{Math.round(draft.fontSize)}px</span>
-        </label>
-        <input
-          id="pref-font-size"
-          type="range"
-          min="10"
-          max="28"
-          step="1"
-          bind:value={draft.fontSize}
-          class="w-full accent-accent"
-        />
-      </section>
-
-      <section>
-        <label for="pref-font-family" class={heading}>Font family</label>
-        <input
-          id="pref-font-family"
-          type="text"
-          placeholder="System monospace default"
-          class={field}
-          value={draft.fontFamily ?? ""}
-          oninput={(event) => {
-            const raw = event.currentTarget.value.trim();
-            draft = { ...draft, fontFamily: raw || null };
-          }}
-        />
-        <p class="mt-1 text-[10.5px] text-faint">
-          Any installed monospace family, e.g. “JetBrains Mono”.
-        </p>
-      </section>
-
-      <section>
-        <label for="pref-scrollback" class={heading}>Scrollback</label>
-        <select id="pref-scrollback" class={field} bind:value={draft.scrollbackLines}>
-          {#each SCROLLBACK_OPTIONS as option (option)}
-            <option value={option}>{option.toLocaleString()} lines</option>
-          {/each}
-        </select>
-      </section>
-
-      <section>
-        <label class="flex items-start gap-2.5 text-[12px]">
-          <input
-            type="checkbox"
-            bind:checked={draft.restoreSession}
-            class="mt-0.5 size-3.5 accent-accent"
-          />
-          <span>
-            <span class="font-medium text-fg">Restore tabs and folders on launch</span>
-            <span class="mt-0.5 block text-[10.5px] text-faint">
-              Reopens your tabs, splits and the folder each shell was in. Terminal output is never saved.
-            </span>
-          </span>
-        </label>
-      </section>
-
-      <section>
-        <label for="pref-shell" class={heading}>Shell path</label>
-        <input
-          id="pref-shell"
-          type="text"
-          list="termzip-shell-paths"
-          placeholder="System default shell"
-          class={field}
-          value={draft.shell ?? ""}
-          oninput={(event) => {
-            const raw = event.currentTarget.value.trim();
-            draft = { ...draft, shell: raw || null };
-          }}
-        />
-        <datalist id="termzip-shell-paths">
-          {#each app.shells as shell (shell.path)}
-            <option value={shell.path}>{shell.label}{shell.default ? " · default" : ""}</option>
-          {/each}
-        </datalist>
-        <p class="mt-1 text-[10.5px] text-faint">
-          Integrated shells: zsh, bash, fish, PowerShell. Other shells run without block capture.
-        </p>
-      </section>
-
-      <section>
-        <label for="pref-directory" class={heading}>Working directory</label>
-        <input
-          id="pref-directory"
-          type="text"
-          placeholder="System default"
-          class={field}
-          value={draft.workingDirectory ?? ""}
-          oninput={(event) => {
-            const raw = event.currentTarget.value.trim();
-            draft = { ...draft, workingDirectory: raw || null };
-          }}
-        />
-      </section>
-
-      <section>
-        <h3 id="pref-profiles" class={heading}>Profiles</h3>
-        <ProfilesEditor bind:profiles={draft.profiles} bind:defaultProfile={draft.defaultProfile} />
-      </section>
+      <div
+        id="pref-panel"
+        role="tabpanel"
+        aria-labelledby="pref-tab-{section}"
+        class="min-h-0 min-w-0 flex-1 overflow-y-auto p-4"
+      >
+        <Active bind:draft />
+      </div>
     </div>
 
     {#if saveError}
