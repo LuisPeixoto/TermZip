@@ -3,11 +3,14 @@
 //! A theme is a small TOML file (see `docs/themes.md`). The same model is used for the themes that
 //! ship with TermZip, for the ones a user imports, and for the ones that are exported.
 
+mod audit;
 mod color;
+mod gallery;
 
 use serde::{Deserialize, Serialize};
 
 pub use color::Color;
+pub use gallery::{DEFAULT_DARK_ID, DEFAULT_LIGHT_ID, built_in_theme, built_in_themes};
 
 use crate::profile::slug;
 
