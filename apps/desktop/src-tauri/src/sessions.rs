@@ -513,6 +513,18 @@ mod tests {
         assert!(matches!(&moved[..], [SessionEvent::Cwd { path }] if path == "/etc"));
     }
 
+    /// Polls until `condition` holds, so a slow runner only makes a test slower, never flaky.
+    fn wait_until(limit: Duration, condition: impl Fn() -> bool) -> bool {
+        let started = std::time::Instant::now();
+        while started.elapsed() < limit {
+            if condition() {
+                return true;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        condition()
+    }
+
     fn received_bytes(collected: &Collected) -> usize {
         use base64::Engine as _;
         collected
@@ -541,12 +553,13 @@ mod tests {
         let handle = sessions.get(info.id).unwrap();
 
         // Nobody acknowledges: the output must stop instead of piling up in the webview.
-        thread::sleep(Duration::from_millis(2000));
-        let stalled = received_bytes(&collected);
         assert!(
-            stalled >= crate::flow::HIGH_WATER,
-            "stopped too early at {stalled}"
+            wait_until(Duration::from_secs(30), || received_bytes(&collected)
+                >= crate::flow::HIGH_WATER),
+            "the output never reached the high-water mark"
         );
+        thread::sleep(Duration::from_millis(800)); // the reader notices and pauses
+        let stalled = received_bytes(&collected);
         assert!(
             stalled <= crate::flow::HIGH_WATER + 16 * 1024,
             "kept sending past the high-water mark: {stalled}"
@@ -587,11 +600,12 @@ mod tests {
         let info = open(&sessions, channel, "yes aaaaaaaaaaaaaaa\n");
         let handle = sessions.get(info.id).unwrap();
 
-        thread::sleep(Duration::from_millis(1500));
         assert!(
-            received_bytes(&collected) >= crate::flow::HIGH_WATER,
-            "never paused"
+            wait_until(Duration::from_secs(30), || received_bytes(&collected)
+                >= crate::flow::HIGH_WATER),
+            "never reached the high-water mark, so it never paused"
         );
+        thread::sleep(Duration::from_millis(500)); // the reader notices and pauses
 
         sessions.destroy(info.id);
         // The reader holds one reference; it must let go once it notices the destroy.

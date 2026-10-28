@@ -114,7 +114,8 @@ mod tests {
         flow.sent(99);
         let started = Instant::now();
         flow.wait_if_saturated(&AtomicBool::new(false));
-        assert!(started.elapsed() < Duration::from_millis(50));
+        // Waiting would take at least one poll (100 ms) plus the stall limit; a scheduling hiccup must not fail this.
+        assert!(started.elapsed() < Duration::from_millis(500));
     }
 
     #[test]
