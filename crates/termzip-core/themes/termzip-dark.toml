@@ -1,0 +1,28 @@
+id = "termzip-dark"
+name = "TermZip Dark"
+appearance = "dark"
+author = "Luis Peixoto"
+license = "MIT"
+source = "https://github.com/LuisPeixoto/TermZip"
+
+[colors]
+background = "#09090b"
+foreground = "#fafafa"
+cursor = "#60a5fa"
+cursor_text = "#09090b"
+selection = "#60a5fa33"
+ansi = [
+  "#3f3f46", "#f87171", "#34d399", "#fbbf24", "#60a5fa", "#c084fc", "#22d3ee", "#e4e4e7",
+  "#71717a", "#fca5a5", "#6ee7b7", "#fde68a", "#93c5fd", "#d8b4fe", "#67e8f9", "#fafafa",
+]
+
+[chrome]
+panel = "#121214"
+panel_2 = "#18181b"
+elevated = "#1f1f23"
+hover = "#232326"
+line = "#27272a"
+line_strong = "#3f3f46"
+muted = "#a1a1aa"
+faint = "#71717a"
+accent_soft = "#60a5fa24"

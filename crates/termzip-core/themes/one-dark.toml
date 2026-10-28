@@ -1,0 +1,17 @@
+id = "one-dark"
+name = "One Dark"
+appearance = "dark"
+author = "GitHub (Atom)"
+license = "MIT"
+source = "https://github.com/atom/atom/tree/master/packages/one-dark-syntax"
+
+[colors]
+background = "#282c34"
+foreground = "#abb2bf"
+cursor = "#528bff"
+cursor_text = "#282c34"
+selection = "#3e4451"
+ansi = [
+  "#282c34", "#e06c75", "#98c379", "#e5c07b", "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
+  "#5c6370", "#e06c75", "#98c379", "#e5c07b", "#61afef", "#c678dd", "#56b6c2", "#ffffff",
+]
