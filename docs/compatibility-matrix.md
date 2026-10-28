@@ -11,7 +11,8 @@ real hardware.
 | PTY/ConPTY smoke test | ✅ CI | ✅ CI (`cmd.exe /C echo`) | ✅ CI |
 | zsh integration (PTY test) | ✅ local + CI | n/a | ✅ CI |
 | bash integration (PTY test) | ✅ local + CI | n/a | ✅ CI |
-| Manual interactive validation | ✅ composer, blocks, themes | ⏳ pending | ⏳ pending |
+| Session stream tests (`cargo test -p termzip-desktop`) | ✅ local + CI | n/a (Unix shells) | ✅ CI |
+| Manual interactive validation | ✅ typing, blocks, themes, shortcuts, restart, preferences | ⏳ pending | ⏳ pending |
 | vim / top / tmux / SSH | ⏳ pending | ⏳ pending | ⏳ pending |
 | Packaged installer | ✅ debug app build (no bundle) | ⏳ release workflow | ⏳ release workflow |
 
@@ -26,6 +27,7 @@ substitute for manually opening the packaged app on each platform.
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --all-targets
+cargo test -p termzip-desktop
 cd apps/desktop
 npm run check && npm run test && npm run build
 npm run tauri build -- --debug --no-bundle

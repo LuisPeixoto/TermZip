@@ -32,7 +32,16 @@ The status bar shows **shell integration** when markers are available and **plai
 - It never sends anything over the network.
 - Compound bash commands emit one block for the whole line; bash's `DEBUG` trap fires per simple command, so nested
   subcommands are folded into the first block.
+- PowerShell takes the command from its history, so a block can be labeled with the wrong command when history is
+  disabled or rewritten by a plugin.
 - Password prompts and hidden input cannot be captured; those blocks show “command not captured”.
+
+## When TermZip cannot prepare the integration
+
+The scripts are written under the data folder (see [configuration](configuration.md#moving-the-data-folder)). If that
+folder is not writable, or zsh's staging folder cannot be created, TermZip starts your shell as a plain terminal with
+your own startup files and the status bar says **plain terminal**; blocks are unavailable but nothing else changes.
+The path to the scripts is quoted for each shell, so a quote, a space, or a `$` in the data folder is safe.
 
 ## Manual sanity check
 
