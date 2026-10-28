@@ -15,6 +15,7 @@ use base64::Engine;
 use serde::Serialize;
 use tauri::ipc::Channel;
 
+use crate::flow::FlowControl;
 use termzip_pty::{PtyOptions, PtySession};
 use termzip_shell::{Block, BlockTracker, OscParser};
 
@@ -42,8 +43,20 @@ pub enum SessionEvent {
     Data { data: String },
     /// The shell ended; `code` is `None` when the status could not be read.
     Exit { code: Option<u32> },
-    /// The full list of finished command blocks.
-    Blocks { blocks: Vec<Block> },
+    /// One command finished. Sent once per block, so a busy shell never re-sends the whole list.
+    Block { block: Block },
+    /// The shell reported a new working directory.
+    Cwd { path: String },
+}
+
+/// Everything needed to start a shell, after the profile was resolved.
+pub struct SessionRequest {
+    pub rows: u16,
+    pub columns: u16,
+    pub working_directory: Option<String>,
+    pub shell: Option<String>,
+    /// The profile's variables; the integration's own win over them.
+    pub env: BTreeMap<String, String>,
 }
 
 pub struct SessionHandle {
@@ -53,6 +66,8 @@ pub struct SessionHandle {
     parser: Mutex<OscParser>,
     tracker: Mutex<BlockTracker>,
     destroyed: AtomicBool,
+    /// Back-pressure: how much output the webview has not finished drawing.
+    flow: FlowControl,
 }
 
 impl SessionHandle {
@@ -64,6 +79,11 @@ impl SessionHandle {
         writer.write_all(bytes)?;
         writer.flush()?;
         Ok(())
+    }
+
+    /// The webview finished drawing `bytes` of output; a paused reader may resume.
+    pub fn acknowledge(&self, bytes: usize) {
+        self.flow.acknowledge(bytes);
     }
 
     pub fn resize(&self, rows: u16, columns: u16) -> anyhow::Result<()> {
@@ -90,6 +110,7 @@ impl SessionHandle {
 
     fn kill(&self) {
         self.destroyed.store(true, Ordering::Relaxed);
+        self.flow.wake();
         if let Ok(mut child) = self.child.lock() {
             let _ = child.kill();
         }
@@ -110,14 +131,20 @@ impl Sessions {
     pub fn create(
         &self,
         events: Channel<SessionEvent>,
-        rows: u16,
-        columns: u16,
-        working_directory: Option<String>,
-        shell_override: Option<String>,
+        request: SessionRequest,
         integration_dir: &Path,
     ) -> anyhow::Result<SessionInfo> {
+        let SessionRequest {
+            rows,
+            columns,
+            working_directory,
+            shell: shell_override,
+            env: profile_env,
+        } = request;
         let launch = termzip_shell::launch_config(shell_override.as_deref(), integration_dir);
-        let environment: BTreeMap<String, String> = launch.env.iter().cloned().collect();
+        // The profile's variables go first: the integration's own (ZDOTDIR and friends) win.
+        let mut environment = profile_env;
+        environment.extend(launch.env.iter().cloned());
         let options = PtyOptions {
             shell: Some(launch.program.clone()),
             args: launch.args.clone(),
@@ -147,6 +174,7 @@ impl Sessions {
             parser: Mutex::new(OscParser::new()),
             tracker: Mutex::new(BlockTracker::new()),
             destroyed: AtomicBool::new(false),
+            flow: FlowControl::default(),
         });
 
         match self.inner.lock() {
@@ -214,7 +242,13 @@ fn spawn_reader(
                     return;
                 }
                 match receiver.recv_timeout(EXIT_POLL) {
-                    Ok(chunk) => handle_chunk(&events, &handle, &chunk),
+                    Ok(chunk) => {
+                        handle_chunk(&events, &handle, &chunk);
+                        // Past the high-water mark this waits for the webview to catch up, which
+                        // stops draining the PTY channel and so makes the shell block on write.
+                        handle.flow.sent(chunk.len());
+                        handle.flow.wait_if_saturated(&handle.destroyed);
+                    }
                     Err(RecvTimeoutError::Timeout) => match handle.try_exit() {
                         Ok(None) => {}
                         Ok(Some(status)) => {
@@ -253,18 +287,31 @@ fn handle_chunk(events: &Channel<SessionEvent>, handle: &Arc<SessionHandle>, chu
         data: base64::engine::general_purpose::STANDARD.encode(chunk),
     });
 
-    let markers = handle
-        .parser
-        .lock()
-        .map(|mut parser| parser.feed_ranges(chunk))
-        .unwrap_or_default();
-
+    let Ok(mut parser) = handle.parser.lock() else {
+        return;
+    };
     let Ok(mut tracker) = handle.tracker.lock() else {
         return;
     };
-    let before = tracker.blocks().len();
+    for event in apply_chunk(&mut parser, &mut tracker, chunk) {
+        let _ = events.send(event);
+    }
+}
+
+/// Feeds one chunk of output through the marker parser and the block tracker, and returns what
+/// changed: each newly finished block, and the working directory when it moved.
+fn apply_chunk(
+    parser: &mut OscParser,
+    tracker: &mut BlockTracker,
+    chunk: &[u8],
+) -> Vec<SessionEvent> {
+    // Blocks are numbered for the life of the session, so "new" means a higher index. Comparing
+    // lengths would miss them once the oldest blocks start being dropped.
+    let last_index = tracker.blocks().back().map(|block| block.index);
+    let previous_cwd = tracker.cwd().map(str::to_owned);
+
     let mut cursor = 0;
-    for hit in markers {
+    for hit in parser.feed_ranges(chunk) {
         if hit.start > cursor {
             tracker.on_region_bytes(&chunk[cursor..hit.start]);
         }
@@ -274,11 +321,23 @@ fn handle_chunk(events: &Channel<SessionEvent>, handle: &Arc<SessionHandle>, chu
     if cursor < chunk.len() {
         tracker.on_region_bytes(&chunk[cursor..]);
     }
-    if tracker.blocks().len() != before {
-        let _ = events.send(SessionEvent::Blocks {
-            blocks: tracker.blocks().iter().cloned().collect(),
+
+    let mut events: Vec<SessionEvent> = tracker
+        .blocks()
+        .iter()
+        .filter(|block| last_index.is_none_or(|last| block.index > last))
+        .map(|block| SessionEvent::Block {
+            block: block.clone(),
+        })
+        .collect();
+    if let Some(path) = tracker.cwd()
+        && previous_cwd.as_deref() != Some(path)
+    {
+        events.push(SessionEvent::Cwd {
+            path: path.to_owned(),
         });
     }
+    events
 }
 
 #[cfg(all(test, unix))]
@@ -321,7 +380,17 @@ mod tests {
         let dir = std::env::temp_dir().join("termzip-sessions-test");
         // `sh` is not an integrated shell, so the script runs without injected startup files.
         let info = sessions
-            .create(channel, 24, 80, None, Some("/bin/sh".to_owned()), &dir)
+            .create(
+                channel,
+                SessionRequest {
+                    rows: 24,
+                    columns: 80,
+                    working_directory: None,
+                    shell: Some("/bin/sh".to_owned()),
+                    env: BTreeMap::new(),
+                },
+                &dir,
+            )
             .unwrap();
         sessions
             .get(info.id)
@@ -376,5 +445,226 @@ mod tests {
             "a destroyed session must stay silent"
         );
         assert!(sessions.get(info.id).is_err());
+    }
+
+    fn command(name: &str, output: &str, code: i32) -> Vec<u8> {
+        use base64::Engine as _;
+        let encoded = base64::engine::general_purpose::STANDARD.encode(name);
+        format!(
+            "\x1b]133;A\x07$ \x1b]133;B\x07\x1b]1337;CommandB64={encoded}\x07\x1b]133;C\x07{output}\x1b]133;D;{code}\x07"
+        )
+        .into_bytes()
+    }
+
+    #[test]
+    fn a_finished_command_is_reported_as_one_block_event() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let events = apply_chunk(&mut parser, &mut tracker, &command("echo hi", "hi\n", 0));
+
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            SessionEvent::Block { block } => {
+                assert_eq!(block.command.as_deref(), Some("echo hi"));
+                assert_eq!(block.exit_code, Some(0));
+            }
+            other => panic!("expected a block, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn blocks_keep_being_reported_after_the_store_is_full() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        // The tracker keeps 200 blocks; comparing lengths would stop reporting at that point.
+        for number in 0..230 {
+            let events = apply_chunk(
+                &mut parser,
+                &mut tracker,
+                &command(&format!("echo {number}"), "x", 0),
+            );
+            let blocks = events
+                .iter()
+                .filter(|event| matches!(event, SessionEvent::Block { .. }))
+                .count();
+            assert_eq!(blocks, 1, "command {number} was not reported exactly once");
+        }
+    }
+
+    #[test]
+    fn a_chunk_without_a_finished_command_reports_no_block() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let events = apply_chunk(
+            &mut parser,
+            &mut tracker,
+            b"\x1b]133;A\x07$ \x1b]133;B\x07ec",
+        );
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn the_working_directory_is_reported_only_when_it_changes() {
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let first = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/tmp\x07");
+        assert!(matches!(&first[..], [SessionEvent::Cwd { path }] if path == "/tmp"));
+
+        let same = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/tmp\x07");
+        assert!(same.is_empty());
+
+        let moved = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/etc\x07");
+        assert!(matches!(&moved[..], [SessionEvent::Cwd { path }] if path == "/etc"));
+    }
+
+    /// Polls until `condition` holds, so a slow runner only makes a test slower, never flaky.
+    fn wait_until(limit: Duration, condition: impl Fn() -> bool) -> bool {
+        let started = std::time::Instant::now();
+        while started.elapsed() < limit {
+            if condition() {
+                return true;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        condition()
+    }
+
+    fn received_bytes(collected: &Collected) -> usize {
+        use base64::Engine as _;
+        collected
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| event["type"] == "data")
+            .map(|event| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(event["data"].as_str().unwrap())
+                    .unwrap()
+                    .len()
+            })
+            .sum()
+    }
+
+    #[test]
+    fn a_flood_stops_near_the_high_water_mark_until_it_is_acknowledged() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let info = open(
+            &sessions,
+            channel,
+            "yes aaaaaaaaaaaaaaa | head -c 4000000; exit 0\n",
+        );
+        let handle = sessions.get(info.id).unwrap();
+
+        // Nobody acknowledges: the output must stop instead of piling up in the webview.
+        assert!(
+            wait_until(Duration::from_secs(30), || received_bytes(&collected)
+                >= crate::flow::HIGH_WATER),
+            "the output never reached the high-water mark"
+        );
+        thread::sleep(Duration::from_millis(800)); // the reader notices and pauses
+        let stalled = received_bytes(&collected);
+        assert!(
+            stalled <= crate::flow::HIGH_WATER + 16 * 1024,
+            "kept sending past the high-water mark: {stalled}"
+        );
+        thread::sleep(Duration::from_millis(500));
+        assert_eq!(
+            received_bytes(&collected),
+            stalled,
+            "output continued while paused"
+        );
+
+        // Acknowledging what was received lets the rest through, up to the exit.
+        let mut acknowledged = 0;
+        for _ in 0..400 {
+            let total = received_bytes(&collected);
+            handle.acknowledge(total - acknowledged);
+            acknowledged = total;
+            if collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| event["type"] == "exit")
+            {
+                break;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        assert!(
+            received_bytes(&collected) >= 4_000_000,
+            "the flood did not finish"
+        );
+    }
+
+    #[test]
+    fn destroying_a_paused_session_releases_its_reader() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let info = open(&sessions, channel, "yes aaaaaaaaaaaaaaa\n");
+        let handle = sessions.get(info.id).unwrap();
+
+        assert!(
+            wait_until(Duration::from_secs(30), || received_bytes(&collected)
+                >= crate::flow::HIGH_WATER),
+            "never reached the high-water mark, so it never paused"
+        );
+        thread::sleep(Duration::from_millis(500)); // the reader notices and pauses
+
+        sessions.destroy(info.id);
+        // The reader holds one reference; it must let go once it notices the destroy.
+        for _ in 0..60 {
+            if Arc::strong_count(&handle) == 1 {
+                return;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the reader of a destroyed, paused session is still running");
+    }
+
+    #[test]
+    fn a_profile_variable_reaches_the_shell() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let dir = std::env::temp_dir().join("termzip-sessions-test");
+        let mut env = BTreeMap::new();
+        env.insert(
+            "TERMZIP_TEST_PROFILE_VAR".to_owned(),
+            "from-the-profile".to_owned(),
+        );
+        let info = sessions
+            .create(
+                channel,
+                SessionRequest {
+                    rows: 24,
+                    columns: 80,
+                    working_directory: None,
+                    shell: Some("/bin/sh".to_owned()),
+                    env,
+                },
+                &dir,
+            )
+            .unwrap();
+        sessions
+            .get(info.id)
+            .unwrap()
+            .write(b"printf '[%s]' \"$TERMZIP_TEST_PROFILE_VAR\"; exit 0\n")
+            .unwrap();
+
+        assert!(wait_for(&collected, "exit"));
+        let output = received_text(&collected);
+        assert!(output.contains("[from-the-profile]"), "{output}");
+    }
+
+    fn received_text(collected: &Collected) -> String {
+        use base64::Engine as _;
+        let bytes: Vec<u8> = collected
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| event["type"] == "data")
+            .flat_map(|event| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(event["data"].as_str().unwrap())
+                    .unwrap()
+            })
+            .collect();
+        String::from_utf8_lossy(&bytes).into_owned()
     }
 }

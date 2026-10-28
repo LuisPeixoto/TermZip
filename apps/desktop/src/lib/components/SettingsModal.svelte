@@ -12,6 +12,9 @@
     scrollbackLines: 10000,
     shell: null,
     workingDirectory: null,
+    restoreSession: true,
+    defaultProfile: null,
+    profiles: [],
   });
   let saving = $state(false);
   let dialog: HTMLDivElement | undefined = $state();

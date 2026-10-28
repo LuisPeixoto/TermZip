@@ -9,6 +9,7 @@
   import { xtermTheme } from "../terminal/xtermTheme";
   import { app } from "../stores/app.svelte";
   import { matchShortcut } from "../shortcuts";
+  import { ACK_BATCH, AckBatcher } from "../flow";
 
   const DEFAULT_FONT_FAMILY =
     '"JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, "Liberation Mono", monospace';
@@ -27,6 +28,14 @@
   let disposed = false;
   // Each shell gets a number; events of an older shell (a restart is in flight) are ignored.
   let generation = 0;
+  // Tells the backend how much output has been drawn, so a flooding shell is paused, not the webview.
+  const acks = new AckBatcher(
+    ACK_BATCH,
+    (bytes) => {
+      if (sessionInfo) void api.ackSession(sessionInfo.id, bytes).catch(() => {});
+    },
+    () => sessionInfo !== null,
+  );
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
@@ -155,11 +164,18 @@
   function onSessionEvent(owner: number, event: SessionEvent): void {
     if (disposed || owner !== generation || !terminal) return;
     switch (event.type) {
-      case "data":
-        terminal.write(base64ToBytes(event.data));
+      case "data": {
+        const bytes = base64ToBytes(event.data);
+        terminal.write(bytes, () => {
+          if (owner === generation) acks.add(bytes.length);
+        });
         break;
-      case "blocks":
-        app.setBlocks(event.blocks);
+      }
+      case "block":
+        app.addBlock(event.block);
+        break;
+      case "cwd":
+        app.setCwd(event.path);
         break;
       case "exit":
         app.markExited(event.code);
@@ -174,6 +190,7 @@
   async function startSession(): Promise<void> {
     if (!terminal || disposed) return;
     const owner = ++generation;
+    acks.reset();
     app.beginSession();
     fit();
     const rows = Math.max(terminal.rows, 10);
@@ -184,8 +201,6 @@
         {
           rows,
           columns,
-          workingDirectory: app.settings.workingDirectory,
-          shell: app.settings.shell,
         },
         (event) => onSessionEvent(owner, event),
       );
@@ -196,6 +211,7 @@
       }
       sessionInfo = info;
       app.setSession(info);
+      acks.flush(); // output that arrived before the id was known
       if (!app.settingsOpen) terminal.focus();
     } catch (error) {
       app.toast("err", `Could not start the shell: ${error}`);

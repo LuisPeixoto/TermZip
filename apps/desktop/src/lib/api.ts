@@ -1,5 +1,13 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+export interface Profile {
+  id: string;
+  name: string;
+  shell: string | null;
+  workingDirectory: string | null;
+  env: Record<string, string>;
+}
+
 export interface Settings {
   theme: "dark" | "light";
   fontSize: number;
@@ -7,6 +15,9 @@ export interface Settings {
   scrollbackLines: number;
   shell: string | null;
   workingDirectory: string | null;
+  restoreSession: boolean;
+  defaultProfile: string | null;
+  profiles: Profile[];
 }
 
 export interface SessionInfo {
@@ -44,7 +55,27 @@ export interface Block {
 export type SessionEvent =
   | { type: "data"; data: string }
   | { type: "exit"; code: number | null }
-  | { type: "blocks"; blocks: Block[] };
+  | { type: "block"; block: Block }
+  | { type: "cwd"; path: string };
+
+export type SplitDirection = "row" | "column";
+
+export type PaneNode =
+  | { kind: "leaf"; profile: string | null; cwd: string | null }
+  | { kind: "split"; direction: SplitDirection; ratio: number; first: PaneNode; second: PaneNode };
+
+export interface WorkspaceTab {
+  title: string | null;
+  activePane: number;
+  root: PaneNode;
+}
+
+/** The layout reopened on launch: structure only, never terminal output. */
+export interface Workspace {
+  version: number;
+  activeTab: number;
+  tabs: WorkspaceTab[];
+}
 
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
@@ -56,8 +87,10 @@ export const api = {
     options: {
       rows: number;
       columns: number;
-      workingDirectory?: string | null;
-      shell?: string | null;
+      /** The profile to start with; the backend falls back to the default profile. */
+      profileId?: string | null;
+      /** Where the pane was when the layout was saved; used only while the folder still exists. */
+      restoreDirectory?: string | null;
     },
     onEvent: (event: SessionEvent) => void,
   ) => {
@@ -73,7 +106,14 @@ export const api = {
     }),
   resizeSession: (sessionId: number, rows: number, columns: number) =>
     invoke<void>("resize_session", { sessionId, rows, columns }),
+  /** Tells the backend how much output the terminal has finished drawing (flow control). */
+  ackSession: (sessionId: number, bytes: number) =>
+    invoke<void>("ack_session", { sessionId, bytes }),
   listBlocks: (sessionId: number) => invoke<Block[]>("list_blocks", { sessionId }),
+  /** Opens a URL or a file path that was clicked in the terminal; the backend decides what is allowed. */
+  openLink: (target: string, cwd: string | null) => invoke<void>("open_link", { target, cwd }),
+  loadWorkspace: () => invoke<Workspace | null>("load_workspace"),
+  saveWorkspace: (workspace: Workspace) => invoke<void>("save_workspace", { workspace }),
 };
 
 export function bytesToBase64(bytes: Uint8Array): string {
