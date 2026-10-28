@@ -12,13 +12,15 @@
   // A drag ends with a click on the tab it ended on; that click must not switch tabs.
   let suppressClick = false;
 
-  function activate(id: string) {
+  function activate(id: string, clicks: number) {
     if (suppressClick) {
       suppressClick = false;
       return;
     }
     workspace.activate(id);
-    focusTerminal();
+    // The second click of a double click is about to open the rename field; taking the keyboard
+    // away from it would close the field at once.
+    if (clicks < 2) focusTerminal();
   }
 
   function close(id: string) {
@@ -39,7 +41,8 @@
 
   function focusOnMount(node: HTMLInputElement) {
     node.focus();
-    node.select();
+    // The bound value is written right after the action runs; select it once it is there.
+    queueMicrotask(() => node.select());
   }
 
   // Reordering uses pointer events on the window: moving a keyed element in the DOM would drop a
@@ -68,7 +71,13 @@
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
-      if (moved) suppressClick = true;
+      if (moved) {
+        // The drag ends with a click on the tab under the pointer, which must not switch tabs. If
+        // that click never comes (the pointer left the tab), do not let it linger for the next one.
+        suppressClick = true;
+        setTimeout(() => (suppressClick = false), 80);
+        focusTerminal(); // pressing the tab moved the keyboard onto its button
+      }
       dragging = null;
     };
     window.addEventListener("pointermove", onMove);
@@ -109,7 +118,7 @@
           class="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 text-left"
           title={tab.title}
           onpointerdown={(event) => onPointerDown(event, tab.id)}
-          onclick={() => activate(tab.id)}
+          onclick={(event) => activate(tab.id, event.detail)}
           ondblclick={() => startRename(tab.id, tab.title)}
         >
           {#if tab.active.exited}
