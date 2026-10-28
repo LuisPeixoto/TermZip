@@ -41,7 +41,9 @@
   let fitAddon: FitAddon | undefined;
   let search: SearchAddon | undefined = $state.raw();
   let webgl: WebglAddon | undefined;
+  // What the terminal was last drawn with: the theme, and whether the window lets the desktop through.
   let appliedTheme = app.theme;
+  let appliedTranslucent = app.translucent;
   // Where a link is being hovered, for the "⌘+click to open" hint.
   let hint = $state.raw<{ x: number; y: number } | null>(null);
   let disposed = false;
@@ -74,14 +76,18 @@
 
   $effect(() => {
     const theme = app.theme;
-    if (!terminal || !theme || theme === appliedTheme) return;
+    const translucent = app.translucent;
+    if (!terminal || !theme || (theme === appliedTheme && translucent === appliedTranslucent)) return;
     appliedTheme = theme;
-    applyTerminalTheme(theme);
+    appliedTranslucent = translucent;
+    applyTerminalTheme(theme, translucent);
   });
 
-  function applyTerminalTheme(theme: Theme): void {
+  function applyTerminalTheme(theme: Theme, translucent: boolean): void {
     if (!terminal) return;
-    terminal.options.theme = xtermTheme(theme);
+    // A clear background only works with transparency on, which the renderer decides when it is created.
+    terminal.options.allowTransparency = translucent;
+    terminal.options.theme = xtermTheme(theme, translucent);
     // The WebGL renderer keeps its clear color, so rebuild it on theme changes
     // while leaving the terminal buffer untouched.
     if (webgl) {
@@ -147,7 +153,8 @@
       lineHeight: settings.lineHeight,
       letterSpacing: settings.letterSpacing,
       scrollback: settings.scrollbackLines,
-      theme: settingsTheme ? xtermTheme(settingsTheme) : undefined,
+      allowTransparency: app.translucent,
+      theme: settingsTheme ? xtermTheme(settingsTheme, app.translucent) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.
       allowProposedApi: true,
       // OSC 8 hyperlinks (`ls --hyperlink`, many CLIs): http and https only.
@@ -355,7 +362,7 @@
 </script>
 
 <!-- FitAddon measures the parent's border box, so the padding lives one level up. -->
-<div class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-bg px-3 pb-2 pt-1">
+<div class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-window px-3 pb-2 pt-1">
   <div bind:this={container} class="termzip-terminal min-h-0 flex-1"></div>
   {#if pane.searchOpen && search}
     <SearchBar {pane} addon={search} />
