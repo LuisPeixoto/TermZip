@@ -1,0 +1,18 @@
+id = "rose-pine-dawn"
+name = "Rosé Pine Dawn"
+appearance = "light"
+author = "The Rosé Pine contributors"
+license = "MIT"
+source = "https://rosepinetheme.com"
+
+[colors]
+background = "#faf4ed"
+foreground = "#575279"
+cursor = "#575279"
+cursor_text = "#faf4ed"
+selection = "#dfdad9"
+accent = "#907aa9"
+ansi = [
+  "#f2e9e1", "#b4637a", "#286983", "#ea9d34", "#56949f", "#907aa9", "#d7827e", "#575279",
+  "#9893a5", "#b4637a", "#286983", "#ea9d34", "#56949f", "#907aa9", "#d7827e", "#575279",
+]
