@@ -47,6 +47,22 @@ run again.
 - **Rust core, native shell.** Sessions run in a real PTY via a small Rust engine; the interface is a fast Tauri app.
 - **Zinc & blue.** A calm, high-contrast visual system with complete dark and light themes.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/termzip-dark.png" width="880" alt="TermZip in the dark theme: a zsh session on the left and the command blocks rail on the right" />
+  <br />
+  <sub>The dark theme. You type straight into the terminal; every finished command becomes a block with its exit
+  code, duration, and output.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/termzip-light.png" width="880" alt="TermZip in the light theme showing the same session, with a failed command marked exit 1" />
+  <br />
+  <sub>The light theme. A failing command (<code>false</code>) is marked <b>exit 1</b>; each block can be copied or run
+  again.</sub>
+</p>
+
 ## Getting started
 
 Install [Rust](https://rustup.rs) and [Node.js](https://nodejs.org) 20+, then:
