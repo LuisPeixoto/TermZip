@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,8 +7,14 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::ThemeKind;
+use crate::appearance::{
+    CursorStyle, DEFAULT_LETTER_SPACING, DEFAULT_LINE_HEIGHT, MAX_BACKGROUND_OPACITY,
+    MAX_LETTER_SPACING, MAX_LINE_HEIGHT, MIN_BACKGROUND_OPACITY, MIN_LETTER_SPACING,
+    MIN_LINE_HEIGHT, bounded,
+};
+use crate::keybindings::{normalize_keybindings, validate_keybindings};
 use crate::profile::{
-    DEFAULT_PROFILE_ID, LaunchProfile, Profile, normalize_profiles, validate_profiles,
+    DEFAULT_PROFILE_ID, LaunchProfile, Profile, normalize_profiles, slug, validate_profiles,
 };
 use crate::storage::{set_aside, write_atomic};
 
@@ -18,13 +25,32 @@ pub const MAX_FONT_SIZE: f32 = 28.0;
 pub const MIN_SCROLLBACK_LINES: usize = 1_000;
 pub const MAX_SCROLLBACK_LINES: usize = 200_000;
 
+pub const DEFAULT_DARK_THEME: &str = crate::DEFAULT_DARK_ID;
+pub const DEFAULT_LIGHT_THEME: &str = crate::DEFAULT_LIGHT_ID;
+const MAX_THEME_ID_CHARS: usize = 64;
+
 /// Environment variable that moves everything TermZip stores, so tests and demos never touch the user's data.
 pub const HOME_ENV: &str = "TERMZIP_HOME";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
+    /// Whether the window is dark or light; each appearance has its own theme below.
     pub theme: ThemeKind,
+    /// The theme used while the appearance is dark.
+    pub dark_theme: String,
+    /// The theme used while the appearance is light.
+    pub light_theme: String,
+    pub cursor_style: CursorStyle,
+    pub cursor_blink: bool,
+    /// Multiplier of the font size: the height of a row.
+    pub line_height: f32,
+    /// Extra space between characters, in pixels.
+    pub letter_spacing: f32,
+    /// 1.0 is an opaque window; less lets the desktop show through.
+    pub background_opacity: f32,
+    /// Blur what shows through a translucent window, where the system supports it.
+    pub background_blur: bool,
     pub font_size: f32,
     pub font_family: Option<String>,
     pub scrollback_lines: usize,
@@ -36,7 +62,9 @@ pub struct Settings {
     pub restore_session: bool,
     /// The profile a new tab starts with; `None` is the built-in one.
     pub default_profile: Option<String>,
-    /// Kept last: TOML writes arrays of tables after the plain values.
+    /// Shortcut overrides, `action = "Cmd+Shift+D"`; an empty chord unbinds the action. Tables come
+    /// after the plain values, and `profiles` last of all.
+    pub keybindings: BTreeMap<String, String>,
     pub profiles: Vec<Profile>,
 }
 
@@ -44,6 +72,14 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             theme: ThemeKind::Dark,
+            dark_theme: DEFAULT_DARK_THEME.to_owned(),
+            light_theme: DEFAULT_LIGHT_THEME.to_owned(),
+            cursor_style: CursorStyle::Block,
+            cursor_blink: true,
+            line_height: DEFAULT_LINE_HEIGHT,
+            letter_spacing: DEFAULT_LETTER_SPACING,
+            background_opacity: MAX_BACKGROUND_OPACITY,
+            background_blur: true,
             font_size: DEFAULT_FONT_SIZE,
             font_family: None,
             scrollback_lines: DEFAULT_SCROLLBACK_LINES,
@@ -51,8 +87,20 @@ impl Default for Settings {
             working_directory: None,
             restore_session: true,
             default_profile: None,
+            keybindings: BTreeMap::new(),
             profiles: Vec::new(),
         }
+    }
+}
+
+/// A theme id as the file may spell it; anything unusable falls back to `default`. An id that names no
+/// theme is kept (a custom theme may come back) and is resolved when it is used.
+fn theme_id(id: &str, default: &str) -> String {
+    let cleaned: String = slug(id).chars().take(MAX_THEME_ID_CHARS).collect();
+    if cleaned.is_empty() {
+        default.to_owned()
+    } else {
+        cleaned
     }
 }
 
@@ -95,6 +143,27 @@ impl Settings {
         self.scrollback_lines = self
             .scrollback_lines
             .clamp(MIN_SCROLLBACK_LINES, MAX_SCROLLBACK_LINES);
+        self.dark_theme = theme_id(&self.dark_theme, DEFAULT_DARK_THEME);
+        self.light_theme = theme_id(&self.light_theme, DEFAULT_LIGHT_THEME);
+        self.line_height = bounded(
+            self.line_height,
+            MIN_LINE_HEIGHT,
+            MAX_LINE_HEIGHT,
+            DEFAULT_LINE_HEIGHT,
+        );
+        self.letter_spacing = bounded(
+            self.letter_spacing,
+            MIN_LETTER_SPACING,
+            MAX_LETTER_SPACING,
+            DEFAULT_LETTER_SPACING,
+        );
+        self.background_opacity = bounded(
+            self.background_opacity,
+            MIN_BACKGROUND_OPACITY,
+            MAX_BACKGROUND_OPACITY,
+            MAX_BACKGROUND_OPACITY,
+        );
+        self.keybindings = normalize_keybindings(std::mem::take(&mut self.keybindings));
         self.font_family = self
             .font_family
             .map(|family| family.trim().to_owned())
@@ -118,7 +187,8 @@ impl Settings {
 
     /// Problems that deserve an explanation instead of a silent clean-up, as a sentence to show.
     pub fn validate(&self) -> Result<(), String> {
-        validate_profiles(&self.profiles)
+        validate_profiles(&self.profiles)?;
+        validate_keybindings(&self.keybindings)
     }
 
     /// What a new session starts with. `requested` is a profile id; an unknown or missing one falls
@@ -467,5 +537,142 @@ mod tests {
         assert_eq!(built_in.id, "default");
         assert_eq!(built_in.shell.as_deref(), Some("/bin/zsh"));
         assert_eq!(built_in.working_directory.as_deref(), Some("/home/me"));
+    }
+
+    /// A `config.toml` exactly as 0.2 wrote it: none of the appearance keys exist yet.
+    const CONFIG_FROM_0_2: &str = r#"theme = "light"
+font_size = 16.0
+scrollback_lines = 5000
+shell = "/bin/zsh"
+restore_session = true
+default_profile = "work"
+
+[[profiles]]
+id = "work"
+name = "Work"
+working_directory = "/srv/work"
+
+[profiles.env]
+AWS_PROFILE = "work"
+"#;
+
+    #[test]
+    fn a_config_from_0_2_loads_with_the_appearance_defaulted() {
+        let settings = Settings::from_toml(CONFIG_FROM_0_2);
+
+        // What was set is kept...
+        assert_eq!(settings.theme, crate::ThemeKind::Light);
+        assert_eq!(settings.font_size, 16.0);
+        assert_eq!(settings.profiles[0].id, "work");
+        assert_eq!(settings.profiles[0].env["AWS_PROFILE"], "work");
+        // ...and the new keys look exactly like 0.2 did.
+        assert_eq!(settings.dark_theme, "termzip-dark");
+        assert_eq!(settings.light_theme, "termzip-light");
+        assert_eq!(settings.line_height, 1.3);
+        assert_eq!(settings.letter_spacing, 0.0);
+        assert_eq!(settings.background_opacity, 1.0);
+        assert_eq!(settings.cursor_style, crate::CursorStyle::Block);
+        assert!(settings.cursor_blink);
+        assert!(settings.keybindings.is_empty());
+        assert_eq!(settings.profiles[0].theme, None);
+        assert_eq!(settings.profiles[0].cursor_style, None);
+    }
+
+    #[test]
+    fn appearance_and_keybindings_survive_a_round_trip_through_toml() {
+        let mut styled = profile("Styled");
+        styled.theme = Some("dracula".to_owned());
+        styled.font_size = Some(18.0);
+        styled.cursor_style = Some(crate::CursorStyle::Underline);
+        let settings = Settings {
+            dark_theme: "tokyo-night".to_owned(),
+            light_theme: "catppuccin-latte".to_owned(),
+            cursor_style: crate::CursorStyle::Bar,
+            cursor_blink: false,
+            line_height: 1.6,
+            letter_spacing: 0.5,
+            background_opacity: 0.8,
+            background_blur: false,
+            keybindings: [
+                ("splitRight".to_owned(), "Shift+Cmd+E".to_owned()),
+                ("find".to_owned(), String::new()),
+            ]
+            .into(),
+            profiles: vec![styled],
+            ..Settings::default()
+        }
+        .normalized();
+
+        let text = toml::to_string_pretty(&settings)
+            .expect("every table must come after the plain values");
+        assert!(
+            text.contains("[keybindings]") && text.contains("[[profiles]]"),
+            "{text}"
+        );
+        assert_eq!(Settings::from_toml(&text), settings);
+    }
+
+    #[test]
+    fn appearance_values_are_clamped_and_nonsense_gets_the_default() {
+        let wild = Settings {
+            line_height: 9.0,
+            letter_spacing: -3.0,
+            background_opacity: 0.1,
+            ..Settings::default()
+        }
+        .normalized();
+        assert_eq!(wild.line_height, 2.0);
+        assert_eq!(wild.letter_spacing, 0.0);
+        assert_eq!(wild.background_opacity, 0.5);
+
+        let broken = Settings {
+            line_height: f32::NAN,
+            letter_spacing: f32::INFINITY,
+            background_opacity: f32::NAN,
+            ..Settings::default()
+        }
+        .normalized();
+        assert_eq!(broken.line_height, 1.3);
+        assert_eq!(broken.letter_spacing, 0.0);
+        assert_eq!(broken.background_opacity, 1.0);
+    }
+
+    #[test]
+    fn theme_ids_are_cleaned_but_an_unknown_one_is_kept() {
+        let settings = Settings {
+            dark_theme: "  Tokyo Night!  ".to_owned(),
+            light_theme: "???".to_owned(),
+            ..Settings::default()
+        }
+        .normalized();
+        assert_eq!(settings.dark_theme, "tokyo-night");
+        assert_eq!(settings.light_theme, "termzip-light");
+
+        // A custom theme that was deleted may come back, so its id is not forgotten.
+        let custom = Settings {
+            dark_theme: "my-own".to_owned(),
+            ..Settings::default()
+        }
+        .normalized();
+        assert_eq!(custom.dark_theme, "my-own");
+    }
+
+    #[test]
+    fn keybindings_are_cleaned_on_load_and_explained_on_save() {
+        let settings = Settings {
+            keybindings: [
+                ("splitRight".to_owned(), "cmd+shift+e".to_owned()),
+                ("closePane".to_owned(), "W".to_owned()),
+            ]
+            .into(),
+            ..Settings::default()
+        };
+        // A bare letter would take over typing: explain it before the clean-up drops it.
+        assert!(settings.validate().unwrap_err().contains("closePane"));
+
+        let cleaned = settings.normalized();
+        assert_eq!(cleaned.keybindings.len(), 1);
+        assert_eq!(cleaned.keybindings["splitRight"], "Shift+Cmd+E");
+        assert!(cleaned.validate().is_ok());
     }
 }

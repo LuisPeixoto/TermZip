@@ -14,6 +14,14 @@ const DEFAULT_COLUMNS: u16 = 80;
 #[serde(rename_all = "camelCase")]
 pub struct SettingsPayload {
     pub theme: termzip_core::ThemeKind,
+    pub dark_theme: String,
+    pub light_theme: String,
+    pub cursor_style: termzip_core::CursorStyle,
+    pub cursor_blink: bool,
+    pub line_height: f32,
+    pub letter_spacing: f32,
+    pub background_opacity: f32,
+    pub background_blur: bool,
     pub font_size: f32,
     pub font_family: Option<String>,
     pub scrollback_lines: usize,
@@ -21,6 +29,7 @@ pub struct SettingsPayload {
     pub working_directory: Option<String>,
     pub restore_session: bool,
     pub default_profile: Option<String>,
+    pub keybindings: std::collections::BTreeMap<String, String>,
     pub profiles: Vec<ProfilePayload>,
 }
 
@@ -31,6 +40,10 @@ pub struct ProfilePayload {
     pub name: String,
     pub shell: Option<String>,
     pub working_directory: Option<String>,
+    pub theme: Option<String>,
+    pub font_size: Option<f32>,
+    pub font_family: Option<String>,
+    pub cursor_style: Option<termzip_core::CursorStyle>,
     pub env: std::collections::BTreeMap<String, String>,
 }
 
@@ -41,6 +54,10 @@ impl From<termzip_core::Profile> for ProfilePayload {
             name: profile.name,
             shell: profile.shell,
             working_directory: profile.working_directory,
+            theme: profile.theme,
+            font_size: profile.font_size,
+            font_family: profile.font_family,
+            cursor_style: profile.cursor_style,
             env: profile.env,
         }
     }
@@ -53,6 +70,10 @@ impl From<ProfilePayload> for termzip_core::Profile {
             name: payload.name,
             shell: payload.shell,
             working_directory: payload.working_directory,
+            theme: payload.theme,
+            font_size: payload.font_size,
+            font_family: payload.font_family,
+            cursor_style: payload.cursor_style,
             env: payload.env,
         }
     }
@@ -62,6 +83,15 @@ impl From<termzip_core::Settings> for SettingsPayload {
     fn from(settings: termzip_core::Settings) -> Self {
         Self {
             theme: settings.theme,
+            dark_theme: settings.dark_theme,
+            light_theme: settings.light_theme,
+            cursor_style: settings.cursor_style,
+            cursor_blink: settings.cursor_blink,
+            line_height: settings.line_height,
+            letter_spacing: settings.letter_spacing,
+            background_opacity: settings.background_opacity,
+            background_blur: settings.background_blur,
+            keybindings: settings.keybindings,
             font_size: settings.font_size,
             font_family: settings.font_family,
             scrollback_lines: settings.scrollback_lines,
@@ -74,20 +104,30 @@ impl From<termzip_core::Settings> for SettingsPayload {
     }
 }
 
-impl From<SettingsPayload> for termzip_core::Settings {
-    fn from(payload: SettingsPayload) -> Self {
-        Self {
-            theme: payload.theme,
-            font_size: payload.font_size,
-            font_family: payload.font_family,
-            scrollback_lines: payload.scrollback_lines,
-            shell: payload.shell,
-            working_directory: payload.working_directory,
-            restore_session: payload.restore_session,
-            default_profile: payload.default_profile,
-            profiles: payload.profiles.into_iter().map(Into::into).collect(),
+impl SettingsPayload {
+    /// The settings exactly as the dialog sent them, before the clean-up that drops what cannot be
+    /// used, so `validate` can still explain it.
+    fn into_raw(self) -> termzip_core::Settings {
+        termzip_core::Settings {
+            theme: self.theme,
+            dark_theme: self.dark_theme,
+            light_theme: self.light_theme,
+            cursor_style: self.cursor_style,
+            cursor_blink: self.cursor_blink,
+            line_height: self.line_height,
+            letter_spacing: self.letter_spacing,
+            background_opacity: self.background_opacity,
+            background_blur: self.background_blur,
+            font_size: self.font_size,
+            font_family: self.font_family,
+            scrollback_lines: self.scrollback_lines,
+            shell: self.shell,
+            working_directory: self.working_directory,
+            restore_session: self.restore_session,
+            default_profile: self.default_profile,
+            keybindings: self.keybindings,
+            profiles: self.profiles.into_iter().map(Into::into).collect(),
         }
-        .normalized()
     }
 }
 
@@ -100,16 +140,10 @@ pub fn get_settings() -> Result<SettingsPayload, String> {
 
 #[tauri::command]
 pub fn save_settings(settings: SettingsPayload) -> Result<SettingsPayload, String> {
-    // Explain a bad profile as it is, before the clean-up quietly drops what cannot be used.
-    termzip_core::validate_profiles(
-        &settings
-            .profiles
-            .iter()
-            .cloned()
-            .map(Into::into)
-            .collect::<Vec<_>>(),
-    )?;
-    let settings = termzip_core::Settings::from(settings);
+    // Explain a bad profile or shortcut as it is, before the clean-up quietly drops what cannot be used.
+    let raw = settings.into_raw();
+    raw.validate()?;
+    let settings = raw.normalized();
     settings.save().map_err(|error| error.to_string())?;
     Ok(SettingsPayload::from(settings))
 }

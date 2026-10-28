@@ -1,15 +1,31 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+export type CursorStyle = "block" | "bar" | "underline";
+
 export interface Profile {
   id: string;
   name: string;
   shell: string | null;
   workingDirectory: string | null;
+  /** The profile's own look for its terminal; the app's when left out. */
+  theme?: string | null;
+  fontSize?: number | null;
+  fontFamily?: string | null;
+  cursorStyle?: CursorStyle | null;
   env: Record<string, string>;
 }
 
 export interface Settings {
+  /** Whether the window is dark or light; each appearance has its own theme below. */
   theme: "dark" | "light";
+  darkTheme: string;
+  lightTheme: string;
+  cursorStyle: CursorStyle;
+  cursorBlink: boolean;
+  lineHeight: number;
+  letterSpacing: number;
+  backgroundOpacity: number;
+  backgroundBlur: boolean;
   fontSize: number;
   fontFamily: string | null;
   scrollbackLines: number;
@@ -17,6 +33,8 @@ export interface Settings {
   workingDirectory: string | null;
   restoreSession: boolean;
   defaultProfile: string | null;
+  /** `action: "Shift+Cmd+E"`; an empty chord unbinds the action. */
+  keybindings: Record<string, string>;
   profiles: Profile[];
 }
 

@@ -1,22 +1,13 @@
 import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
 import { focusTerminal } from "../focus";
+import { defaultSettings } from "../settings";
 import { currentToasts, toast, type Toast } from "./toasts.svelte";
 
 export type { Toast };
 
 function createAppStore() {
-  let settings = $state<Settings>({
-    theme: "dark",
-    fontSize: 14,
-    fontFamily: null,
-    scrollbackLines: 10_000,
-    shell: null,
-    workingDirectory: null,
-    restoreSession: true,
-    defaultProfile: null,
-    profiles: [],
-  });
+  let settings = $state<Settings>(defaultSettings());
   let blocksOpen = $state(true);
   let settingsOpen = $state(false);
   let platform = $state("unknown");
