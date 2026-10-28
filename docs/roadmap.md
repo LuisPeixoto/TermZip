@@ -7,7 +7,8 @@ issue before beginning a larger architectural change.
 
 - ✅ Static REA inspection of the supplied Warp, Ghostty, and Terminal.app binaries and macOS bundle metadata.
 - ✅ Review of ProxyZip's repository structure, roadmap, CI, contribution workflow, and Rust workspace conventions.
-- ✅ Original visual direction chosen: minimal premium, bottom-anchored composer, zinc & blue palette.
+- ✅ Original visual direction chosen: minimal premium, zinc & blue palette. The first design had a bottom composer;
+  it was removed before v0.1 and the terminal itself is the only input.
 - ✅ Cross-platform PTY and VT prototype validated on macOS with CI coverage on all three platforms.
 - [ ] Measure cold launch, idle CPU, memory, scrollback, and rendering with reproducible workloads.
 - [ ] Validate keyboard input, accessibility, and shell behavior on real Windows and Linux systems.
@@ -27,7 +28,7 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 ## ✅ Phase 2: Usable terminal MVP · v0.1
 
 - ✅ Native shell in a PTY; raw output streamed to xterm.js off the read thread.
-- ✅ Bottom-anchored composer with multiline input, local history, and Enter-to-run.
+- ✅ Typing happens directly in the terminal: the shell's own line editor, history, and completion.
 - ✅ Shell integration (OSC 133) for zsh, bash, fish, and partial PowerShell; cmd.exe runs plain.
 - ✅ Command blocks with command, exit code, duration, cwd, ANSI output preview, copy, output copy, and re-run.
 - ✅ Interactive programs keep working: alternate screen, bracketed paste, selection, clipboard, resize.
@@ -38,6 +39,10 @@ Binary inspection does not establish runtime performance or reconstruct propriet
   tracked as validation debt for Phase 7.
 - ✅ Scrollback selection and mouse reporting are handled by xterm.js; clipboard shortcuts cover selections.
 - ✅ Session lifecycle: exit status, restart action, and the shell-provided window title.
+- ✅ Hardening before v0.1 · one ordered channel per session (no duplicated startup output, the exit is always
+  reported) · platform-aware shortcuts that never steal shell keys · preferences applied to the live terminal ·
+  per-shell quoting of the integration path · UTF-8 safe block text · `TERMZIP_HOME` · a broken config is kept as
+  `config.toml.invalid` · atomic saves · a release workflow that checks the tag and builds both macOS targets.
 
 ## 📋 Phase 3: Everyday productivity · v0.2
 
