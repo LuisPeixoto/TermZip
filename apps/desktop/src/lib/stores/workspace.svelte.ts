@@ -1,5 +1,5 @@
 import { newId } from "../ids";
-import type { SplitDirection } from "../api";
+import type { SplitDirection, Workspace, WorkspaceTab } from "../api";
 import * as tree from "../layout";
 import { leaf, leaves, type Layout, type Side } from "../layout";
 import { basename } from "../paths";
@@ -20,6 +20,13 @@ export class Tab {
     this.panes.set(first.id, first);
     this.layout = leaf(first.id);
     this.activePaneId = first.id;
+  }
+
+  /** Replaces the layout with an existing set of panes, for restoring a saved tab. */
+  adopt(layout: Layout, panes: Pane[], activeIndex: number): void {
+    this.panes = new Map(panes.map((pane) => [pane.id, pane]));
+    this.layout = layout;
+    this.activePaneId = (panes[activeIndex] ?? panes[0]).id;
   }
 
   pane(id: string): Pane | undefined {
@@ -95,9 +102,52 @@ export class Tab {
 export class WorkspaceStore {
   tabs = $state.raw<Tab[]>([]);
   activeId = $state("");
+  /** False until the saved layout (if any) is in; nothing is shown before, or a shell would start for nothing. */
+  loaded = $state(false);
 
   constructor() {
     this.newTab();
+  }
+
+  /** The layout as it is saved: structure only, with the folder each shell is in. */
+  snapshot(): Workspace {
+    const tabs: WorkspaceTab[] = this.tabs.map((tab) => ({
+      title: tab.name,
+      activePane: Math.max(0, leaves(tab.layout).indexOf(tab.activePaneId)),
+      root: tree.toNode(tab.layout, (id) => {
+        const pane = tab.pane(id);
+        return {
+          profile: pane?.profileId ?? null,
+          // A shell that never reported its folder keeps the one it was restored into.
+          cwd: pane?.cwd ?? pane?.restoreDirectory ?? null,
+        };
+      }),
+    }));
+    return {
+      version: 1,
+      activeTab: Math.max(0, this.tabs.findIndex((tab) => tab.id === this.activeId)),
+      tabs,
+    };
+  }
+
+  /**
+   * Opens what a previous run saved, or keeps the fresh tab when there is nothing to restore. Either
+   * way the workspace counts as loaded afterwards. Panes are new: only their layout, profile and folder come back.
+   */
+  restore(saved: Workspace | null): void {
+    if (saved && saved.tabs.length > 0) {
+      const restored = saved.tabs.map((entry: WorkspaceTab) => {
+        const { layout, panes } = tree.fromNode(entry.root, newId);
+        const made = panes.map((info) => new Pane(info.id, info.profile, info.cwd));
+        const tab = new Tab(newId(), made[0]);
+        tab.adopt(layout, made, entry.activePane);
+        tab.name = entry.title;
+        return tab;
+      });
+      this.tabs = restored;
+      this.activeId = restored[Math.min(Math.max(saved.activeTab, 0), restored.length - 1)].id;
+    }
+    this.loaded = true;
   }
 
   get activeTab(): Tab {
