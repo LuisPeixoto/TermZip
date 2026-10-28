@@ -5,7 +5,7 @@
   import { matchShortcut, tabPosition, type AppShortcut } from "./lib/shortcuts";
   import { focusTerminal } from "./lib/focus";
   import Toolbar from "./lib/components/Toolbar.svelte";
-  import TerminalPane from "./lib/components/TerminalPane.svelte";
+  import PaneGrid from "./lib/components/PaneGrid.svelte";
   import BlocksRail from "./lib/components/BlocksRail.svelte";
   import StatusBar from "./lib/components/StatusBar.svelte";
   import SettingsModal from "./lib/components/SettingsModal.svelte";
@@ -36,7 +36,21 @@
         focusTerminal();
         break;
       case "closePane":
-        workspace.closeTab(workspace.activeId);
+        workspace.closeActivePane();
+        focusTerminal();
+        break;
+      case "splitRight":
+      case "splitDown":
+        if (!workspace.splitActive(shortcut === "splitRight" ? "row" : "column")) {
+          app.toast("warn", "This tab cannot hold another pane");
+        }
+        focusTerminal();
+        break;
+      case "focusLeft":
+      case "focusRight":
+      case "focusUp":
+      case "focusDown":
+        workspace.activeTab.focusSide(shortcut.slice(5).toLowerCase() as "left" | "right" | "up" | "down");
         focusTerminal();
         break;
       case "nextTab":
@@ -85,7 +99,7 @@
       <div class="relative min-h-0 min-w-0 flex-1">
         {#each workspace.tabs as tab (tab.id)}
           <div class="absolute inset-0 flex flex-col" class:hidden={tab.id !== workspace.activeId}>
-            <TerminalPane pane={tab.active} />
+            <PaneGrid {tab} />
           </div>
         {/each}
       </div>
