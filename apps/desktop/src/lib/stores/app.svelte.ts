@@ -2,7 +2,9 @@ import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
 import { focusTerminal } from "../focus";
 import { defaultSettings } from "../settings";
+import { applyTheme, resolveTheme } from "../theme";
 import { currentToasts, toast, type Toast } from "./toasts.svelte";
+import { themes } from "./themes.svelte";
 
 export type { Toast };
 
@@ -15,8 +17,12 @@ function createAppStore() {
   let ready = $state(false);
   let shells = $state<ShellOption[]>([]);
 
-  function applyTheme(theme: Settings["theme"]): void {
-    document.documentElement.dataset.theme = theme;
+  // The theme in use: the one chosen for the current appearance, or TermZip's own when it is gone.
+  const theme = $derived(resolveTheme(themes.entries, settings));
+
+  /** Paints the window with the theme in use. */
+  function paint(): void {
+    if (theme) applyTheme(theme);
   }
 
   async function init(): Promise<void> {
@@ -24,13 +30,14 @@ function createAppStore() {
       api.getSettings(),
       api.appInfo(),
       api.detectShells(),
+      themes.load(),
     ]);
     settings = loaded;
     platform = info.platform;
     version = info.version;
     shells = detected;
     document.documentElement.dataset.platform = info.platform;
-    applyTheme(loaded.theme);
+    paint();
     ready = true;
   }
 
@@ -42,7 +49,7 @@ function createAppStore() {
         theme: current.theme === "dark" ? "light" : "dark",
       };
       settings = await api.saveSettings(next);
-      applyTheme(settings.theme);
+      paint();
     } catch (error) {
       toast("err", `Could not change the theme: ${error}`);
     }
@@ -51,7 +58,7 @@ function createAppStore() {
   async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
     const current = await api.getSettings();
     settings = await api.saveSettings({ ...current, ...patch });
-    applyTheme(settings.theme);
+    paint();
     return settings;
   }
 
@@ -64,6 +71,10 @@ function createAppStore() {
   return {
     get settings() {
       return settings;
+    },
+    /** The theme in use; `null` only before the gallery has loaded. */
+    get theme() {
+      return theme;
     },
     get blocksOpen() {
       return blocksOpen;
