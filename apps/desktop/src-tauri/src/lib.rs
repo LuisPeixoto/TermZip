@@ -1,6 +1,7 @@
 //! TermZip desktop shell: a Tauri application that owns shell sessions.
 
 mod commands;
+mod flow;
 mod sessions;
 
 use sessions::Sessions;
@@ -19,6 +20,7 @@ pub fn run() {
             commands::destroy_session,
             commands::write_session,
             commands::resize_session,
+            commands::ack_session,
             commands::list_blocks,
         ])
         .build(tauri::generate_context!())

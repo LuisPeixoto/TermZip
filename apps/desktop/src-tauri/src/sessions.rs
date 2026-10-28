@@ -15,6 +15,7 @@ use base64::Engine;
 use serde::Serialize;
 use tauri::ipc::Channel;
 
+use crate::flow::FlowControl;
 use termzip_pty::{PtyOptions, PtySession};
 use termzip_shell::{Block, BlockTracker, OscParser};
 
@@ -55,6 +56,8 @@ pub struct SessionHandle {
     parser: Mutex<OscParser>,
     tracker: Mutex<BlockTracker>,
     destroyed: AtomicBool,
+    /// Back-pressure: how much output the webview has not finished drawing.
+    flow: FlowControl,
 }
 
 impl SessionHandle {
@@ -66,6 +69,11 @@ impl SessionHandle {
         writer.write_all(bytes)?;
         writer.flush()?;
         Ok(())
+    }
+
+    /// The webview finished drawing `bytes` of output; a paused reader may resume.
+    pub fn acknowledge(&self, bytes: usize) {
+        self.flow.acknowledge(bytes);
     }
 
     pub fn resize(&self, rows: u16, columns: u16) -> anyhow::Result<()> {
@@ -92,6 +100,7 @@ impl SessionHandle {
 
     fn kill(&self) {
         self.destroyed.store(true, Ordering::Relaxed);
+        self.flow.wake();
         if let Ok(mut child) = self.child.lock() {
             let _ = child.kill();
         }
@@ -149,6 +158,7 @@ impl Sessions {
             parser: Mutex::new(OscParser::new()),
             tracker: Mutex::new(BlockTracker::new()),
             destroyed: AtomicBool::new(false),
+            flow: FlowControl::default(),
         });
 
         match self.inner.lock() {
@@ -216,7 +226,13 @@ fn spawn_reader(
                     return;
                 }
                 match receiver.recv_timeout(EXIT_POLL) {
-                    Ok(chunk) => handle_chunk(&events, &handle, &chunk),
+                    Ok(chunk) => {
+                        handle_chunk(&events, &handle, &chunk);
+                        // Past the high-water mark this waits for the webview to catch up, which
+                        // stops draining the PTY channel and so makes the shell block on write.
+                        handle.flow.sent(chunk.len());
+                        handle.flow.wait_if_saturated(&handle.destroyed);
+                    }
                     Err(RecvTimeoutError::Timeout) => match handle.try_exit() {
                         Ok(None) => {}
                         Ok(Some(status)) => {
@@ -469,5 +485,96 @@ mod tests {
 
         let moved = apply_chunk(&mut parser, &mut tracker, b"\x1b]1337;CurrentDir=/etc\x07");
         assert!(matches!(&moved[..], [SessionEvent::Cwd { path }] if path == "/etc"));
+    }
+
+    fn received_bytes(collected: &Collected) -> usize {
+        use base64::Engine as _;
+        collected
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| event["type"] == "data")
+            .map(|event| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(event["data"].as_str().unwrap())
+                    .unwrap()
+                    .len()
+            })
+            .sum()
+    }
+
+    #[test]
+    fn a_flood_stops_near_the_high_water_mark_until_it_is_acknowledged() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let info = open(
+            &sessions,
+            channel,
+            "yes aaaaaaaaaaaaaaa | head -c 4000000; exit 0\n",
+        );
+        let handle = sessions.get(info.id).unwrap();
+
+        // Nobody acknowledges: the output must stop instead of piling up in the webview.
+        thread::sleep(Duration::from_millis(2000));
+        let stalled = received_bytes(&collected);
+        assert!(
+            stalled >= crate::flow::HIGH_WATER,
+            "stopped too early at {stalled}"
+        );
+        assert!(
+            stalled <= crate::flow::HIGH_WATER + 16 * 1024,
+            "kept sending past the high-water mark: {stalled}"
+        );
+        thread::sleep(Duration::from_millis(500));
+        assert_eq!(
+            received_bytes(&collected),
+            stalled,
+            "output continued while paused"
+        );
+
+        // Acknowledging what was received lets the rest through, up to the exit.
+        let mut acknowledged = 0;
+        for _ in 0..400 {
+            let total = received_bytes(&collected);
+            handle.acknowledge(total - acknowledged);
+            acknowledged = total;
+            if collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| event["type"] == "exit")
+            {
+                break;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        assert!(
+            received_bytes(&collected) >= 4_000_000,
+            "the flood did not finish"
+        );
+    }
+
+    #[test]
+    fn destroying_a_paused_session_releases_its_reader() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let info = open(&sessions, channel, "yes aaaaaaaaaaaaaaa\n");
+        let handle = sessions.get(info.id).unwrap();
+
+        thread::sleep(Duration::from_millis(1500));
+        assert!(
+            received_bytes(&collected) >= crate::flow::HIGH_WATER,
+            "never paused"
+        );
+
+        sessions.destroy(info.id);
+        // The reader holds one reference; it must let go once it notices the destroy.
+        for _ in 0..60 {
+            if Arc::strong_count(&handle) == 1 {
+                return;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the reader of a destroyed, paused session is still running");
     }
 }

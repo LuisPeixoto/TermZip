@@ -231,6 +231,19 @@ pub fn write_session(
         .map_err(|error| error.to_string())
 }
 
+/// The webview finished drawing `bytes` of output. This is what lets a flooding shell keep going.
+#[tauri::command]
+pub fn ack_session(
+    sessions: State<'_, Sessions>,
+    session_id: u32,
+    bytes: u64,
+) -> Result<(), String> {
+    sessions
+        .get(session_id)
+        .map(|handle| handle.acknowledge(usize::try_from(bytes).unwrap_or(usize::MAX)))
+        .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn resize_session(
     sessions: State<'_, Sessions>,
