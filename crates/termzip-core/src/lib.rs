@@ -11,7 +11,9 @@ pub use keybindings::{MAX_KEYBINDINGS, normalize_chord, validate_keybindings};
 pub use profile::{DEFAULT_PROFILE_ID, LaunchProfile, Profile, slug, validate_profiles};
 pub use settings::{HOME_ENV, Settings, SettingsError, data_dir, integration_dir, settings_path};
 pub use theme::{
-    Chrome, Color, Colors, DEFAULT_DARK_ID, DEFAULT_LIGHT_ID, MAX_THEME_BYTES, Theme, ThemeKind,
-    built_in_theme, built_in_themes, import_theme,
+    Chrome, Color, Colors, CustomThemes, DEFAULT_DARK_ID, DEFAULT_LIGHT_ID, MAX_CUSTOM_THEMES,
+    MAX_THEME_BYTES, Theme, ThemeKind, built_in_theme, built_in_themes, delete_custom_theme_from,
+    import_theme, load_custom_themes, load_custom_themes_from, read_theme_file,
+    save_custom_theme_to, themes_dir,
 };
 pub use workspace::{Direction, PaneNode, Tab, Workspace, workspace_path};
