@@ -55,6 +55,9 @@
       case "blocks":
         app.toggleBlocks();
         break;
+      case "find":
+        workspace.activePane.openSearch();
+        break;
       case "newTab":
         workspace.newTab();
         focusTerminal();

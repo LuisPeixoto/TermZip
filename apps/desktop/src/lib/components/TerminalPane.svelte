@@ -3,6 +3,8 @@
   import { Terminal } from "@xterm/xterm";
   import { FitAddon } from "@xterm/addon-fit";
   import { WebglAddon } from "@xterm/addon-webgl";
+  import { SearchAddon } from "@xterm/addon-search";
+  import SearchBar from "./SearchBar.svelte";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
   import "@xterm/xterm/css/xterm.css";
   import { api, base64ToBytes, type SessionEvent } from "../api";
@@ -26,6 +28,7 @@
   // Reactive on purpose: the effects below must run again once the terminal exists.
   let terminal: Terminal | undefined = $state.raw();
   let fitAddon: FitAddon | undefined;
+  let search: SearchAddon | undefined = $state.raw();
   let webgl: WebglAddon | undefined;
   let appliedTheme = app.settings.theme;
   let disposed = false;
@@ -125,9 +128,16 @@
       letterSpacing: 0,
       scrollback: settings.scrollbackLines,
       theme: xtermTheme(),
+      // The search addon marks matches with decorations, which are still a proposed API.
+      allowProposedApi: true,
     });
     fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
+    search = new SearchAddon();
+    terminal.loadAddon(search);
+    search.onDidChangeResults(({ resultIndex, resultCount }) => {
+      pane.searchResults = { index: resultIndex, count: resultCount };
+    });
     terminal.open(container!);
 
     try {
@@ -296,6 +306,9 @@
 </script>
 
 <!-- FitAddon measures the parent's border box, so the padding lives one level up. -->
-<div class="flex min-h-0 min-w-0 flex-1 flex-col bg-bg px-3 pb-2 pt-1">
+<div class="relative flex min-h-0 min-w-0 flex-1 flex-col bg-bg px-3 pb-2 pt-1">
   <div bind:this={container} class="termzip-terminal min-h-0 flex-1"></div>
+  {#if pane.searchOpen && search}
+    <SearchBar {pane} addon={search} />
+  {/if}
 </div>
