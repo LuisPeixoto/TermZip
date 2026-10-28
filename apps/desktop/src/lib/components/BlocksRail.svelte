@@ -1,15 +1,17 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import AnsiOutput from "./AnsiOutput.svelte";
+  import BlockCard from "./BlockCard.svelte";
+  import VirtualList from "./VirtualList.svelte";
   import { app } from "../stores/app.svelte";
   import { workspace } from "../stores/workspace.svelte";
-  import { basename } from "../paths";
   import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-  import { api, type Block } from "../api";
+  import { api } from "../api";
   import { filterBlocks, type StatusFilter } from "../blocks";
 
   const pane = $derived(workspace.activePane);
   const visible = $derived(filterBlocks(pane.blocks, pane.blockQuery, pane.blockStatus));
+  // Newest first.
+  const ordered = $derived([...visible].reverse());
   const filtering = $derived(pane.blockQuery.trim() !== "" || pane.blockStatus !== "all");
   const STATUSES: Array<[StatusFilter, string]> = [
     ["all", "All"],
@@ -25,15 +27,6 @@
     pane.session?.id;
     expanded = new Set();
   });
-
-  function formatDuration(ms: number | null): string | null {
-    if (ms == null) return null;
-    if (ms < 1000) return `${ms} ms`;
-    const seconds = ms / 1000;
-    if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 2 : 1)} s`;
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ${Math.round(seconds % 60)}s`;
-  }
 
   function toggle(index: number) {
     const next = new Set(expanded);
@@ -75,10 +68,6 @@
     } catch {
       /* the session may be gone */
     }
-  }
-
-  function statusClass(block: Block): string {
-    return block.exitCode === 0 ? "bg-ok/15 text-ok" : "bg-err/15 text-err";
   }
 </script>
 
@@ -148,105 +137,17 @@
       </div>
     {/if}
 
-    <div class="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
-      {#each [...visible].reverse() as block (block.index)}
-        <article
-          class="rounded-lg border border-line bg-panel-2 transition-colors hover:border-line-strong"
-        >
-          <div class="p-2.5">
-            <div class="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                class="flex min-w-0 items-center gap-1.5 text-left"
-                onclick={() => toggle(block.index)}
-                aria-expanded={isExpanded(block.index)}
-              >
-                <Icon
-                  name="chevronRight"
-                  size={11}
-                  class="shrink-0 text-faint transition-transform {isExpanded(block.index) ? 'rotate-90' : ''}"
-                />
-                <span class="mono truncate text-[11.5px] text-fg">
-                  {block.command ?? "command not captured"}
-                </span>
-              </button>
-              <div class="flex shrink-0 items-center gap-1.5">
-                {#if block.exitCode != null}
-                  <span
-                    class="mono rounded px-1.5 py-0.5 text-[9.5px] font-semibold {statusClass(block)}"
-                    title="Exit code"
-                  >
-                    {block.exitCode === 0 ? "ok" : `exit ${block.exitCode}`}
-                  </span>
-                {/if}
-                {#if formatDuration(block.durationMs) != null}
-                  <span class="mono text-[9.5px] text-faint" title="Duration">
-                    {formatDuration(block.durationMs)}
-                  </span>
-                {/if}
-              </div>
-            </div>
-
-            {#if block.output}
-              <div
-                class="mt-2 rounded-md border border-line bg-bg/60 p-2"
-                class:max-h-44={!isExpanded(block.index)}
-                class:overflow-hidden={!isExpanded(block.index)}
-              >
-                <AnsiOutput
-                  output={block.output}
-                  maxHeight={isExpanded(block.index) ? 420 : 150}
-                />
-              </div>
-              {#if block.truncated}
-                <p class="mt-1 text-[9.5px] text-warn">
-                  Output truncated in the block; open the terminal for the full text.
-                </p>
-              {/if}
-            {:else}
-              <p class="mt-2 text-[10px] italic text-faint">no output captured</p>
-            {/if}
-
-            <div class="mt-2 flex items-center gap-1">
-              {#if block.command}
-                <button
-                  type="button"
-                  class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
-                  onclick={() => block.command && copy(`cmd-${block.index}`, block.command)}
-                >
-                  <Icon name={copied === `cmd-${block.index}` ? "check" : "copy"} size={11} />
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
-                  onclick={() => block.command && void rerun(block.command)}
-                >
-                  <Icon name="zap" size={11} />
-                  Run
-                </button>
-              {/if}
-              {#if block.output}
-                <button
-                  type="button"
-                  class="flex items-center gap-1 rounded border border-line bg-panel px-1.5 py-0.5 text-[10px] text-muted transition-colors hover:bg-hover hover:text-fg"
-                  onclick={() => block.output && copy(`out-${block.index}`, block.output)}
-                >
-                  <Icon name={copied === `out-${block.index}` ? "check" : "copy"} size={11} />
-                  Output
-                </button>
-              {/if}
-              <span class="flex-1"></span>
-              {#if basename(block.cwd)}
-                <span class="mono flex items-center gap-1 text-[9.5px] text-faint" title={block.cwd ?? ""}>
-                  <Icon name="folder" size={10} stroke={2} />
-                  {basename(block.cwd)}
-                </span>
-              {/if}
-            </div>
-          </div>
-        </article>
-      {/each}
-    </div>
+    <VirtualList items={ordered} keyOf={(entry) => entry.index} class="min-h-0 flex-1 overflow-y-auto p-2">
+      {#snippet row(block)}
+        <BlockCard
+          {block}
+          expanded={isExpanded(block.index)}
+          {copied}
+          ontoggle={() => toggle(block.index)}
+          oncopy={(key, text) => void copy(key, text)}
+          onrerun={(command) => void rerun(command)}
+        />
+      {/snippet}
+    </VirtualList>
   {/if}
 </aside>
