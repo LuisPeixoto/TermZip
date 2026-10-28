@@ -1,7 +1,6 @@
 <script lang="ts">
   import { app } from "../stores/app.svelte";
   import { workspace } from "../stores/workspace.svelte";
-  import { shortcutLabel } from "../shortcuts";
 </script>
 
 <footer
@@ -37,9 +36,9 @@
   <span class="flex-1"></span>
 
   <span class="hidden gap-3 text-faint md:flex" aria-label="Keyboard shortcuts">
-    <span><kbd class="mono">{shortcutLabel("blocks", app.platform)}</kbd> blocks</span>
-    <span><kbd class="mono">{shortcutLabel("restart", app.platform)}</kbd> restart</span>
-    <span><kbd class="mono">{shortcutLabel("preferences", app.platform)}</kbd> preferences</span>
+    {#if app.shortcut("blocks")}<span><kbd class="mono">{app.shortcut("blocks")}</kbd> blocks</span>{/if}
+    {#if app.shortcut("restart")}<span><kbd class="mono">{app.shortcut("restart")}</kbd> restart</span>{/if}
+    {#if app.shortcut("preferences")}<span><kbd class="mono">{app.shortcut("preferences")}</kbd> preferences</span>{/if}
   </span>
 
   <span class="mono text-faint">

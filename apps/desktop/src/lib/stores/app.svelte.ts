@@ -2,6 +2,7 @@ import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
 import { focusTerminal } from "../focus";
 import { defaultSettings } from "../settings";
+import { shortcutLabel, type AppShortcut } from "../shortcuts";
 import { applyTheme, resolveTheme, type AppearanceChoice } from "../theme";
 import { currentToasts, toast, type Toast } from "./toasts.svelte";
 import { themes } from "./themes.svelte";
@@ -121,6 +122,15 @@ function createAppStore() {
     /** Shows these choices as if they were saved; `null` goes back to the saved ones. */
     previewAppearance(choice: AppearanceChoice | null) {
       preview = choice;
+    },
+    /** The shortcut of an action as the user has it, for tooltips; empty when the action has none. */
+    shortcut(action: AppShortcut): string {
+      return shortcutLabel(action, platform, settings.keybindings);
+    },
+    /** ` (⌘R)` for a tooltip, or nothing when the action has no shortcut. */
+    hint(action: AppShortcut): string {
+      const label = shortcutLabel(action, platform, settings.keybindings);
+      return label ? ` (${label})` : "";
     },
     get opacity() {
       return opacity;

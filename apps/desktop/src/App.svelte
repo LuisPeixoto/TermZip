@@ -98,7 +98,7 @@
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement);
 
-    const shortcut = matchShortcut(event, app.platform);
+    const shortcut = matchShortcut(event, app.platform, app.settings.keybindings);
     if (shortcut === "preferences") {
       event.preventDefault();
       app.toggleSettings();
