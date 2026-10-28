@@ -14,7 +14,7 @@ function createAppStore() {
   let blocksOpen = $state(true);
   let settingsOpen = $state(false);
   let platform = $state("unknown");
-  let version = $state("0.2.0");
+  let version = $state("0.3.0");
   let ready = $state(false);
   let shells = $state<ShellOption[]>([]);
 
