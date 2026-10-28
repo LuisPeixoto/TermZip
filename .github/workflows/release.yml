@@ -79,11 +79,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
-          # With --target the bundles live one level deeper (target/<triple>/release/bundle).
-          find apps/desktop/src-tauri/target -path '*/release/bundle/*' -type f \
+          # The desktop shell is a Cargo workspace member, so the build output is the workspace's
+          # target/ at the repository root; with --target the bundles sit under target/<triple>/.
+          find target -path '*/release/bundle/*' -type f \
             \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.msi' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
             -exec cp {} artifacts/ \;
           ls -la artifacts
+          if [ -z "$(ls -A artifacts)" ]; then
+            echo "::error::No installer was found under target/*/release/bundle"
+            exit 1
+          fi
       - name: Attach to the release
         shell: bash
         env:
