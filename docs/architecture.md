@@ -25,7 +25,8 @@ is a Svelte 5 + Tailwind 4 webview with xterm.js as the terminal renderer.
        │
 ┌──────▼──────────────┐
 │ termzip-core        │
-│ Settings, theme kind│
+│ Settings, themes,   │
+│ keybinding grammar  │
 └─────────────────────┘
 ```
 
@@ -55,7 +56,7 @@ Raw bytes flow to the terminal unchanged; the marker parser observes the stream 
 
 | Package | Responsibility |
 |---|---|
-| `termzip-core` | Settings (TOML, validated), profiles, the saved workspace, atomic writes, config paths. |
+| `termzip-core` | Settings (TOML, validated), profiles, the saved workspace, themes (model, gallery, importers, custom themes), the shortcut grammar, atomic writes, config paths. |
 | `termzip-pty` | PTY creation, shell environment, reader thread, resize, child lifecycle. |
 | `termzip-shell` | OSC 133/1337 marker parser, block tracker, integration scripts, shell launch config. |
 | `termzip-desktop` | Tauri commands, session registry, event emission, app lifecycle. |
@@ -69,6 +70,23 @@ is split off or closed; every tab stays mounted. The backend never sees the tree
 profile and stores a validated copy of the layout (`workspace.json`) when the webview asks. See
 [tabs and panes](tabs-and-panes.md) and [profiles and restore](profiles-and-restore.md).
 
+## Themes, shortcuts and the window
+
+- **Themes** live in `termzip-core` (`theme/`): a `Theme` is a small TOML document (terminal colors, the 16 ANSI colors,
+  optional interface overrides). The built-in ones are compiled in from `crates/termzip-core/themes/` and audited by
+  the tests; custom ones are files in the data folder; the importers turn iTerm2, Windows Terminal, Ghostty, Kitty and
+  Alacritty files into the same model. The desktop commands (`list_themes`, `import_theme`, `export_theme`,
+  `delete_theme`) open the file dialogs from Rust. See [themes](themes.md).
+- **The theme engine** is one pure module in the webview (`theme.ts`): it derives the CSS variables of the window, the
+  xterm.js theme and the block-output palette from a theme, and the window repaints whenever the theme in use changes
+  (a save, the toggle, a preview in the dialog). A pane resolves its own look from its profile (`paneLook.ts`).
+- **Shortcuts** are data (`keybindings.ts`): a chord per action and platform, the user's `[keybindings]` on top, and an
+  event is matched by turning it into a chord. The same file holds the safety rules the editor uses, and the backend
+  validates the same grammar (`keybindings.rs`). One function (`runAction.ts`) does what an action stands for, for the
+  keyboard and for the command palette. See [keyboard](keyboard.md).
+- **The window** is created transparent. The page paints itself opaque unless the opacity is lowered, and the system's
+  blur (vibrancy, acrylic) is requested only while it is. See [appearance](appearance.md).
+
 ## Interface decisions
 
 - **xterm.js renders the terminal.** A mature emulator gives correct keyboard encoding, mouse modes, bracketed paste,
@@ -79,8 +97,8 @@ profile and stores a validated copy of the layout (`workspace.json`) when the we
   can be listed, copied, and re-run.
 - **The terminal is the input surface.** You type into the persistent shell itself, so `cd`, environment variables,
   job control, history, and completion behave exactly as they do anywhere else. TermZip adds no second input box.
-- **Application shortcuts never steal shell keys.** They are ⌘ on macOS and Ctrl+Shift elsewhere (`shortcuts.ts`),
-  and the terminal hands them to the application instead of the shell.
+- **Application shortcuts never steal shell keys by default.** They are ⌘ on macOS and Ctrl+Shift elsewhere, and the
+  terminal hands them to the application instead of the shell. The editor warns before a shell key is taken.
 
 ## Security and privacy
 
@@ -93,5 +111,8 @@ profile and stores a validated copy of the layout (`workspace.json`) when the we
 - Shell output and escape sequences are untrusted input and must never become UI markup or commands.
 - Everything is bounded: block output (64 KiB per block, 200 blocks), captured input (128 KiB), the marker parser
   (64 KiB of pending bytes), output not yet drawn (1 MiB), and a saved layout (64 KiB, 32 tabs, 16 panes per tab).
+- Theme files are untrusted input: at most 256 KiB, parsed by bounded readers that return a sentence instead of
+  panicking, only regular files are opened, and nothing is written outside the data folder except where you choose in a
+  save dialog (see [themes](themes.md#limits)).
 - Clicking text in the terminal goes to the backend, which only opens http(s) and mailto URLs and files that exist,
   and never starts a program (see [links](links.md)).
