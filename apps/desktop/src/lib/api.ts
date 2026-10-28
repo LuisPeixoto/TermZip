@@ -55,6 +55,8 @@ export interface AppInfo {
   version: string;
   platform: string;
   configPath: string;
+  /** Whether a translucent window can be blurred here (macOS and Windows). */
+  blurSupported: boolean;
 }
 
 export interface Block {
@@ -151,6 +153,8 @@ export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
   appInfo: () => invoke<AppInfo>("app_info"),
+  /** Blurs what shows through a translucent window; a no-op where the system cannot. */
+  setWindowEffects: (blur: boolean) => invoke<void>("set_window_effects", { blur }),
   detectShells: () => invoke<ShellOption[]>("detect_shells"),
   /** Events can arrive before the returned promise settles; `onEvent` must not need the id. */
   createSession: (
