@@ -298,6 +298,26 @@ pub fn create_session(
         .map_err(|error| error.to_string())
 }
 
+/// Opens what was clicked in the terminal: a URL in the browser, a file in its default application.
+/// The target is validated first (see `links.rs`); a program is never started, its folder is opened.
+#[tauri::command]
+pub fn open_link(target: String, cwd: Option<String>) -> Result<(), String> {
+    use crate::links::LinkTarget;
+
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+        .map(std::path::PathBuf::from);
+    let cwd = cwd.map(std::path::PathBuf::from);
+    let opened = match crate::links::resolve(&target, cwd.as_deref(), home.as_deref())? {
+        LinkTarget::Url(url) => open::that_detached(url),
+        LinkTarget::Open(path) => open::that_detached(path),
+        LinkTarget::Reveal(path) => match path.parent() {
+            Some(folder) => open::that_detached(folder),
+            None => return Err("That program has no folder to show.".to_owned()),
+        },
+    };
+    opened.map_err(|error| format!("Could not open it: {error}"))
+}
+
 /// The layout saved by the last run, or nothing when restore is off or there is none.
 #[tauri::command]
 pub fn load_workspace() -> Result<Option<termzip_core::Workspace>, String> {
