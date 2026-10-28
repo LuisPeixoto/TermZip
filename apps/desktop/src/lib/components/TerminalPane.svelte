@@ -201,8 +201,6 @@
         {
           rows,
           columns,
-          workingDirectory: app.settings.workingDirectory,
-          shell: app.settings.shell,
         },
         (event) => onSessionEvent(owner, event),
       );

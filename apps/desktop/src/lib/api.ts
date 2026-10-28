@@ -58,6 +58,25 @@ export type SessionEvent =
   | { type: "block"; block: Block }
   | { type: "cwd"; path: string };
 
+export type SplitDirection = "row" | "column";
+
+export type PaneNode =
+  | { kind: "leaf"; profile: string | null; cwd: string | null }
+  | { kind: "split"; direction: SplitDirection; ratio: number; first: PaneNode; second: PaneNode };
+
+export interface WorkspaceTab {
+  title: string | null;
+  activePane: number;
+  root: PaneNode;
+}
+
+/** The layout reopened on launch: structure only, never terminal output. */
+export interface Workspace {
+  version: number;
+  activeTab: number;
+  tabs: WorkspaceTab[];
+}
+
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
@@ -68,8 +87,10 @@ export const api = {
     options: {
       rows: number;
       columns: number;
-      workingDirectory?: string | null;
-      shell?: string | null;
+      /** The profile to start with; the backend falls back to the default profile. */
+      profileId?: string | null;
+      /** Where the pane was when the layout was saved; used only while the folder still exists. */
+      restoreDirectory?: string | null;
     },
     onEvent: (event: SessionEvent) => void,
   ) => {
@@ -89,6 +110,8 @@ export const api = {
   ackSession: (sessionId: number, bytes: number) =>
     invoke<void>("ack_session", { sessionId, bytes }),
   listBlocks: (sessionId: number) => invoke<Block[]>("list_blocks", { sessionId }),
+  loadWorkspace: () => invoke<Workspace | null>("load_workspace"),
+  saveWorkspace: (workspace: Workspace) => invoke<void>("save_workspace", { workspace }),
 };
 
 export function bytesToBase64(bytes: Uint8Array): string {
