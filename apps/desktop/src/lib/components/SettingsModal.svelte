@@ -5,19 +5,10 @@
   import { app } from "../stores/app.svelte";
   import { shortcutLabel } from "../shortcuts";
   import { api, type Settings } from "../api";
+  import { defaultSettings } from "../settings";
   import { workspace } from "../stores/workspace.svelte";
 
-  let draft: Settings = $state({
-    theme: "dark",
-    fontSize: 14,
-    fontFamily: null,
-    scrollbackLines: 10000,
-    shell: null,
-    workingDirectory: null,
-    restoreSession: true,
-    defaultProfile: null,
-    profiles: [],
-  });
+  let draft: Settings = $state(defaultSettings());
   let saving = $state(false);
   let saveError = $state<string | null>(null);
   let dialog: HTMLDivElement | undefined = $state();
