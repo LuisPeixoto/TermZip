@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Settings } from "../../api";
+  import ThemeGallery from "./ThemeGallery.svelte";
   import { heading } from "./styles";
 
   let { draft = $bindable() }: { draft: Settings } = $props();
@@ -7,7 +8,7 @@
 
 <div class="space-y-5">
   <section>
-    <h3 id="pref-theme" class={heading}>Theme</h3>
+    <h3 id="pref-theme" class={heading}>Appearance</h3>
     <div
       class="flex gap-1 rounded-lg border border-line bg-panel-2 p-1"
       role="group"
@@ -25,5 +26,10 @@
         </button>
       {/each}
     </div>
+  </section>
+
+  <section>
+    <h3 class={heading}>Themes</h3>
+    <ThemeGallery bind:draft />
   </section>
 </div>
