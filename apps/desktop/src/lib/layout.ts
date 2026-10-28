@@ -114,6 +114,44 @@ export function rects(layout: Layout, area: Rect = { x: 0, y: 0, w: 1, h: 1 }): 
   return new Map([...rects(layout.first, a), ...rects(layout.second, b)]);
 }
 
+/** A draggable edge between two panes: the split it belongs to and the area that split covers. */
+export interface Divider {
+  id: string;
+  direction: SplitDirection;
+  ratio: number;
+  area: Rect;
+}
+
+/** Every split as a divider, with the area it covers, in a unit square. */
+export function dividers(layout: Layout, area: Rect = { x: 0, y: 0, w: 1, h: 1 }): Divider[] {
+  if (layout.kind === "leaf") return [];
+  const { ratio, direction } = layout;
+  const [a, b]: [Rect, Rect] =
+    direction === "row"
+      ? [
+          { ...area, w: area.w * ratio },
+          { ...area, x: area.x + area.w * ratio, w: area.w * (1 - ratio) },
+        ]
+      : [
+          { ...area, h: area.h * ratio },
+          { ...area, y: area.y + area.h * ratio, h: area.h * (1 - ratio) },
+        ];
+  return [
+    { id: layout.id, direction, ratio, area },
+    ...dividers(layout.first, a),
+    ...dividers(layout.second, b),
+  ];
+}
+
+/** The ratio a pointer position means inside a divider's area (positions are fractions of the whole host). */
+export function ratioAt(divider: Divider, x: number, y: number): number {
+  const raw =
+    divider.direction === "row"
+      ? (x - divider.area.x) / divider.area.w
+      : (y - divider.area.y) / divider.area.h;
+  return clampRatio(raw);
+}
+
 const EPSILON = 1e-6;
 
 function overlap(aStart: number, aEnd: number, bStart: number, bEnd: number): number {

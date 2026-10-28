@@ -7,12 +7,14 @@ import {
   clampRatio,
   close,
   contains,
+  dividers,
   depth,
   fromNode,
   leaf,
   leafCount,
   leaves,
   neighbor,
+  ratioAt,
   rects,
   setRatio,
   split,
@@ -182,5 +184,28 @@ describe("the saved form", () => {
     };
     const { layout } = fromNode(node, fresh);
     expect(layout.kind === "split" && layout.ratio).toBe(0.9);
+  });
+});
+
+describe("dividers", () => {
+  it("has one per split, with the area that split covers", () => {
+    // a | (b over c): the outer split covers everything, the inner one the right half.
+    const lines = dividers(sample());
+    expect(lines.map((line) => [line.id, line.direction])).toEqual([
+      ["s1", "row"],
+      ["s2", "column"],
+    ]);
+    expect(lines[0].area).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+    expect(lines[1].area).toEqual({ x: 0.5, y: 0, w: 0.5, h: 1 });
+    expect(dividers(leaf("a"))).toEqual([]);
+  });
+
+  it("turns a pointer position into a ratio of its own area, clamped", () => {
+    const [outer, inner] = dividers(sample());
+    expect(ratioAt(outer, 0.25, 0.9)).toBeCloseTo(0.25);
+    // Inside the right half, x = 0.75 is the middle of that half.
+    expect(ratioAt(inner, 0.9, 0.75)).toBeCloseTo(0.75);
+    expect(ratioAt(outer, -4, 0)).toBe(0.1);
+    expect(ratioAt(outer, 9, 0)).toBe(0.9);
   });
 });
