@@ -33,7 +33,16 @@
     }
   });
 
-  onMount(() => dialog?.focus());
+  onMount(() => {
+    dialog?.focus();
+    // Leaving the dialog, saved or not, hands the window back to the theme that is saved.
+    return () => app.previewTheme(null);
+  });
+
+  // The theme being picked is shown on the window right away; Cancel puts the saved one back.
+  $effect(() => {
+    app.previewTheme({ theme: draft.theme, darkTheme: draft.darkTheme, lightTheme: draft.lightTheme });
+  });
 
   // Arrow keys move between the sections, as in any tab list; only the selected one is a tab stop.
   function onNavKeydown(event: KeyboardEvent) {
