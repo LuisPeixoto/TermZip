@@ -1,7 +1,7 @@
 {
   "name": "termzip-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TermZip desktop app: a fast, modern terminal with command blocks",
   "author": "Luis Peixoto",
   "license": "MIT",
