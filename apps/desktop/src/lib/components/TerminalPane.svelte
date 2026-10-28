@@ -192,7 +192,11 @@
     }
 
     fit();
-    pane.controller = { restart: restartShell, focus: () => terminal?.focus() };
+    pane.controller = {
+      restart: restartShell,
+      focus: () => terminal?.focus(),
+      clearSelection: () => terminal?.clearSelection(),
+    };
     terminal.onData(onTerminalData);
     terminal.attachCustomKeyEventHandler(onCustomKey);
     terminal.onTitleChange((title) => (pane.title = title.trim() || null));

@@ -49,6 +49,8 @@
 
   function close() {
     addon.clearDecorations();
+    // Walking the matches selects the current one, and clearing the marks leaves that selection behind.
+    pane.controller?.clearSelection();
     pane.closeSearch();
     pane.controller?.focus();
   }
