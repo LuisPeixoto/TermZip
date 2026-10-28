@@ -1,5 +1,6 @@
 import type { Settings, ShellOption } from "../api";
 import { api } from "../api";
+import { focusTerminal } from "../focus";
 import { currentToasts, toast, type Toast } from "./toasts.svelte";
 
 export type { Toast };
@@ -66,9 +67,7 @@ function createAppStore() {
   function setSettingsOpen(open: boolean): void {
     settingsOpen = open;
     // The modal held the keyboard; give it back to the terminal once the modal is gone.
-    if (!open) {
-      requestAnimationFrame(() => window.dispatchEvent(new CustomEvent("termzip:focus-terminal")));
-    }
+    if (!open) focusTerminal();
   }
 
   return {
