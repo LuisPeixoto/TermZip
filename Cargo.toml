@@ -20,6 +20,9 @@ dirs = "6"
 open = "5"
 plist = { version = "1", default-features = false }
 portable-pty = "0.9"
+regex = "1"
+semver = "1"
+sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = ["macos-private-api"] }
@@ -27,9 +30,12 @@ tauri-build = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 thiserror = "2"
+wasmparser = { version = "0.228", default-features = false, features = ["std"] }
+wat = "1"
 toml = "0.9"
 termzip-core = { path = "crates/termzip-core" }
 termzip-plugin-api = { path = "crates/termzip-plugin-api" }
+termzip-plugins = { path = "crates/termzip-plugins" }
 termzip-pty = { path = "crates/termzip-pty" }
 termzip-shell = { path = "crates/termzip-shell" }
 
