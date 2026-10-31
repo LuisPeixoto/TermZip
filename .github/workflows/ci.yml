@@ -53,13 +53,13 @@ jobs:
       - name: Format
         run: cargo fmt --all --check --manifest-path examples/plugins/Cargo.toml
       - name: Clippy
-        run: cargo clippy --manifest-path examples/plugins/Cargo.toml --all-targets -- -D warnings
+        run: cargo clippy --locked --manifest-path examples/plugins/Cargo.toml --all-targets -- -D warnings
       - name: Clippy (WebAssembly)
-        run: cargo clippy --manifest-path examples/plugins/Cargo.toml --release --target wasm32-unknown-unknown -- -D warnings
+        run: cargo clippy --locked --manifest-path examples/plugins/Cargo.toml --release --target wasm32-unknown-unknown -- -D warnings
       - name: Test (examples)
-        run: cargo test --manifest-path examples/plugins/Cargo.toml
+        run: cargo test --locked --manifest-path examples/plugins/Cargo.toml
       - name: Build the examples for WebAssembly
-        run: cargo build --release --target wasm32-unknown-unknown --manifest-path examples/plugins/Cargo.toml
+        run: cargo build --locked --release --target wasm32-unknown-unknown --manifest-path examples/plugins/Cargo.toml
       - name: Run the built examples in the app's sandbox
         run: cargo test -p termzip-plugins --test examples -- --ignored
       - name: Write a catalog from the built examples
