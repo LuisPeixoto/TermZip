@@ -212,6 +212,13 @@ impl Runtime {
         }
     }
 
+    /// Every plugin that was started and not stopped by the owner, including one that stopped itself.
+    pub fn known(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self.workers().keys().cloned().collect();
+        ids.sort();
+        ids
+    }
+
     /// Whether a plugin has been started and not stopped by the owner. A plugin that stopped itself after
     /// repeated crashes still counts: it stays out of the running until it is started again on purpose.
     pub fn has(&self, id: &str) -> bool {

@@ -22,7 +22,7 @@ struct Rule {
 }
 
 /// A link found in a line. `start` and `end` count UTF-16 units, which is how the webview indexes its strings.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct LinkMatch {
     pub plugin: String,
     pub start: usize,
