@@ -32,6 +32,8 @@ export interface Settings {
   shell: string | null;
   workingDirectory: string | null;
   restoreSession: boolean;
+  /** Whether the plugin catalog may be loaded from the network (only when the user asks). */
+  pluginsCatalog: boolean;
   defaultProfile: string | null;
   /** `action: "Shift+Cmd+E"`; an empty chord unbinds the action. */
   keybindings: Record<string, string>;
@@ -188,6 +190,30 @@ export interface PluginListing {
   problems: string[];
 }
 
+/** A plugin the signed catalog offers. */
+export interface CatalogItem {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author?: string | null;
+  license?: string | null;
+  homepage?: string | null;
+  permissions: PluginPermission[];
+  /** The size of the file, in bytes. */
+  size: number;
+  /** The version installed now, if any. */
+  installedVersion: string | null;
+  updateAvailable: boolean;
+  permissionNotes: { permission: PluginPermission; text: string }[];
+}
+
+export interface CatalogView {
+  items: CatalogItem[];
+  /** One sentence for every entry the catalog listed that could not be used. */
+  problems: string[];
+}
+
 export type Tone = "info" | "ok" | "warn" | "err";
 
 /** What plugins tell the window, on one channel. */
@@ -261,6 +287,10 @@ export const api = {
   /** Runs a command of a plugin from the terminal with this session; the answer comes on the plugin channel. */
   runPluginCommand: (plugin: string, command: string, cwd: string | null, session: number) =>
     invoke<void>("run_plugin_command", { plugin, command, cwd, session }),
+  /** Loads the signed catalog from the network. Only call this because the user asked to. */
+  loadCatalog: () => invoke<CatalogView>("load_catalog"),
+  /** Downloads a plugin of the catalog (checked against the signed index) and installs it, off. */
+  installFromCatalog: (id: string) => invoke<Plugin>("install_from_catalog", { id }),
   matchPluginLinks: (line: string) => invoke<PluginLink[]>("match_plugin_links", { line }),
   /** Where the answers of plugins arrive. Call it once, at startup. */
   subscribePlugins: (onEvent: (event: PluginEvent) => void) => {

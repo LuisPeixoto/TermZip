@@ -114,6 +114,14 @@ describe("plugins", () => {
       ["run_plugin_command", { plugin: "demo", command: "go", cwd: "/work", session: 6 }],
       ["match_plugin_links", { line: "fixes #42" }],
     ]);
+
+    vi.mocked(invoke).mockClear();
+    await api.loadCatalog();
+    await api.installFromCatalog("demo");
+    expect(vi.mocked(invoke).mock.calls).toEqual([
+      ["load_catalog"],
+      ["install_from_catalog", { id: "demo" }],
+    ]);
   });
 
   it("subscribes with a channel that feeds the handler", async () => {

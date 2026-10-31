@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { Plugin, PluginManifest } from "../src/lib/api";
+import type { CatalogItem, Plugin, PluginManifest } from "../src/lib/api";
 import {
+  catalogAction,
+  formatSize,
+  permissionChipsOf,
   describeAdds,
   describeAsk,
   describeSource,
@@ -102,5 +105,46 @@ describe("the confirmation", () => {
   it("introduces the list of permissions, or says there are none", () => {
     expect(describeAsk(plugin({}, { permissions: ["notify"] }))).toBe("“Demo” asks to:");
     expect(describeAsk(plugin())).toContain("asks for no permission");
+  });
+});
+
+describe("catalog entries", () => {
+  const item = (extra: Partial<CatalogItem> = {}): CatalogItem => ({
+    id: "demo",
+    name: "Demo",
+    version: "1.2.0",
+    description: "",
+    permissions: ["blocks"],
+    size: 1000,
+    installedVersion: null,
+    updateAvailable: false,
+    permissionNotes: [],
+    ...extra,
+  });
+
+  it("offer to install what is not installed", () => {
+    expect(catalogAction(item())).toEqual({ label: "Install", enabled: true });
+  });
+
+  it("offer an update only when the catalog has a newer version", () => {
+    expect(catalogAction(item({ installedVersion: "1.0.0", updateAvailable: true }))).toEqual({
+      label: "Update to 1.2.0",
+      enabled: true,
+    });
+    expect(catalogAction(item({ installedVersion: "1.2.0" }))).toEqual({ label: "Installed", enabled: false });
+    // An installed version above the catalog's is left alone and not downgraded.
+    expect(catalogAction(item({ installedVersion: "2.0.0" }))).toEqual({ label: "Installed (newer)", enabled: false });
+  });
+
+  it("describe their permissions like an installed plugin does", () => {
+    const chips = permissionChipsOf(["blocks", "type"]);
+    expect(chips.map((chip) => chip.label)).toEqual(["Sees your commands", "Types into the terminal"]);
+    expect(chips[1].sensitive).toBe(true);
+  });
+
+  it("show a size people can read", () => {
+    expect(formatSize(90)).toBe("90 B");
+    expect(formatSize(2048)).toBe("2 KB");
+    expect(formatSize(1536 * 1024)).toBe("1.5 MB");
   });
 });
