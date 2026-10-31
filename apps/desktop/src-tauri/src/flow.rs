@@ -123,6 +123,9 @@ mod tests {
         let flow = flow();
         flow.sent(100);
 
+        // Taken before the thread exists: the two sleeps below start after this, so the wait can never be shorter
+        // than their sum, however late a busy machine runs this thread.
+        let started = Instant::now();
         let acker = {
             let flow = flow.clone();
             thread::spawn(move || {
@@ -133,7 +136,6 @@ mod tests {
             })
         };
 
-        let started = Instant::now();
         flow.wait_if_saturated(&AtomicBool::new(false));
         let waited = started.elapsed();
         acker.join().unwrap();
