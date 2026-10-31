@@ -380,8 +380,9 @@ pub fn subscribe_plugins(on_event: Channel<PluginEvent>, host: State<'_, Arc<Plu
 /// catalog is read unless it was signed with it.
 const CATALOG_URL: &str =
     "https://github.com/LuisPeixoto/termzip-plugins/releases/latest/download/index.json";
-/// minisign's `RWQ...` public key of the catalog. Empty until the catalog repository has one.
-const CATALOG_PUBLIC_KEY: &str = "";
+/// minisign's `RWQ...` public key of the catalog (key id 4D046E67FFCD9D49), the same as `termzip-plugins.pub` in the
+/// catalog's repository. Changing it needs a new release of the app.
+const CATALOG_PUBLIC_KEY: &str = "RWRJnc3/Z24ETQLahaFz4zc8QxJVWPIZWDm5mFAlsSotwACnI5slP+0G";
 
 /// The catalog this build trusts. A debug build may be pointed at another with `TERMZIP_CATALOG_URL` and
 /// `TERMZIP_CATALOG_KEY`, to try a catalog served from this machine; a release build has no such override.
@@ -563,6 +564,15 @@ mod tests {
             text: text.to_owned(),
             tone: Tone::Warn,
         }
+    }
+
+    #[test]
+    fn the_key_built_into_the_app_is_a_usable_minisign_key() {
+        // An empty or damaged key would make every catalog fail with "the key built into this TermZip is not usable".
+        let key = minisign::PublicKey::from_base64(CATALOG_PUBLIC_KEY).unwrap();
+
+        assert_eq!(key.to_base64(), CATALOG_PUBLIC_KEY);
+        assert!(CATALOG_URL.starts_with("https://github.com/LuisPeixoto/termzip-plugins/"));
     }
 
     #[test]
