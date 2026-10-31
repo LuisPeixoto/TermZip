@@ -4,6 +4,36 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
+Extensions: plugins that run in a sandbox, a stable API to write them against, and a signed catalog to find them.
+
+### Added
+
+- Plugins: small WebAssembly files that add palette commands, label a block or show a message when a command finishes,
+  put an item in the status bar, and turn text in the output into links. A plugin has no imports, so it cannot read
+  your files, use the network, start programs or read the clock; it runs in `wasmi` with a fuel budget per call, a
+  16 MiB memory cap and a bounded queue, and three failures in a row stop it.
+- Permissions the plugin asks for and you approve before turning it on: `blocks` (finished commands), `output` (what
+  they printed), `type`, `notify` and `open`. The approval belongs to the SHA-256 of the file, so a plugin that is
+  replaced, edited or updated stays off until you approve the new file.
+- Typing into the terminal only as the answer to a palette command you ran, as a paste without Enter and with line breaks
+  and control characters removed; opening an address only the same way, for `http` and `https`.
+- Preferences → Plugins: Installed (state, permissions, where it came from, a switch with a confirmation, uninstall) and
+  Catalog (load, install, update). **Install from file…** marks a file as not verified.
+- The plugin catalog: its index is verified with a minisign key built into TermZip before it is read, every download is
+  checked for size, SHA-256, id, version and permissions, and everything uses HTTPS. The network is used only when you
+  press **Load catalog** or **Install**; `plugins_catalog = false` (a checkbox in Preferences) turns it off.
+- Plugin API 1 with a versioning policy: a manifest in a custom section of the file, JSON events and actions, and a Rust
+  SDK (`termzip-plugin-sdk`). Four example plugins in `examples/plugins` (long-command notifier, exit status, issue
+  links and snippets), built and run in the app's own sandbox by CI.
+- A plugin threat model in `SECURITY.md`, and guides: plugins and the plugin API.
+
+### Changed
+
+- `TERMZIP_HOME` also moves the `plugins/` folder.
+- Block events are also reported to the plugin host, which does nothing when no plugin is on.
+
 ## [0.3.0] - 2026-10-28
 
 Personalization: themes you can bring, a terminal and a window you can shape, and every shortcut yours.
