@@ -22,7 +22,8 @@ pub const MAX_CATALOG_PLUGINS: usize = 128;
 const MAX_SIGNATURE_BYTES: usize = 4 * 1024;
 const MAX_TEXT_CHARS: usize = 280;
 const MAX_URL_CHARS: usize = 512;
-const INDEX_FORMAT: u32 = 1;
+/// The format of `index.json` this TermZip reads.
+pub const INDEX_FORMAT: u32 = 1;
 
 /// One plugin the catalog offers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
