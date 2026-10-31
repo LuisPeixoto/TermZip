@@ -1,0 +1,13 @@
+# The example plugins are their own workspace: they are built for WebAssembly, and the macros of the SDK write
+# `unsafe` into the crate that uses them, which the main workspace forbids.
+[workspace]
+resolver = "3"
+members = ["long-command-notify", "exit-status", "issue-links", "snippets"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+# A panic would only trap the plugin; aborting keeps the file small.
+panic = "abort"

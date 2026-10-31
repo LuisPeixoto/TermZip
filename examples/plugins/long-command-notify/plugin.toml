@@ -1,0 +1,9 @@
+api = 1
+id = "long-command-notify"
+name = "Long command notifier"
+version = "0.1.0"
+description = "Tells you when a command that ran for more than ten seconds has finished, and marks it with a label."
+author = "Luis Peixoto"
+license = "MIT"
+homepage = "https://github.com/LuisPeixoto/TermZip/tree/main/examples/plugins/long-command-notify"
+permissions = ["blocks", "notify"]

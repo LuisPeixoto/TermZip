@@ -1,0 +1,9 @@
+api = 1
+id = "exit-status"
+name = "Exit status"
+version = "0.1.0"
+description = "Marks every command that failed with its exit code and counts the failures in the status bar."
+author = "Luis Peixoto"
+license = "MIT"
+homepage = "https://github.com/LuisPeixoto/TermZip/tree/main/examples/plugins/exit-status"
+permissions = ["blocks"]
