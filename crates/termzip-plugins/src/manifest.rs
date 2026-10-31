@@ -457,7 +457,7 @@ mod tests {
 
     #[test]
     fn the_exports_the_manifest_needs_must_exist() {
-        let no_alloc = wat::parse_str(&format!(
+        let no_alloc = wat::parse_str(format!(
             r#"(module (@custom "termzip-plugin" "{}") (memory (export "memory") 1))"#,
             MINIMAL
                 .bytes()
@@ -477,7 +477,7 @@ mod tests {
                 .map(|b| format!("\\{b:02x}"))
                 .collect::<String>()
         };
-        let without_handler = wat::parse_str(&format!(
+        let without_handler = wat::parse_str(format!(
             r#"(module (@custom "termzip-plugin" "{}") (memory (export "memory") 1)
                (func (export "tz_alloc") (param i32) (result i32) (i32.const 0)))"#,
             escaped(MINIMAL)
@@ -489,7 +489,7 @@ mod tests {
                 .contains("tz_on_block")
         );
 
-        let wrong_kind = wat::parse_str(&format!(
+        let wrong_kind = wat::parse_str(format!(
             r#"(module (@custom "termzip-plugin" "{}") (memory (export "memory") 1)
                (global (export "tz_alloc") i32 (i32.const 0)))"#,
             escaped(MINIMAL)
