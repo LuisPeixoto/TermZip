@@ -97,7 +97,7 @@ account that tampers with the catalog or a download; a plugin author's mistake (
 - *The catalog.* The index and its minisign signature are fetched together, and the index is **not parsed** until the
   signature (the prehashed kind; the legacy kind is refused) matches the public key built into TermZip. The download
   must then have the size and SHA-256 the signed index promises, and carry a manifest with the same id, version and
-  permissions. All requests use HTTPS with certificate checks (`rustls`), at most three redirects, bounded sizes and a
+  permissions, and the plugin is shown as verified only while its file keeps that hash. All requests use HTTPS with certificate checks (`rustls`), at most three redirects, bounded sizes and a
   timeout. The network is used only when you press **Load catalog** or **Install**, never in the background, and
   `plugins_catalog = false` turns it off entirely. A debug build (never a release build) can be pointed at a catalog on
   `localhost` for development; the signature is still checked, against the key given with it.

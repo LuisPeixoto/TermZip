@@ -35,6 +35,10 @@ struct Entry {
     /// The hash of the file the user enabled; the plugin is only enabled while the file still has it.
     approved_sha256: Option<String>,
     source: Source,
+    /// The hash of the file the catalog's signature vouched for when it was installed. The plugin is only
+    /// shown as verified while the file still has it.
+    #[serde(default)]
+    verified_sha256: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -144,11 +148,20 @@ impl PluginStore {
         let approved = entry.and_then(|entry| entry.approved_sha256.as_deref());
         let enabled = entry.is_some_and(|entry| entry.enabled) && approved == Some(sha256.as_str());
         let changed = entry.is_some_and(|entry| entry.enabled) && approved != Some(sha256.as_str());
+        // Verified means that **these bytes** came from the catalog. A file that has changed since is not.
+        let verified = entry.is_some_and(|entry| {
+            entry.source == Source::Catalog
+                && entry.verified_sha256.as_deref() == Some(sha256.as_str())
+        });
         PluginInfo {
             manifest,
-            sha256,
             size: bytes.len() as u64,
-            source: entry.map_or(Source::Local, |entry| entry.source),
+            source: if verified {
+                Source::Catalog
+            } else {
+                Source::Local
+            },
+            sha256,
             enabled,
             changed,
         }
@@ -233,8 +246,10 @@ impl PluginStore {
             enabled: false,
             approved_sha256: None,
             source,
+            verified_sha256: None,
         });
         entry.source = source;
+        entry.verified_sha256 = (source == Source::Catalog).then(|| sha256.clone());
         if entry.approved_sha256.as_deref() != Some(sha256.as_str()) {
             entry.enabled = false;
             entry.approved_sha256 = None;
@@ -268,6 +283,7 @@ impl PluginStore {
             enabled: false,
             approved_sha256: None,
             source: Source::Local,
+            verified_sha256: None,
         });
         entry.enabled = true;
         entry.approved_sha256 = Some(sha256_hex(&bytes));
@@ -351,6 +367,37 @@ mod tests {
         let listing = store.list();
         assert_eq!(listing.plugins.len(), 1);
         assert!(dir.join("hello.wasm").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_catalog_plugin_is_only_verified_while_its_file_is_the_one_that_was_checked() {
+        let (store, dir) = temp_store("verified");
+        store.install(&minimal(), Source::Catalog).unwrap();
+        assert_eq!(store.list().plugins[0].source, Source::Catalog);
+
+        // The file changes on disk (still a valid plugin with the same id): nobody checked this one.
+        fs::write(dir.join("hello.wasm"), variant("hello", "1.0.1")).unwrap();
+        let info = &store.list().plugins[0];
+        assert_eq!(info.source, Source::Local);
+        assert!(!info.enabled);
+
+        // Put the checked file back and it is verified again.
+        fs::write(dir.join("hello.wasm"), minimal()).unwrap();
+        assert_eq!(store.list().plugins[0].source, Source::Catalog);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn installing_a_file_over_a_catalog_plugin_makes_it_unverified() {
+        let (store, dir) = temp_store("verified-over");
+        store.install(&minimal(), Source::Catalog).unwrap();
+
+        // The same bytes, but this time chosen by the user from a file.
+        let info = store.install(&minimal(), Source::Local).unwrap();
+
+        assert_eq!(info.source, Source::Local);
+        assert_eq!(store.list().plugins[0].source, Source::Local);
         let _ = fs::remove_dir_all(&dir);
     }
 
