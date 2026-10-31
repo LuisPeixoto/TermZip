@@ -21,4 +21,6 @@ pub use manifest::{Module, read_module, validate_manifest};
 pub use runtime::{MAX_STRIKES, QUEUE_LEN, Report, Runtime, Sink, Trigger};
 pub use sandbox::{FUEL_PER_CALL, Fault, MAX_MEMORY_BYTES, Sandbox, parse_reply};
 pub use sanitize::{Checked, check_actions, clean_line, clean_typed, is_safe_url};
-pub use store::{Listing, MAX_PLUGINS, PluginInfo, PluginStore, Source, plugins_dir};
+pub use store::{
+    Listing, MAX_PLUGINS, PluginInfo, PluginStore, Source, plugins_dir, read_plugin_file,
+};

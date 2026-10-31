@@ -97,6 +97,11 @@ fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
     fs::read(path).map_err(|error| format!("Could not read “{shown}”: {error}."))
 }
 
+/// Reads a plugin file the user picked: a regular file of at most 4 MiB, read only after that is known.
+pub fn read_plugin_file(path: &Path) -> Result<Vec<u8>, String> {
+    read_bounded(path, MAX_PLUGIN_BYTES as u64)
+}
+
 #[derive(Debug, Clone)]
 pub struct PluginStore {
     dir: PathBuf,
