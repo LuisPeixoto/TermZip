@@ -133,6 +133,51 @@ The terminal slows the shell down on purpose when it has 1 MiB of output it has 
 close to what the program has done and Ctrl+C stops it. If the lag is large the page may be busy; see
 [performance](performance.md).
 
+## Plugins
+
+### A plugin says “Off: the file changed after you turned it on”
+
+Your approval is for the exact file you turned on, so a plugin whose file was replaced, edited or updated stays off
+until you approve the new one. Turn it on again and read its permissions. If you did not change it, do not.
+
+### A plugin says it crashed three times in a row
+
+A plugin that traps, loops or sends an answer TermZip cannot use is stopped after three failures, and each failure showed
+a message with the reason. Turn it off and on to try again; if it keeps failing, the plugin has a bug. A call that works
+resets the count. A plugin that is merely slow never slows the terminal: its own queue of 32 events fills up and the
+rest are dropped for it.
+
+### A plugin file is rejected
+
+The list under Installed (or the dialog) says why in a sentence: the file is over 4 MiB, it is not a WebAssembly module
+or is a component, it imports something (“A plugin cannot call anything outside its sandbox”), it has no manifest or more
+than one, the manifest is wrong (the sentence names the field), it was written for another plugin API, a required export
+is missing, or its file name does not match its id. A file in the `plugins/` folder is skipped with the same sentence.
+
+### The catalog does not load
+
+- *The catalog is turned off in Preferences.* Tick **Allow loading the plugin catalog** and press **Save**
+  (`plugins_catalog` in [configuration](configuration.md)).
+- *Could not reach the server* or *took too long*: TermZip needs HTTPS access to GitHub, where the catalog is published; check the
+  connection and any proxy, then press **Reload the catalog**.
+- *The catalog's signature does not match*: nothing in the list was used. It was changed on its way, or it was not signed
+  with TermZip's catalog key; try again later and, if it persists, report it as a [security
+  issue](../SECURITY.md#reporting-a-vulnerability).
+- *…does not match the checksum* on install: the download is not the file the signed list promised, so it was not
+  installed.
+
+### A plugin's command does nothing, or types nothing
+
+Run it from the command palette (⇧⌘P, Ctrl+Shift+P) with a terminal focused, and check that the plugin is **On**. Typing
+needs the `type` permission, opening an address needs `open`, and a plugin can only do either as the answer to a command
+you ran. Typed text is pasted without Enter, so it waits at the prompt.
+
+### A plugin's link is not underlined
+
+Link patterns apply to what the terminal shows, one line at a time (the first 8 KiB of each), to plugins that are On.
+Where two plugin patterns overlap the earlier match wins. Point at the text: it is underlined with a hint, and ⌘+click
+(Ctrl+click elsewhere) opens it. A pattern that would match every line is rejected when the plugin is installed.
+
 ## Linux: the app does not build or start
 
 TermZip needs the WebKitGTK packages: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, and `librsvg2-dev` to build,

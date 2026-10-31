@@ -26,6 +26,7 @@ scrollback_lines = 10000  # clamped to 1_000..200_000
 # working_directory = "/path/to/project"
 restore_session = true    # reopen tabs, splits, and folders on launch
 # default_profile = "work"  # which profile a plain new tab uses; empty: the built-in one
+plugins_catalog = true    # may Preferences → Plugins load the plugin catalog (the only network use of TermZip)
 ```
 
 Out-of-range values are clamped (a value that is not a number gets its default) and unknown keys are ignored. The
@@ -80,6 +81,17 @@ splitRight = "Shift+Cmd+E"
 find = ""
 ```
 
+## Plugins
+
+`plugins_catalog` decides whether **Preferences → Plugins → Catalog** may contact the plugin catalog. TermZip uses the
+network for nothing else, and only when you press **Load catalog** or **Install**; with `plugins_catalog = false` it
+never does, and installing a plugin from a file keeps working. See [plugins](plugins.md#the-catalog).
+
+Installed plugins are in the `plugins/` folder next to `config.toml` (`~/Library/Application Support/termzip/plugins/`
+on macOS): one `<id>.wasm` per plugin and `state.json`, which records which plugins you turned on and the SHA-256 of the
+file you approved. A plugin whose file changed is off until you turn it on again, and a `state.json` that cannot be
+read approves nothing. Do not edit them by hand: use Preferences.
+
 ## The themes folder
 
 Imported and custom [themes](themes.md) are one TOML file each in `themes/`, next to `config.toml`
@@ -106,8 +118,8 @@ half-written config. On macOS and Linux the folder is private to you (`0700`) an
 
 ## Moving the data folder
 
-Set `TERMZIP_HOME` to use another folder for everything TermZip stores (the config file, the themes, the saved layout
-and the shell-integration scripts). Tests, demos, and a second profile can use it without touching your real settings:
+Set `TERMZIP_HOME` to use another folder for everything TermZip stores (the config file, the themes, the plugins, the
+saved layout and the shell-integration scripts). Tests, demos, and a second profile can use it without touching your real settings:
 
 ```bash
 TERMZIP_HOME=/tmp/termzip-demo npm run tauri dev

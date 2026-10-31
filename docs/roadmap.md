@@ -70,11 +70,23 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - [ ] Manual Windows/Linux validation of the translucent window and the new dialogs; tracked as validation debt for
   Phase 7.
 
-## 📋 Phase 5: Extensions · v0.4
+## ✅ Phase 5: Extensions · v0.4
 
-- [ ] Stable plugin API and versioning policy.
-- [ ] WebAssembly plugin runtime with resource limits and explicit permissions.
-- [ ] Plugin discovery, installation, disable/uninstall, and signed catalog metadata.
+- ✅ A stable plugin API (version 1) and its versioning policy: a manifest, JSON events and actions, golden-tested, and
+  a Rust SDK with four example plugins. See [plugin API](plugin-api.md).
+- ✅ A WebAssembly runtime (`wasmi`) with a fuel budget, a memory cap, bounded queues and explicit permissions. A plugin
+  has no imports, so it cannot reach files, the network, processes or the clock. See [plugins](plugins.md).
+- ✅ Four extension points: palette commands, reactions to finished commands (label, message, status), link patterns,
+  and status-bar items. Typing into the terminal happens only for a palette command, never presses Enter, and cannot
+  be done from a reaction.
+- ✅ Discovery and installation: a catalog whose index is verified with a built-in minisign key before it is read, the
+  size and SHA-256 of every download checked, and installing from a file marked "not verified". Approvals belong to the
+  file's SHA-256. Disable and uninstall. The network is used only when you press a button and can be turned off.
+- ✅ A plugin threat model in [SECURITY](../SECURITY.md#plugin-threat-model).
+- Deviations from the plan, for the record: the permission is named `blocks` (not `commands`), an `open` permission was
+  added, and a fuel budget replaces the wall-clock watchdog (it is deterministic, and a loop cannot outlive its fuel).
+- [ ] Manual Windows/Linux validation of plugins (install from a file, the palette, links, the catalog); tracked as
+  validation debt for Phase 7.
 
 ## 📋 Phase 6: Developer workflows · v0.5
 
@@ -87,7 +99,7 @@ Binary inspection does not establish runtime performance or reconstruct propriet
 - [ ] Documented performance budgets measured on reference hardware.
 - [ ] Broad cross-platform terminal conformance and accessibility testing.
 - [ ] Signed/notarized installers, package-manager distribution, update policy, and release checksums.
-- [ ] Plugin threat model, permissions, and security audit.
+- [ ] An independent security audit of the plugin sandbox and of the catalog's signing.
 
 ## Ideas
 

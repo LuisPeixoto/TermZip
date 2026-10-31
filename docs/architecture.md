@@ -59,6 +59,9 @@ Raw bytes flow to the terminal unchanged; the marker parser observes the stream 
 | `termzip-core` | Settings (TOML, validated), profiles, the saved workspace, themes (model, gallery, importers, custom themes), the shortcut grammar, atomic writes, config paths. |
 | `termzip-pty` | PTY creation, shell environment, reader thread, resize, child lifecycle. |
 | `termzip-shell` | OSC 133/1337 marker parser, block tracker, integration scripts, shell launch config. |
+| `termzip-plugin-api` | What the app and a plugin agree on: the manifest, the permissions, and the JSON events and actions (golden-tested). No platform code. |
+| `termzip-plugins` | The plugin host: reading and checking a `.wasm` file, the store and the approvals, the `wasmi` sandbox and its runtime, link patterns, and the signed catalog. No platform code. |
+| `termzip-plugin-sdk` | For plugin authors: a trait, typed events and actions, and the macros that write the exports. The app does not use it. |
 | `termzip-desktop` | Tauri commands, session registry, event emission, app lifecycle. |
 
 ## The interface: panes, tabs and the workspace
@@ -86,6 +89,31 @@ profile and stores a validated copy of the layout (`workspace.json`) when the we
   keyboard and for the command palette. See [keyboard](keyboard.md).
 - **The window** is created transparent. The page paints itself opaque unless the opacity is lowered, and the system's
   blur (vibrancy, acrylic) is requested only while it is. See [appearance](appearance.md).
+
+## Plugins
+
+A plugin is a WebAssembly file that is a pure function: it has no imports, so it receives an event and answers with
+actions, and nothing else is reachable from inside it. The contract is in [plugin API](plugin-api.md); what the user
+sees is in [plugins](plugins.md).
+
+- **The host is platform-independent.** `termzip-plugins` reads a file with `wasmparser` (manifest, imports, exports;
+  nothing is run), keeps `plugins/<id>.wasm` and `state.json` in the data folder, and runs approved plugins in
+  `wasmi`, an interpreter, with fuel per call, a memory cap and a stack cap. The approval is the SHA-256 of the file.
+- **One worker per plugin.** The reader thread of a session reports each finished block to an observer
+  (`Sessions::set_block_observer`), which queues it on every running plugin's own bounded queue (32 events). A slow
+  plugin only loses its own events, and three failures in a row stop it.
+- **Answers are checked before they matter.** `check_actions` keeps what the plugin's permissions allow, cleans the
+  text (control and bidirectional characters, length) and drops the rest. A label is only valid after a finished
+  command; `type` and `open` are only valid as the answer to a palette command the user ran.
+- **One channel to the window.** The answers reach the webview on one `Channel` (`subscribe_plugins`), and
+  `pluginEvents.ts` puts a label on the pane, shows a toast, sets a status item or pastes text into the pane the
+  command was run from. An `open` goes through the same `links::resolve` as a click, in Rust.
+- **Links are matched in Rust.** `match_plugin_links` runs the plugins' patterns (the `regex` crate, linear time) over a
+  line, and a second link provider in the terminal underlines the result.
+- **The catalog is two requests and a signature.** `load_catalog` fetches `index.json` and `index.json.minisig` over
+  HTTPS (`ureq` with `rustls`) and parses the index only after the signature matches the key built into the app;
+  `install_from_catalog` downloads the file and checks its size, SHA-256 and manifest against the signed entry. Both
+  run only when the user presses a button, off the UI thread.
 
 ## Interface decisions
 
@@ -116,3 +144,7 @@ profile and stores a validated copy of the layout (`workspace.json`) when the we
   save dialog (see [themes](themes.md#limits)).
 - Clicking text in the terminal goes to the backend, which only opens http(s) and mailto URLs and files that exist,
   and never starts a program (see [links](links.md)).
+- Plugins run in a sandbox with no imports, so they cannot reach files, the network, processes or the clock; each
+  permission is shown before a plugin is turned on, the approval belongs to the file's SHA-256, and a plugin's answers
+  are checked and cleaned before they are used. The catalog is verified with a built-in minisign key, and the network
+  is used only when you press a button (see [SECURITY](../SECURITY.md#plugin-threat-model)).
