@@ -88,3 +88,43 @@ describe("themes", () => {
     ]);
   });
 });
+
+describe("plugins", () => {
+  beforeEach(() => {
+    vi.mocked(invoke).mockReset();
+  });
+
+  it("asks the backend for the list, and for each action by plugin id", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+
+    await api.listPlugins();
+    await api.installPluginFile();
+    await api.enablePlugin("demo");
+    await api.disablePlugin("demo");
+    await api.uninstallPlugin("demo");
+    await api.runPluginCommand("demo", "go", "/work", 6);
+    await api.matchPluginLinks("fixes #42");
+
+    expect(vi.mocked(invoke).mock.calls).toEqual([
+      ["list_plugins"],
+      ["install_plugin_file"],
+      ["enable_plugin", { id: "demo" }],
+      ["disable_plugin", { id: "demo" }],
+      ["uninstall_plugin", { id: "demo" }],
+      ["run_plugin_command", { plugin: "demo", command: "go", cwd: "/work", session: 6 }],
+      ["match_plugin_links", { line: "fixes #42" }],
+    ]);
+  });
+
+  it("subscribes with a channel that feeds the handler", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    const received: unknown[] = [];
+
+    await api.subscribePlugins((event) => received.push(event));
+
+    const [command, args] = vi.mocked(invoke).mock.calls[0] as [string, { onEvent: Channel<unknown> }];
+    expect(command).toBe("subscribe_plugins");
+    args.onEvent.onmessage({ type: "status", plugin: "demo", text: "1 seen" });
+    expect(received).toEqual([{ type: "status", plugin: "demo", text: "1 seen" }]);
+  });
+});

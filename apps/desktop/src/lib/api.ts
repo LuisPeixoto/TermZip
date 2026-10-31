@@ -149,6 +149,63 @@ export interface ThemeList {
   problems: string[];
 }
 
+export type PluginPermission = "blocks" | "output" | "type" | "notify" | "open";
+
+/** The manifest of a plugin as its file spells it (see docs/plugin-api.md). */
+export interface PluginManifest {
+  api: number;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author?: string | null;
+  license?: string | null;
+  homepage?: string | null;
+  permissions: PluginPermission[];
+  commands: { id: string; title: string }[];
+  links: { pattern: string; url: string }[];
+}
+
+export interface Plugin {
+  manifest: PluginManifest;
+  sha256: string;
+  size: number;
+  /** `catalog` was checked against the signed catalog; `local` came from a file nobody verified. */
+  source: "local" | "catalog";
+  /** Approved, and the file is still the one that was approved. */
+  enabled: boolean;
+  /** The file changed after it was approved, so the plugin was disabled. */
+  changed: boolean;
+  /** Running now: enabled, loaded, and not stopped for crashing. */
+  running: boolean;
+  /** What each permission lets the plugin do, as sentences for the confirmation. */
+  permissionNotes: { permission: PluginPermission; text: string }[];
+}
+
+export interface PluginListing {
+  plugins: Plugin[];
+  /** One sentence for every file or plugin that was left out or could not start. */
+  problems: string[];
+}
+
+export type Tone = "info" | "ok" | "warn" | "err";
+
+/** What plugins tell the window, on one channel. */
+export type PluginEvent =
+  | { type: "label"; plugin: string; session: number; blockIndex: number; text: string; tone: Tone }
+  | { type: "notify"; plugin: string; text: string; tone: Tone }
+  | { type: "status"; plugin: string; text: string }
+  | { type: "type"; plugin: string; session: number; text: string }
+  | { type: "fault"; plugin: string; reason: string; stopped: boolean };
+
+/** A link a plugin found in a line; positions count UTF-16 units, like the strings of the page. */
+export interface PluginLink {
+  plugin: string;
+  start: number;
+  end: number;
+  url: string;
+}
+
 export const api = {
   getSettings: () => invoke<Settings>("get_settings"),
   saveSettings: (settings: Settings) => invoke<Settings>("save_settings", { settings }),
@@ -194,6 +251,23 @@ export const api = {
   /** Opens a save dialog and writes the theme in TermZip's format; `false` when it is cancelled. */
   exportTheme: (id: string) => invoke<boolean>("export_theme", { id }),
   deleteTheme: (id: string) => invoke<void>("delete_theme", { id }),
+  listPlugins: () => invoke<PluginListing>("list_plugins"),
+  /** Opens a file dialog and installs the plugin, disabled; `null` when the dialog is cancelled. */
+  installPluginFile: () => invoke<Plugin | null>("install_plugin_file"),
+  /** Approves the plugin as it is and starts it. The caller shows what it may do before calling this. */
+  enablePlugin: (id: string) => invoke<Plugin>("enable_plugin", { id }),
+  disablePlugin: (id: string) => invoke<void>("disable_plugin", { id }),
+  uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
+  /** Runs a command of a plugin from the terminal with this session; the answer comes on the plugin channel. */
+  runPluginCommand: (plugin: string, command: string, cwd: string | null, session: number) =>
+    invoke<void>("run_plugin_command", { plugin, command, cwd, session }),
+  matchPluginLinks: (line: string) => invoke<PluginLink[]>("match_plugin_links", { line }),
+  /** Where the answers of plugins arrive. Call it once, at startup. */
+  subscribePlugins: (onEvent: (event: PluginEvent) => void) => {
+    const channel = new Channel<PluginEvent>();
+    channel.onmessage = onEvent;
+    return invoke<void>("subscribe_plugins", { onEvent: channel });
+  },
 };
 
 export function bytesToBase64(bytes: Uint8Array): string {
