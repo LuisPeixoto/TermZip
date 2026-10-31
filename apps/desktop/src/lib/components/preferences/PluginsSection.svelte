@@ -205,8 +205,10 @@
                   type="button"
                   class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-opacity disabled:opacity-40 aria-disabled:opacity-40
                     {action.enabled ? 'bg-accent text-white hover:opacity-90' : 'border border-line text-muted'}"
-                  disabled={!action.enabled || installing !== null}
-                  onclick={() => void installFromCatalog(item)}
+                  aria-disabled={!action.enabled || installing !== null}
+                  onclick={() => {
+                    if (action.enabled) void installFromCatalog(item);
+                  }}
                 >
                   {installing === item.id ? "Installing…" : action.label}
                 </button>
