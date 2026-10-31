@@ -3897,8 +3897,11 @@ dependencies = [
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "termzip-core",
+ "termzip-plugin-api",
+ "termzip-plugins",
  "termzip-pty",
  "termzip-shell",
+ "wat",
 ]
 
 [[package]]
