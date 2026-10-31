@@ -5,6 +5,7 @@
   import AppearanceSection from "./preferences/AppearanceSection.svelte";
   import GeneralSection from "./preferences/GeneralSection.svelte";
   import KeyboardSection from "./preferences/KeyboardSection.svelte";
+  import PluginsSection from "./preferences/PluginsSection.svelte";
   import ProfilesSection from "./preferences/ProfilesSection.svelte";
   import TerminalSection from "./preferences/TerminalSection.svelte";
   import { app } from "../stores/app.svelte";
@@ -18,6 +19,7 @@
     { id: "terminal", label: "Terminal", component: TerminalSection },
     { id: "keyboard", label: "Keyboard", component: KeyboardSection },
     { id: "profiles", label: "Profiles", component: ProfilesSection },
+    { id: "plugins", label: "Plugins", component: PluginsSection },
   ];
 
   let draft: Settings = $state(defaultSettings());
