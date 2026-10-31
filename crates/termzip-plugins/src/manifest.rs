@@ -60,6 +60,16 @@ fn check_url_template(template: &str, groups: usize) -> Result<(), String> {
             "The link address “{template}” has a space or a control character in it."
         ));
     }
+    // A placeholder in the host would let text from the terminal choose which site the link goes to.
+    let after_scheme = template
+        .split_once("://")
+        .map_or(template, |(_, rest)| rest);
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
+    if authority.contains(['{', '}']) {
+        return Err(format!(
+            "The link address “{template}” has a placeholder in its host name; only the path and the query may change."
+        ));
+    }
     let mut rest = template;
     while let Some(open) = rest.find(['{', '}']) {
         let tail = &rest[open..];
@@ -657,6 +667,8 @@ mod tests {
             ("file:///etc/passwd", "must start with http"),
             ("//x.test", "must start with http"),
             ("https://x.test/a b", "space or a control"),
+            ("https://{1}.example.com/", "placeholder in its host"),
+            ("https://example.com:{1}/", "placeholder in its host"),
             ("https://x.test/{2}", "has 1 group"),
             ("https://x.test/{a}", "uses {a}"),
             ("https://x.test/{", "unclosed"),
