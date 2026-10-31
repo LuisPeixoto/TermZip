@@ -97,6 +97,13 @@ impl HttpFetch {
     fn insecure_for_tests(timeout: Duration) -> Self {
         Self::build(false, timeout)
     }
+
+    /// Like [`HttpFetch::new`] but allowing plain http, for trying a catalog served from this machine. It
+    /// does not exist in a release build.
+    #[cfg(debug_assertions)]
+    pub fn for_development() -> Self {
+        Self::build(false, Duration::from_secs(30))
+    }
 }
 
 impl Default for HttpFetch {
@@ -113,17 +120,29 @@ impl Fetch for HttpFetch {
             ureq::Error::Io(error) => format!("Could not reach the server: {error}."),
             other => format!("Could not fetch it: {other}."),
         })?;
-        response
+        // The reader refuses a body that reaches its limit, so it is given one byte more than is allowed, and
+        // an answer of exactly `limit` bytes (what `download` asks for) is read like any other.
+        let body = response
             .body_mut()
             .with_config()
-            .limit(limit as u64)
+            .limit(limit as u64 + 1)
             .read_to_vec()
             .map_err(|error| match error {
-                ureq::Error::BodyExceedsLimit(_) => {
-                    format!("The answer is larger than {} KiB.", limit / 1024)
-                }
+                ureq::Error::BodyExceedsLimit(_) => too_large(limit),
                 other => format!("Could not read the answer: {other}."),
-            })
+            })?;
+        if body.len() > limit {
+            return Err(too_large(limit));
+        }
+        Ok(body)
+    }
+}
+
+fn too_large(limit: usize) -> String {
+    if limit >= 1024 {
+        format!("The answer is larger than {} KiB.", limit / 1024)
+    } else {
+        format!("The answer is larger than {limit} bytes.")
     }
 }
 
@@ -145,8 +164,12 @@ fn is_slug(text: &str) -> bool {
         })
 }
 
+/// Where TermZip may fetch from: https, always. A debug build (never a release one) also allows a server on
+/// this machine, so the catalog can be tried without a certificate; the signature is checked all the same.
 fn https(url: &str) -> bool {
-    url.starts_with("https://")
+    let local = cfg!(debug_assertions)
+        && (url.starts_with("http://127.0.0.1:") || url.starts_with("http://localhost:"));
+    (url.starts_with("https://") || local)
         && url.chars().count() <= MAX_URL_CHARS
         && !url.chars().any(|c| c.is_whitespace() || c.is_control())
 }
@@ -698,6 +721,23 @@ mod tests {
 
         let url = serve(|stream| reply(stream, "200 OK", &vec![b'x'; 5000]));
         assert!(client.get(&url, 1024).unwrap_err().contains("larger"));
+    }
+
+    #[test]
+    fn an_answer_of_exactly_the_limit_is_accepted() {
+        // `download` asks for as many bytes as the signed index promises, so the limit is often hit exactly.
+        let client = HttpFetch::insecure_for_tests(Duration::from_secs(5));
+        let body = vec![b'x'; 341];
+
+        let url = serve({
+            let body = body.clone();
+            move |stream| reply(stream, "200 OK", &body)
+        });
+        assert_eq!(client.get(&url, 341).unwrap(), body);
+
+        // One byte more is still too much.
+        let url = serve(move |stream| reply(stream, "200 OK", &vec![b'x'; 342]));
+        assert!(client.get(&url, 341).unwrap_err().contains("larger"));
     }
 
     #[test]
