@@ -32,6 +32,8 @@ pub enum Permission {
     Type,
     /// Show the user short messages.
     Notify,
+    /// Open a web address in the browser when the user runs one of the plugin's commands.
+    Open,
 }
 
 impl Permission {
@@ -44,6 +46,7 @@ impl Permission {
                 "Type text into the terminal when you run one of its commands. It never presses Enter."
             }
             Self::Notify => "Show you short messages.",
+            Self::Open => "Open a web address in your browser when you run one of its commands.",
         }
     }
 }
@@ -171,6 +174,7 @@ url = "https://github.com/me/repo/issues/{1}"
             Permission::Output,
             Permission::Type,
             Permission::Notify,
+            Permission::Open,
         ] {
             assert!(permission.describe().ends_with('.'), "{permission:?}");
         }
