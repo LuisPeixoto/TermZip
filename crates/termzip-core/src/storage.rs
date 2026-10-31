@@ -9,7 +9,7 @@ use crate::SettingsError;
 
 /// Creates the folder (private to the user on Unix), writes `contents` next to `path` and renames
 /// it into place, so a crash mid-write never leaves a half-written file behind.
-pub(crate) fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), SettingsError> {
+pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), SettingsError> {
     let parent = path.parent().ok_or(SettingsError::InvalidPath)?;
     let write_error = |path: &Path| {
         let path = path.to_owned();
