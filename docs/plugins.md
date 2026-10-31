@@ -33,6 +33,8 @@ Open **Preferences → Plugins** (⌘, Ctrl+,). There are two ways in.
 
 Installing never turns a plugin on. A plugin that was just installed is **Off**.
 
+![The Installed tab of the Plugins preferences: Exit status and Issue links, both verified and on, with the permission each asked for](images/termzip-plugins.png)
+
 ## Turning a plugin on
 
 Use the switch next to the plugin. TermZip shows a confirmation that says what the plugin asks to do, one sentence per
@@ -79,6 +81,8 @@ a [minisign](https://jedisct1.github.io/minisign/) public key that is built into
 way, or signed with another key, is thrown away whole. A download is then checked against the size and the SHA-256 the
 signed list promises, and the manifest inside the file must carry the same id, version and permissions the list showed
 you. Everything uses HTTPS.
+
+![The Catalog tab: four signed plugins with their authors, sizes and permissions](images/termzip-plugin-catalog.png)
 
 Each entry shows the name, version, description, size and the permissions it will ask for. The button says **Install**,
 **Update to x.y.z**, or **Installed**. An update is a new file, so it needs your approval again.
