@@ -30,6 +30,9 @@ tauri-build = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 thiserror = "2"
+# Portable dispatch is a plain loop. The automatic choice may rely on the optimizer to turn calls into jumps, and
+# a plugin that loops then overflows the stack of the host instead of running out of fuel.
+wasmi = { version = "2", default-features = false, features = ["std", "validate", "stable", "portable-dispatch"] }
 wasmparser = { version = "0.228", default-features = false, features = ["std"] }
 wat = "1"
 toml = "0.9"
@@ -38,6 +41,20 @@ termzip-plugin-api = { path = "crates/termzip-plugin-api" }
 termzip-plugins = { path = "crates/termzip-plugins" }
 termzip-pty = { path = "crates/termzip-pty" }
 termzip-shell = { path = "crates/termzip-shell" }
+
+# The interpreter that runs plugins is slow without optimization, which makes a debug build (and the tests) wait
+# for a plugin that is meant to be stopped by its fuel. Optimizing it costs nothing in the code that is edited.
+[profile.dev.package.wasmi]
+opt-level = 3
+
+[profile.dev.package.wasmi_core]
+opt-level = 3
+
+[profile.dev.package.wasmi_ir]
+opt-level = 3
+
+[profile.dev.package.wasmi_collections]
+opt-level = 3
 
 [profile.release]
 lto = "thin"

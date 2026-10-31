@@ -145,8 +145,11 @@ pub fn validate_manifest(manifest: &Manifest) -> Result<(), String> {
     if has(Permission::Output) && !has(Permission::Blocks) {
         return Err("The “output” permission needs the “blocks” permission too.".to_owned());
     }
-    if has(Permission::Type) && manifest.commands.is_empty() {
-        return Err("The plugin asks to type text but has no commands to run it from.".to_owned());
+    if (has(Permission::Type) || has(Permission::Open)) && manifest.commands.is_empty() {
+        return Err(
+            "The plugin asks to type text or open addresses but has no commands to do it from."
+                .to_owned(),
+        );
     }
 
     if manifest.commands.len() > MAX_COMMANDS {
@@ -319,20 +322,31 @@ pub fn read_module(bytes: &[u8]) -> Result<Module, String> {
 pub(crate) mod fixtures {
     //! Plugin files for the tests, written in WebAssembly text and assembled here.
 
-    /// A WAT module with a manifest and the exports a plugin with these features needs.
-    pub fn plugin(manifest: &str, extra: &str) -> Vec<u8> {
-        let escaped: String = manifest.bytes().map(|b| format!("\\{b:02x}")).collect();
+    pub fn escape(text: &str) -> String {
+        text.bytes().map(|b| format!("\\{b:02x}")).collect()
+    }
+
+    /// A module with this manifest and exactly this body: the test writes every function and export.
+    pub fn module(manifest: &str, body: &str) -> Vec<u8> {
         let text = format!(
-            r#"(module
-  (@custom "termzip-plugin" "{escaped}")
-  (memory (export "memory") 1)
+            "(module\n  (@custom \"termzip-plugin\" \"{}\")\n  {body}\n)",
+            escape(manifest)
+        );
+        wat::parse_str(&text).unwrap_or_else(|error| panic!("{error}\n{text}"))
+    }
+
+    /// A module with the exports a plugin that watches commands and has commands needs, doing nothing.
+    pub fn plugin(manifest: &str, extra: &str) -> Vec<u8> {
+        module(
+            manifest,
+            &format!(
+                r#"(memory (export "memory") 1)
   (func (export "tz_alloc") (param i32) (result i32) (i32.const 1024))
   (func (export "tz_on_block") (param i32 i32) (result i64) (i64.const 0))
   (func (export "tz_run_command") (param i32 i32) (result i64) (i64.const 0))
-  {extra}
-)"#
-        );
-        wat::parse_str(&text).unwrap_or_else(|error| panic!("{error}\n{text}"))
+  {extra}"#
+            ),
+        )
     }
 
     pub const MINIMAL: &str = "api = 1\nid = \"hello\"\nname = \"Hello\"\nversion = \"1.0.0\"\npermissions = [\"blocks\"]\n";
@@ -555,6 +569,10 @@ mod tests {
 
         let mut m = manifest();
         m.permissions = vec![Permission::Blocks, Permission::Type];
+        assert!(refused(m).contains("no commands"));
+
+        let mut m = manifest();
+        m.permissions = vec![Permission::Blocks, Permission::Open];
         assert!(refused(m).contains("no commands"));
     }
 

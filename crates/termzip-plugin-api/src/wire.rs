@@ -76,7 +76,8 @@ pub enum Action {
     /// Text typed into the terminal, without Enter. Only as the answer to a command the user ran, and
     /// needs the `type` permission. Control characters and line breaks are removed.
     Type(String),
-    /// Opens an `http` or `https` address in the browser. Only as the answer to a command the user ran.
+    /// Opens an `http` or `https` address in the browser. Only as the answer to a command the user ran,
+    /// and needs the `open` permission.
     Open(String),
 }
 
