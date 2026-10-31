@@ -70,9 +70,9 @@ run again. Tabs and split panes keep several shells in one window, and your layo
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/termzip-dracula.png" width="880" alt="TermZip in the Dracula theme with two tabs, two panes side by side, and the command blocks rail for the focused pane" />
+  <img src="docs/images/termzip-dracula.png" width="880" alt="TermZip in the Dracula theme with two tabs, two panes side by side, the command blocks rail with a slow label and a failure label from plugins, a plugin message, and a count of failures in the status bar" />
   <br />
-  <sub>Dracula, one of the twelve built-in themes. A theme recolors the whole window: the terminal, the blocks, and the interface around them.</sub>
+  <sub>Dracula, one of the twelve built-in themes, with three plugins running: a red <b>exit 2</b> and an amber <b>slow</b> label on the blocks, a message when <code>sleep 11</code> ends, and <b>2 failed</b> in the status bar.</sub>
 </p>
 
 <p align="center">
@@ -82,9 +82,15 @@ run again. Tabs and split panes keep several shells in one window, and your layo
 </p>
 
 <p align="center">
-  <img src="docs/images/termzip-palette-light.png" width="880" alt="TermZip in the Catppuccin Latte theme with the command palette open, listing actions with their shortcuts" />
+  <img src="docs/images/termzip-palette-light.png" width="880" alt="TermZip in the Catppuccin Latte theme with the command palette open, filtered to the commands of the Snippets plugin, each marked as a plugin" />
   <br />
-  <sub>Catppuccin Latte with the command palette (⇧⌘P): every action, tab, profile, and theme, with the shortcut you set.</sub>
+  <sub>Catppuccin Latte with the command palette (⇧⌘P): every action, tab, profile, and theme, and the commands of your plugins, marked as such.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/termzip-plugin-catalog.png" width="880" alt="The Catalog tab of the Plugins preferences listing four signed plugins with their authors, sizes, and the permissions each asks for" />
+  <br />
+  <sub>Preferences → Plugins → Catalog. The list is checked against a signature before it is trusted, and every plugin shows what it will ask for.</sub>
 </p>
 
 ## Getting started
