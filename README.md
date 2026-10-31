@@ -25,6 +25,7 @@
   <a href="docs/tabs-and-panes.md">Tabs and panes</a> ·
   <a href="docs/themes.md">Themes</a> ·
   <a href="docs/keyboard.md">Keyboard</a> ·
+  <a href="docs/plugins.md">Plugins</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/shell-integration.md">Shell integration</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a> ·
@@ -61,6 +62,9 @@ run again. Tabs and split panes keep several shells in one window, and your layo
   own for each profile.
 - **Every shortcut is yours.** Rebind any of them in Preferences, with a warning before you take a key your shell
   uses, and find anything with the command palette (⇧⌘P).
+- **Plugins in a sandbox.** Small WebAssembly files add palette commands, block labels, status items and links. A plugin
+  cannot read your files, use the network or start a program; it asks for each thing it may see or do, and you approve
+  it first. A signed catalog is one click away, and you can write your own in Rust.
 - **Zinc & blue by default.** A calm, high-contrast visual system with complete dark and light themes.
 
 ## Screenshots
@@ -145,6 +149,8 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command. 
 | [Themes](docs/themes.md) | The gallery and its credits, importing and exporting, the theme file, and how the interface colors are derived. |
 | [Appearance](docs/appearance.md) | Cursor, spacing, window opacity and blur on each system, and per-profile looks. |
 | [Keyboard and command palette](docs/keyboard.md) | Every default shortcut, the editor, `[keybindings]`, and what the palette lists. |
+| [Plugins](docs/plugins.md) | What a plugin can do, installing from a file or the signed catalog, permissions, and the limits. |
+| [Plugin API](docs/plugin-api.md) | For authors: the manifest, the ABI, actions, limits, the versioning policy, and the Rust SDK. |
 | [Profiles and restore](docs/profiles-and-restore.md) | Shell, folder, and environment per profile; what is saved between launches. |
 | [Performance and limits](docs/performance.md) | Flow control for floods of output, block events, and every bound. |
 | [Shell integration](docs/shell-integration.md) | The OSC 133 markers, supported shells, and the limits of block capture. |
@@ -164,6 +170,8 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command. 
 | Shell integration and OSC 133 parser | `crates/termzip-shell` |
 | Cross-platform PTY (ConPTY on Windows) | `crates/termzip-pty` |
 | Settings and shared tokens | `crates/termzip-core` |
+| Plugin API types, the host (sandbox, store, catalog) and the SDK | `crates/termzip-plugin-api`, `crates/termzip-plugins`, `crates/termzip-plugin-sdk` |
+| Example plugins | `examples/plugins` |
 | App icon source | `assets/` |
 
 ## Contributing
