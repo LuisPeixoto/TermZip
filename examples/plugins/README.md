@@ -40,6 +40,16 @@ cargo test -p termzip-plugins --test examples -- --ignored   # from the reposito
 The second one loads the built `.wasm` files into the same reader, store and sandbox the app uses and checks what
 they answer. CI runs both.
 
+## Share a plugin
+
+A build keeps the paths of your source code for panic messages, and that puts the name of your home folder inside the
+file. Remove it before you give the file to anyone:
+
+```sh
+RUSTFLAGS="--remap-path-prefix=$HOME=~ --remap-path-prefix=$(git rev-parse --show-toplevel)=src" \
+  cargo build --release --target wasm32-unknown-unknown
+```
+
 ## Your own plugin
 
 A plugin is a Rust library that builds as a `cdylib`, with a `plugin.toml` next to `Cargo.toml`:
