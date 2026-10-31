@@ -58,12 +58,19 @@
       if (plugin) app.toast("ok", `Installed “${plugin.manifest.name}”. It stays off until you turn it on.`);
     });
 
-  const confirmOn = (plugin: Plugin) =>
-    run(async () => {
+  /** The switch of the plugin row that holds `inside`, so the focus can be handed back to it. */
+  const switchOf = (inside: EventTarget | null) =>
+    (inside as HTMLElement | null)?.closest("li")?.querySelector<HTMLButtonElement>("[role=switch]") ?? null;
+
+  // The confirmation closes with the button that was pressed in it, so the focus goes back to the switch.
+  const confirmOn = async (plugin: Plugin, toggle: HTMLButtonElement | null) => {
+    await run(async () => {
       await api.enablePlugin(plugin.manifest.id);
       asking = null;
       app.toast("ok", `“${plugin.manifest.name}” is on`);
     });
+    toggle?.focus();
+  };
 
   const turnOff = (plugin: Plugin) =>
     run(async () => {
@@ -343,12 +350,22 @@
                   </p>
                 {/if}
                 <div class="mt-2.5 flex justify-end gap-2">
-                  <button type="button" class={small} onclick={() => (asking = null)}>Cancel</button>
+                  <button
+                    type="button"
+                    class={small}
+                    onclick={(event) => {
+                      const toggle = switchOf(event.currentTarget);
+                      asking = null;
+                      toggle?.focus();
+                    }}
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="button"
                     class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 aria-disabled:opacity-40"
                     aria-disabled={busy}
-                    onclick={() => void confirmOn(plugin)}
+                    onclick={(event) => void confirmOn(plugin, switchOf(event.currentTarget))}
                   >
                     Turn on
                   </button>
