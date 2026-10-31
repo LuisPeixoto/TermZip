@@ -37,7 +37,7 @@ thiserror = "2"
 wasmi = { version = "2", default-features = false, features = ["std", "validate", "stable", "portable-dispatch"] }
 wasmparser = { version = "0.228", default-features = false, features = ["std"] }
 wat = "1"
-toml = "0.9"
+toml = "1.1"
 # HTTPS with rustls and bundled roots: no system TLS library to depend on. Only the catalog uses it.
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 termzip-core = { path = "crates/termzip-core" }
