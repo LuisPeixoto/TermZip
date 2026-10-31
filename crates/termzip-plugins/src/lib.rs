@@ -13,8 +13,9 @@ mod sanitize;
 mod store;
 
 pub use catalog::{
-    Catalog, CatalogEntry, CatalogSource, Fetch, HttpFetch, MAX_CATALOG_PLUGINS, MAX_INDEX_BYTES,
-    download, is_newer, load_catalog, parse_index, validate_entry, verify_and_parse,
+    Catalog, CatalogEntry, CatalogSource, Fetch, HttpFetch, INDEX_FORMAT, MAX_CATALOG_PLUGINS,
+    MAX_INDEX_BYTES, download, is_newer, load_catalog, parse_index, validate_entry,
+    verify_and_parse,
 };
 pub use links::{LinkMatch, LinkMatcher};
 pub use manifest::{Module, read_module, validate_manifest};

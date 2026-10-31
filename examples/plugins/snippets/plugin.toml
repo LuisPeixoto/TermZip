@@ -1,0 +1,25 @@
+api = 1
+id = "snippets"
+name = "Snippets"
+version = "0.1.0"
+description = "Commands in the palette that type a command you use often, so you can look at it, change it and press Enter."
+author = "Luis Peixoto"
+license = "MIT"
+homepage = "https://github.com/LuisPeixoto/TermZip/tree/main/examples/plugins/snippets"
+permissions = ["type"]
+
+[[commands]]
+id = "git-status"
+title = "Type git status"
+
+[[commands]]
+id = "git-log"
+title = "Type a compact git log"
+
+[[commands]]
+id = "cargo-clippy"
+title = "Type cargo clippy"
+
+[[commands]]
+id = "list-files"
+title = "Type a detailed file list"

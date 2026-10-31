@@ -1,0 +1,18 @@
+api = 1
+id = "issue-links"
+name = "Issue links"
+version = "0.1.0"
+description = "Turns #123 and owner/repo#123 in the output into links to the issue on GitHub."
+author = "Luis Peixoto"
+license = "MIT"
+homepage = "https://github.com/LuisPeixoto/TermZip/tree/main/examples/plugins/issue-links"
+# No permissions: a link pattern only changes what the output can open, and it opens when you press the
+# modifier key and click, like any other link. Change the repository below to the one you work in.
+
+[[links]]
+pattern = '\b([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)#([0-9]+)\b'
+url = "https://github.com/{1}/{2}/issues/{3}"
+
+[[links]]
+pattern = '\B#([0-9]+)\b'
+url = "https://github.com/LuisPeixoto/TermZip/issues/{1}"
