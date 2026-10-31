@@ -5,7 +5,9 @@
 //! a sandbox. It has no platform code, so it builds and is tested on every system.
 
 mod manifest;
+mod sanitize;
 mod store;
 
 pub use manifest::{Module, read_module, validate_manifest};
+pub use sanitize::{Checked, check_actions, clean_line, clean_typed, is_safe_url};
 pub use store::{Listing, MAX_PLUGINS, PluginInfo, PluginStore, Source, plugins_dir};
