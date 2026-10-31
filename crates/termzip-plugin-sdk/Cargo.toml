@@ -1,0 +1,16 @@
+[package]
+name = "termzip-plugin-sdk"
+description = "Write a TermZip plugin in Rust: a trait, a macro that embeds the manifest and one that exports the functions the app calls"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+termzip-plugin-api.workspace = true
+
+[lints]
+workspace = true
