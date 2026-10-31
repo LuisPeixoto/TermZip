@@ -5,6 +5,7 @@
 //! a sandbox. It has no platform code, so it builds and is tested on every system.
 
 mod manifest;
+mod store;
 
 pub use manifest::{Module, read_module, validate_manifest};
 pub use store::{Listing, MAX_PLUGINS, PluginInfo, PluginStore, Source, plugins_dir};
