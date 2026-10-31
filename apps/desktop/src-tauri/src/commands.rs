@@ -28,6 +28,7 @@ pub struct SettingsPayload {
     pub shell: Option<String>,
     pub working_directory: Option<String>,
     pub restore_session: bool,
+    pub plugins_catalog: bool,
     pub default_profile: Option<String>,
     pub keybindings: std::collections::BTreeMap<String, String>,
     pub profiles: Vec<ProfilePayload>,
@@ -98,6 +99,7 @@ impl From<termzip_core::Settings> for SettingsPayload {
             shell: settings.shell,
             working_directory: settings.working_directory,
             restore_session: settings.restore_session,
+            plugins_catalog: settings.plugins_catalog,
             default_profile: settings.default_profile,
             profiles: settings.profiles.into_iter().map(Into::into).collect(),
         }
@@ -124,6 +126,7 @@ impl SettingsPayload {
             shell: self.shell,
             working_directory: self.working_directory,
             restore_session: self.restore_session,
+            plugins_catalog: self.plugins_catalog,
             default_profile: self.default_profile,
             keybindings: self.keybindings,
             profiles: self.profiles.into_iter().map(Into::into).collect(),

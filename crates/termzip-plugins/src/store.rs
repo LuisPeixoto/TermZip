@@ -76,7 +76,8 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+/// The SHA-256 of some bytes, in lowercase hex: how a plugin file is identified.
+pub fn sha256_hex(bytes: &[u8]) -> String {
     hex(&Sha256::digest(bytes))
 }
 

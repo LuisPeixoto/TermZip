@@ -18,6 +18,7 @@ export function defaultSettings(): Settings {
     shell: null,
     workingDirectory: null,
     restoreSession: true,
+    pluginsCatalog: true,
     defaultProfile: null,
     keybindings: {},
     profiles: [],

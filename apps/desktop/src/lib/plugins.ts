@@ -1,5 +1,5 @@
 /** What the interface says about a plugin, as pure functions. */
-import type { Plugin, PluginManifest, PluginPermission } from "./api";
+import type { CatalogItem, Plugin, PluginManifest, PluginPermission } from "./api";
 
 export interface PermissionChip {
   permission: PluginPermission;
@@ -64,4 +64,22 @@ export function describeAsk(plugin: Plugin): string {
   return plugin.manifest.permissions.length > 0
     ? `“${plugin.manifest.name}” asks to:`
     : `“${plugin.manifest.name}” asks for no permission: it can only show labels and a status, add commands and make links.`;
+}
+
+/** What the button of a catalog entry says and whether it can be pressed. */
+export function catalogAction(item: CatalogItem): { label: string; enabled: boolean } {
+  if (item.installedVersion === null) return { label: "Install", enabled: true };
+  if (item.updateAvailable) return { label: `Update to ${item.version}`, enabled: true };
+  return { label: item.installedVersion === item.version ? "Installed" : "Installed (newer)", enabled: false };
+}
+
+export function permissionChipsOf(permissions: readonly PluginPermission[]): PermissionChip[] {
+  return permissions.map((permission) => ({ permission, ...CHIPS[permission] }));
+}
+
+/** `1.2 MB`, `640 KB`, `90 B`. */
+export function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
 }

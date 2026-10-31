@@ -60,6 +60,9 @@ pub struct Settings {
     pub working_directory: Option<String>,
     /// Reopen the tabs, splits and folders of the last run.
     pub restore_session: bool,
+    /// Whether TermZip may look at the plugin catalog on the network. It only does when asked to, and never
+    /// at startup; with this off it never does.
+    pub plugins_catalog: bool,
     /// The profile a new tab starts with; `None` is the built-in one.
     pub default_profile: Option<String>,
     /// Shortcut overrides, `action = "Cmd+Shift+D"`; an empty chord unbinds the action. Tables come
@@ -86,6 +89,7 @@ impl Default for Settings {
             shell: None,
             working_directory: None,
             restore_session: true,
+            plugins_catalog: true,
             default_profile: None,
             keybindings: BTreeMap::new(),
             profiles: Vec::new(),
@@ -440,6 +444,22 @@ mod tests {
         assert!(settings.restore_session);
         assert!(settings.profiles.is_empty());
         assert_eq!(settings.default_profile, None);
+    }
+
+    #[test]
+    fn the_plugin_catalog_is_on_by_default_and_a_config_from_0_3_keeps_working() {
+        assert!(Settings::default().plugins_catalog);
+        // A 0.3 config has no such key.
+        assert!(Settings::from_toml("theme = 'dark'\nrestore_session = false\n").plugins_catalog);
+        assert!(!Settings::from_toml("plugins_catalog = false\n").plugins_catalog);
+
+        let off = Settings {
+            plugins_catalog: false,
+            ..Settings::default()
+        };
+        let text = toml::to_string_pretty(&off).unwrap();
+        assert!(text.contains("plugins_catalog = false"), "{text}");
+        assert_eq!(Settings::from_toml(&text), off);
     }
 
     #[test]
