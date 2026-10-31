@@ -87,6 +87,8 @@ pub fn run() {
             plugins::run_plugin_command,
             plugins::match_plugin_links,
             plugins::subscribe_plugins,
+            plugins::load_catalog,
+            plugins::install_from_catalog,
         ])
         .build(tauri::generate_context!())
         .expect("could not initialize the TermZip application")

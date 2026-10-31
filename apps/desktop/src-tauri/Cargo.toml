@@ -35,6 +35,7 @@ termzip-pty.workspace = true
 termzip-shell.workspace = true
 
 [dev-dependencies]
+minisign.workspace = true
 wat.workspace = true
 
 [lints]

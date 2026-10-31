@@ -11,7 +11,8 @@ use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 use termzip_plugin_api::{Action, BlockEvent, Permission, Tone};
 use termzip_plugins::{
-    LinkMatch, LinkMatcher, PluginInfo, PluginStore, Report, Runtime, Sink, Source, Trigger,
+    Catalog, CatalogEntry, CatalogSource, Fetch, HttpFetch, LinkMatch, LinkMatcher, PluginInfo,
+    PluginStore, Report, Runtime, Sink, Source, Trigger,
 };
 use termzip_shell::Block;
 
@@ -371,6 +372,173 @@ pub fn subscribe_plugins(on_event: Channel<PluginEvent>, host: State<'_, Arc<Plu
     if let Ok(mut slot) = host.subscriber.lock() {
         *slot = Some(on_event);
     }
+}
+
+// --- the catalog ---------------------------------------------------------------------------------------------
+
+/// Where the catalog is and the key its index is signed with. The key is what is trusted: nothing in a
+/// catalog is read unless it was signed with it.
+const CATALOG_URL: &str =
+    "https://github.com/LuisPeixoto/termzip-plugins/releases/latest/download/index.json";
+/// minisign's `RWQ...` public key of the catalog. Empty until the catalog repository has one.
+const CATALOG_PUBLIC_KEY: &str = "";
+
+/// The catalog this build trusts. A debug build may be pointed at another with `TERMZIP_CATALOG_URL` and
+/// `TERMZIP_CATALOG_KEY`, to try a catalog served from this machine; a release build has no such override.
+fn catalog_location() -> (String, String) {
+    #[cfg(debug_assertions)]
+    if let (Ok(url), Ok(key)) = (
+        std::env::var("TERMZIP_CATALOG_URL"),
+        std::env::var("TERMZIP_CATALOG_KEY"),
+    ) {
+        return (url, key);
+    }
+    (CATALOG_URL.to_owned(), CATALOG_PUBLIC_KEY.to_owned())
+}
+
+fn fetcher() -> HttpFetch {
+    #[cfg(debug_assertions)]
+    if std::env::var_os("TERMZIP_CATALOG_URL").is_some() {
+        return HttpFetch::for_development();
+    }
+    HttpFetch::new()
+}
+
+/// An entry of the catalog as the interface shows it: what it offers, and how it compares with what is installed.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogItem {
+    #[serde(flatten)]
+    pub entry: CatalogEntry,
+    pub installed_version: Option<String>,
+    pub update_available: bool,
+    pub permission_notes: Vec<PermissionNote>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CatalogView {
+    pub items: Vec<CatalogItem>,
+    pub problems: Vec<String>,
+}
+
+fn catalog_view(catalog: Catalog, installed: &[PluginInfo]) -> CatalogView {
+    let items = catalog
+        .plugins
+        .into_iter()
+        .map(|entry| {
+            let installed_version = installed
+                .iter()
+                .find(|info| info.manifest.id == entry.id)
+                .map(|info| info.manifest.version.clone());
+            let update_available = installed_version
+                .as_deref()
+                .is_some_and(|version| termzip_plugins::is_newer(version, &entry.version));
+            let permission_notes = entry
+                .permissions
+                .iter()
+                .map(|permission| PermissionNote {
+                    permission: *permission,
+                    text: permission.describe(),
+                })
+                .collect();
+            CatalogItem {
+                entry,
+                installed_version,
+                update_available,
+                permission_notes,
+            }
+        })
+        .collect();
+    CatalogView {
+        items,
+        problems: catalog.problems,
+    }
+}
+
+const CATALOG_OFF: &str = "The plugin catalog is turned off in Preferences.";
+
+/// Loads the catalog if the user allows it. With it off nothing is fetched.
+fn fetch_catalog(
+    fetch: &dyn Fetch,
+    source: CatalogSource<'_>,
+    allowed: bool,
+) -> Result<Catalog, String> {
+    if !allowed {
+        return Err(CATALOG_OFF.to_owned());
+    }
+    termzip_plugins::load_catalog(fetch, source)
+}
+
+/// Downloads one plugin of the catalog (checked against the signed index) and installs it, off.
+fn install_entry(
+    fetch: &dyn Fetch,
+    source: CatalogSource<'_>,
+    allowed: bool,
+    store: &PluginStore,
+    id: &str,
+) -> Result<PluginInfo, String> {
+    let catalog = fetch_catalog(fetch, source, allowed)?;
+    let entry = catalog
+        .plugins
+        .iter()
+        .find(|entry| entry.id == id)
+        .ok_or("That plugin is not in the catalog.")?;
+    let bytes = termzip_plugins::download(fetch, entry)?;
+    store.install(&bytes, Source::Catalog)
+}
+
+fn catalog_allowed() -> Result<bool, String> {
+    termzip_core::Settings::load()
+        .map(|settings| settings.plugins_catalog)
+        .map_err(|error| error.to_string())
+}
+
+/// Loads the catalog, only because the user asked to, and only if they have not turned it off.
+#[tauri::command]
+pub async fn load_catalog(host: State<'_, Arc<PluginHost>>) -> Result<CatalogView, String> {
+    let allowed = catalog_allowed()?;
+    let store = host.store()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (url, key) = catalog_location();
+        let catalog = fetch_catalog(
+            &fetcher(),
+            CatalogSource {
+                index_url: &url,
+                public_key: &key,
+            },
+            allowed,
+        )?;
+        Ok(catalog_view(catalog, &store.list().plugins))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+/// Installs a plugin from the catalog, off, marked as verified. The user turns it on afterwards.
+#[tauri::command]
+pub async fn install_from_catalog(
+    id: String,
+    host: State<'_, Arc<PluginHost>>,
+) -> Result<PluginView, String> {
+    let allowed = catalog_allowed()?;
+    let store = host.store()?;
+    let installed = tauri::async_runtime::spawn_blocking(move || {
+        let (url, key) = catalog_location();
+        install_entry(
+            &fetcher(),
+            CatalogSource {
+                index_url: &url,
+                public_key: &key,
+            },
+            allowed,
+            &store,
+            &id,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    host.sync();
+    Ok(view(&host, installed))
 }
 
 #[cfg(test)]
@@ -737,5 +905,195 @@ mod tests {
         );
         assert!(host.runtime.running().is_empty());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // --- the catalog ------------------------------------------------------------------------------------------
+
+    use std::collections::HashMap;
+
+    struct Published(HashMap<String, Vec<u8>>);
+
+    impl Fetch for Published {
+        fn get(&self, url: &str, limit: usize) -> Result<Vec<u8>, String> {
+            let body = self.0.get(url).ok_or("The server answered 404.")?;
+            if body.len() > limit {
+                return Err("The answer is larger than the limit.".to_owned());
+            }
+            Ok(body.clone())
+        }
+    }
+
+    /// A fetcher that must never be used: with the catalog off, nothing may be fetched.
+    struct Forbidden;
+
+    impl Fetch for Forbidden {
+        fn get(&self, url: &str, _limit: usize) -> Result<Vec<u8>, String> {
+            panic!("fetched {url} although the catalog is off");
+        }
+    }
+
+    const INDEX_URL: &str = "https://plugins.example.com/index.json";
+
+    struct Catalog {
+        fetch: Published,
+        key: String,
+        entry: CatalogEntry,
+    }
+
+    /// A catalog that offers the demo plugin, signed with a key made for the test.
+    fn published(file: &[u8], listed_version: &str) -> Catalog {
+        let pair = minisign::KeyPair::generate_unencrypted_keypair().unwrap();
+        let entry = CatalogEntry {
+            id: "demo".to_owned(),
+            name: "Demo plugin".to_owned(),
+            version: listed_version.to_owned(),
+            description: "A demo".to_owned(),
+            author: Some("Luis".to_owned()),
+            license: Some("MIT".to_owned()),
+            homepage: None,
+            permissions: vec![Permission::Blocks, Permission::Notify, Permission::Type],
+            url: "https://plugins.example.com/demo.wasm".to_owned(),
+            sha256: termzip_plugins::sha256_hex(file),
+            size: file.len() as u64,
+        };
+        let index =
+            serde_json::to_vec(&serde_json::json!({ "version": 1, "plugins": [entry] })).unwrap();
+        let signature = minisign::sign(Some(&pair.pk), &pair.sk, index.as_slice(), None, None)
+            .unwrap()
+            .into_string();
+        Catalog {
+            fetch: Published(HashMap::from([
+                (INDEX_URL.to_owned(), index),
+                (format!("{INDEX_URL}.minisig"), signature.into_bytes()),
+                (entry.url.clone(), file.to_vec()),
+            ])),
+            key: pair.pk.to_base64(),
+            entry,
+        }
+    }
+
+    fn source(catalog: &Catalog) -> CatalogSource<'_> {
+        CatalogSource {
+            index_url: INDEX_URL,
+            public_key: &catalog.key,
+        }
+    }
+
+    #[test]
+    fn with_the_catalog_turned_off_nothing_is_fetched() {
+        let catalog = published(&demo_plugin(), "1.0.0");
+
+        assert_eq!(
+            fetch_catalog(&Forbidden, source(&catalog), false).unwrap_err(),
+            CATALOG_OFF
+        );
+        let (host, dir) = temp_host("catalog-off");
+        let store = host.store().unwrap();
+        assert_eq!(
+            install_entry(&Forbidden, source(&catalog), false, &store, "demo").unwrap_err(),
+            CATALOG_OFF
+        );
+        assert!(store.list().plugins.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_catalog_view_compares_with_what_is_installed() {
+        let file = demo_plugin();
+        let catalog = published(&file, "1.0.0");
+        let (host, dir) = temp_host("catalog-view");
+        let store = host.store().unwrap();
+
+        // Nothing installed: nothing to compare with.
+        let loaded = fetch_catalog(&catalog.fetch, source(&catalog), true).unwrap();
+        let view = catalog_view(loaded, &store.list().plugins);
+        assert_eq!(view.items.len(), 1);
+        assert_eq!(view.items[0].installed_version, None);
+        assert!(!view.items[0].update_available);
+        assert_eq!(view.items[0].permission_notes.len(), 3);
+
+        // The same version installed, then an older one: only the older one is an update.
+        store.install(&file, Source::Catalog).unwrap();
+        let same = catalog_view(
+            fetch_catalog(&catalog.fetch, source(&catalog), true).unwrap(),
+            &store.list().plugins,
+        );
+        assert_eq!(same.items[0].installed_version.as_deref(), Some("1.0.0"));
+        assert!(!same.items[0].update_available);
+
+        let newer = published(&file, "2.0.0");
+        let update = catalog_view(
+            fetch_catalog(&newer.fetch, source(&newer), true).unwrap(),
+            &store.list().plugins,
+        );
+        assert!(update.items[0].update_available);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn installing_from_the_catalog_gives_a_verified_plugin_that_is_still_off() {
+        let file = demo_plugin();
+        let catalog = published(&file, "1.0.0");
+        let (host, dir) = temp_host("catalog-install");
+        let store = host.store().unwrap();
+
+        let info = install_entry(&catalog.fetch, source(&catalog), true, &store, "demo").unwrap();
+
+        assert_eq!(info.source, Source::Catalog);
+        assert!(!info.enabled, "installing never turns a plugin on");
+        assert_eq!(info.sha256, catalog.entry.sha256);
+        assert_eq!(store.list().plugins.len(), 1);
+        // And the view the interface gets serializes the way it expects.
+        let json = serde_json::to_value(view(&host, info)).unwrap();
+        assert_eq!(json["source"], "catalog");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_package_that_is_not_what_the_signed_index_promised_installs_nothing() {
+        let file = demo_plugin();
+        let mut catalog = published(&file, "1.0.0");
+        let (host, dir) = temp_host("catalog-tampered");
+        let store = host.store().unwrap();
+
+        // The file at the download address was swapped for another (same size, different content).
+        let mut swapped = file.clone();
+        let last = swapped.len() - 1;
+        swapped[last] ^= 1;
+        catalog.fetch.0.insert(catalog.entry.url.clone(), swapped);
+
+        let error =
+            install_entry(&catalog.fetch, source(&catalog), true, &store, "demo").unwrap_err();
+        assert!(error.contains("checksum"), "{error}");
+        assert!(store.list().plugins.is_empty());
+
+        // An id the catalog does not list.
+        let error =
+            install_entry(&catalog.fetch, source(&catalog), true, &store, "ghost").unwrap_err();
+        assert!(error.contains("not in the catalog"), "{error}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_catalog_that_was_not_signed_with_the_trusted_key_is_not_read() {
+        let catalog = published(&demo_plugin(), "1.0.0");
+        let other = minisign::KeyPair::generate_unencrypted_keypair().unwrap();
+        let wrong = CatalogSource {
+            index_url: INDEX_URL,
+            public_key: &other.pk.to_base64(),
+        };
+
+        let error = fetch_catalog(&catalog.fetch, wrong, true).unwrap_err();
+        assert!(error.contains("signature does not match"), "{error}");
+        // No key built in yet (the shipped constant is empty) is explained too, not trusted.
+        let none = CatalogSource {
+            index_url: INDEX_URL,
+            public_key: "",
+        };
+        assert!(
+            fetch_catalog(&catalog.fetch, none, true)
+                .unwrap_err()
+                .contains("key built into")
+        );
     }
 }
