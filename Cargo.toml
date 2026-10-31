@@ -35,7 +35,7 @@ thiserror = "2"
 # Portable dispatch is a plain loop. The automatic choice may rely on the optimizer to turn calls into jumps, and
 # a plugin that loops then overflows the stack of the host instead of running out of fuel.
 wasmi = { version = "2", default-features = false, features = ["std", "validate", "stable", "portable-dispatch"] }
-wasmparser = { version = "0.228", default-features = false, features = ["std"] }
+wasmparser = { version = "0.262", default-features = false, features = ["std"] }
 wat = "1"
 toml = "0.9"
 # HTTPS with rustls and bundled roots: no system TLS library to depend on. Only the catalog uses it.
