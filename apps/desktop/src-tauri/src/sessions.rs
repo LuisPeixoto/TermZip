@@ -59,7 +59,12 @@ pub struct SessionRequest {
     pub env: BTreeMap<String, String>,
 }
 
+/// Told about every finished block of every session, with the id of the session.
+pub type BlockObserver = Arc<dyn Fn(u32, &Block) + Send + Sync>;
+
 pub struct SessionHandle {
+    id: u32,
+    observer: Option<BlockObserver>,
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     master: Mutex<Box<dyn termzip_pty::MasterPty + Send>>,
     child: Mutex<Box<dyn termzip_pty::Child + Send + Sync>>,
@@ -121,9 +126,17 @@ impl SessionHandle {
 pub struct Sessions {
     inner: Mutex<HashMap<u32, Arc<SessionHandle>>>,
     next_id: AtomicU32,
+    observer: Mutex<Option<BlockObserver>>,
 }
 
 impl Sessions {
+    /// Who is told about finished blocks, for sessions created from now on.
+    pub fn set_block_observer(&self, observer: BlockObserver) {
+        if let Ok(mut slot) = self.observer.lock() {
+            *slot = Some(observer);
+        }
+    }
+
     fn allocate_id(&self) -> u32 {
         self.next_id.fetch_add(1, Ordering::Relaxed)
     }
@@ -167,7 +180,10 @@ impl Sessions {
         };
 
         let parts = session.into_parts();
+        let observer = self.observer.lock().ok().and_then(|slot| slot.clone());
         let handle = Arc::new(SessionHandle {
+            id,
+            observer,
             writer: parts.writer,
             master: Mutex::new(parts.master),
             child: Mutex::new(parts.child),
@@ -294,6 +310,9 @@ fn handle_chunk(events: &Channel<SessionEvent>, handle: &Arc<SessionHandle>, chu
         return;
     };
     for event in apply_chunk(&mut parser, &mut tracker, chunk) {
+        if let (SessionEvent::Block { block }, Some(observer)) = (&event, &handle.observer) {
+            observer(handle.id, block);
+        }
         let _ = events.send(event);
     }
 }
@@ -650,6 +669,37 @@ mod tests {
         assert!(wait_for(&collected, "exit"));
         let output = received_text(&collected);
         assert!(output.contains("[from-the-profile]"), "{output}");
+    }
+
+    /// (session id, command) of each block an observer was told about.
+    type Seen = Arc<Mutex<Vec<(u32, Option<String>)>>>;
+
+    #[test]
+    fn an_observer_is_told_about_each_finished_block_with_its_session() {
+        let sessions = Sessions::default();
+        let seen: Seen = Arc::default();
+        sessions.set_block_observer({
+            let seen = seen.clone();
+            Arc::new(move |id, block| seen.lock().unwrap().push((id, block.command.clone())))
+        });
+        let (channel, collected) = collecting_channel();
+        // The shell prints the markers of one finished command, as the integration scripts do.
+        let printed = String::from_utf8(command("echo hi", "hi\n", 0))
+            .unwrap()
+            .replace('\x1b', "\\033")
+            .replace('\x07', "\\007")
+            .replace('\n', "\\n");
+        let info = open(
+            &sessions,
+            channel,
+            &format!("printf '%b' '{printed}'; exit 0\n"),
+        );
+
+        assert!(wait_for(&collected, "exit"));
+        assert_eq!(
+            *seen.lock().unwrap(),
+            [(info.id, Some("echo hi".to_owned()))]
+        );
     }
 
     fn received_text(collected: &Collected) -> String {

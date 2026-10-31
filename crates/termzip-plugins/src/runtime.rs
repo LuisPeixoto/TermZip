@@ -27,8 +27,8 @@ const THREAD_STACK_BYTES: usize = 8 * 1024 * 1024;
 pub enum Trigger {
     /// A finished command: where it ran, so a label can be put on its block.
     Block { session: u32, index: usize },
-    /// A palette command the user ran.
-    Command { command: String },
+    /// A palette command the user ran, from the terminal with this session id.
+    Command { command: String, session: u32 },
 }
 
 /// What the runtime tells its owner.
@@ -55,7 +55,10 @@ enum Job {
         session: u32,
         event: Box<BlockEvent>,
     },
-    Command(CommandCall),
+    Command {
+        call: CommandCall,
+        session: u32,
+    },
 }
 
 struct Worker {
@@ -103,9 +106,10 @@ fn work(
                 sandbox.on_block(&event),
                 false,
             ),
-            Job::Command(call) => (
+            Job::Command { call, session } => (
                 Trigger::Command {
                     command: call.command.clone(),
+                    session,
                 },
                 sandbox.run_command(&call),
                 true,
@@ -208,6 +212,19 @@ impl Runtime {
         }
     }
 
+    /// Every plugin that was started and not stopped by the owner, including one that stopped itself.
+    pub fn known(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self.workers().keys().cloned().collect();
+        ids.sort();
+        ids
+    }
+
+    /// Whether a plugin has been started and not stopped by the owner. A plugin that stopped itself after
+    /// repeated crashes still counts: it stays out of the running until it is started again on purpose.
+    pub fn has(&self, id: &str) -> bool {
+        self.workers().contains_key(id)
+    }
+
     /// The plugins that are running: a plugin that was stopped for faulting is not.
     pub fn running(&self) -> Vec<String> {
         let mut ids: Vec<String> = self
@@ -265,8 +282,15 @@ impl Runtime {
         }
     }
 
-    /// Runs one of a plugin's palette commands. The answer arrives as a [`Report`].
-    pub fn run_command(&self, id: &str, command: &str, cwd: Option<&str>) -> Result<(), String> {
+    /// Runs one of a plugin's palette commands, from the terminal with this session id. The answer arrives as
+    /// a [`Report`] that names the same session.
+    pub fn run_command(
+        &self,
+        id: &str,
+        command: &str,
+        cwd: Option<&str>,
+        session: u32,
+    ) -> Result<(), String> {
         let workers = self.workers();
         let worker = workers
             .get(id)
@@ -277,7 +301,7 @@ impl Runtime {
             command: command.to_owned(),
             cwd: cwd.map(str::to_owned),
         };
-        if Self::offer(worker, Job::Command(call)) {
+        if Self::offer(worker, Job::Command { call, session }) {
             Ok(())
         } else {
             Err("That plugin is busy. Try again in a moment.".to_owned())
@@ -408,7 +432,7 @@ mod tests {
                 &allowed,
             )
             .unwrap();
-        runtime.run_command("t", "go", Some("/w")).unwrap();
+        runtime.run_command("t", "go", Some("/w"), 5).unwrap();
 
         let Report::Actions {
             trigger, actions, ..
@@ -419,7 +443,8 @@ mod tests {
         assert_eq!(
             trigger,
             Trigger::Command {
-                command: "go".to_owned()
+                command: "go".to_owned(),
+                session: 5
             }
         );
         // The line break is gone, so it will not run.
@@ -434,7 +459,7 @@ mod tests {
                 &denied,
             )
             .unwrap();
-        runtime.run_command("t", "go", None).unwrap();
+        runtime.run_command("t", "go", None, 1).unwrap();
         assert!(reports.recv_timeout(Duration::from_millis(500)).is_err());
     }
 
@@ -506,7 +531,9 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         assert!(runtime.running().is_empty());
-        assert!(runtime.run_command("t", "go", None).is_err());
+        assert!(runtime.run_command("t", "go", None, 1).is_err());
+        // It stopped itself, but it is still the owner's to start again on purpose: `has` says it is known.
+        assert!(runtime.has("t"));
     }
 
     #[test]
@@ -591,7 +618,7 @@ mod tests {
 
         runtime.stop("t");
         assert!(runtime.running().is_empty());
-        assert!(runtime.run_command("t", "go", None).is_err());
+        assert!(runtime.run_command("t", "go", None, 1).is_err());
         // Stopping what is not running is fine.
         runtime.stop("t");
         runtime.stop_all();

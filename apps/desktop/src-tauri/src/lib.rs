@@ -3,10 +3,14 @@
 mod commands;
 mod flow;
 mod links;
+mod plugins;
 mod sessions;
 mod themes;
 mod window;
 
+use std::sync::Arc;
+
+use plugins::PluginHost;
 use sessions::Sessions;
 use tauri::Manager;
 
@@ -34,6 +38,14 @@ fn app_menu(handle: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri:
 }
 
 pub fn run() {
+    // Plugins are told about every finished block of every session.
+    let host = Arc::new(PluginHost::new());
+    let sessions = Sessions::default();
+    sessions.set_block_observer({
+        let host = Arc::clone(&host);
+        Arc::new(move |session, block| host.on_block(session, block))
+    });
+
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.menu(app_menu);
@@ -41,7 +53,13 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(Sessions::default())
+        .manage(sessions)
+        .manage(host)
+        .setup(|app| {
+            // Start the plugins the user approved before the first terminal opens.
+            app.state::<Arc<PluginHost>>().sync();
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,
@@ -61,12 +79,21 @@ pub fn run() {
             themes::import_theme,
             themes::export_theme,
             themes::delete_theme,
+            plugins::list_plugins,
+            plugins::install_plugin_file,
+            plugins::enable_plugin,
+            plugins::disable_plugin,
+            plugins::uninstall_plugin,
+            plugins::run_plugin_command,
+            plugins::match_plugin_links,
+            plugins::subscribe_plugins,
         ])
         .build(tauri::generate_context!())
         .expect("could not initialize the TermZip application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 app.state::<Sessions>().destroy_all();
+                app.state::<Arc<PluginHost>>().stop_all();
             }
         });
 }
