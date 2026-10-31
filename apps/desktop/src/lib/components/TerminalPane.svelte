@@ -19,6 +19,7 @@
   import { fontStack } from "../terminal/font";
   import { paneSurface, resolvePaneLook } from "../paneLook";
   import { themes } from "../stores/themes.svelte";
+  import { pluginStore } from "../stores/plugins.svelte";
 
   let { pane }: { pane: Pane } = $props();
 
@@ -204,6 +205,34 @@
         callback(links.length > 0 ? links : undefined);
       },
     });
+    // Link patterns of plugins: the line goes to the backend only when some running plugin has patterns.
+    terminal.registerLinkProvider({
+      provideLinks: (row, callback) => {
+        const line = terminal?.buffer.active.getLine(row - 1);
+        if (!pluginStore.hasLinks || !line) return callback(undefined);
+        const cells = Array.from({ length: line.length }, (_, column) => {
+          const cell = line.getCell(column);
+          return { chars: cell?.getChars() ?? "", width: cell?.getWidth() ?? 1 };
+        });
+        const { text, columns } = cellsToLine(cells);
+        void api
+          .matchPluginLinks(text)
+          .then((found) => {
+            const links = found.map((match) => {
+              const { start, end } = columnsOf({ text: match.url, start: match.start, end: match.end }, columns);
+              return {
+                range: { start: { x: start, y: row }, end: { x: end, y: row } },
+                text: match.url,
+                activate: (event: MouseEvent) => openLink(event, match.url),
+                hover: (event: MouseEvent) => showHint(event),
+                leave: hideHint,
+              };
+            });
+            callback(links.length > 0 ? links : undefined);
+          })
+          .catch(() => callback(undefined));
+      },
+    });
     terminal.open(container!);
 
     try {
@@ -222,6 +251,7 @@
       restart: restartShell,
       focus: () => terminal?.focus(),
       clearSelection: () => terminal?.clearSelection(),
+      paste: (text) => terminal?.paste(text),
     };
     terminal.onData(onTerminalData);
     terminal.attachCustomKeyEventHandler(onCustomKey);

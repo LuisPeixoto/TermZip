@@ -3,9 +3,12 @@
   import AnsiOutput from "./AnsiOutput.svelte";
   import type { Block } from "../api";
   import { basename } from "../paths";
+  import { pluginStore } from "../stores/plugins.svelte";
+  import type { PluginLabel } from "../pluginEvents";
 
   let {
     block,
+    labels = [],
     expanded,
     copied,
     ontoggle,
@@ -13,6 +16,8 @@
     onrerun,
   }: {
     block: Block;
+    /** Badges plugins put on this block. */
+    labels?: PluginLabel[];
     expanded: boolean;
     /** The key of the button that was just pressed, to show a check mark for a moment. */
     copied: string | null;
@@ -28,6 +33,10 @@
     if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 2 : 1)} s`;
     const minutes = Math.floor(seconds / 60);
     return `${minutes}m ${Math.round(seconds % 60)}s`;
+  }
+
+  function toneClass(tone: PluginLabel["tone"]): string {
+    return { info: "bg-hover text-muted", ok: "bg-ok/15 text-ok", warn: "bg-warn/15 text-warn", err: "bg-err/15 text-err" }[tone];
   }
 
   function statusClass(entry: Block): string {
@@ -56,6 +65,14 @@
         </span>
       </button>
       <div class="flex shrink-0 items-center gap-1.5">
+        {#each labels as label (label.plugin)}
+          <span
+            class="rounded px-1.5 py-0.5 text-[9.5px] font-medium {toneClass(label.tone)}"
+            title="From the plugin {pluginStore.name(label.plugin)}"
+          >
+            {label.text}
+          </span>
+        {/each}
         {#if block.exitCode != null}
           <span
             class="mono rounded px-1.5 py-0.5 text-[9.5px] font-semibold {statusClass(block)}"

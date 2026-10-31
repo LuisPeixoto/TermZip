@@ -6,6 +6,7 @@
   import { workspace } from "./lib/stores/workspace.svelte";
   import { matchShortcut } from "./lib/shortcuts";
   import { runAction } from "./lib/runAction";
+  import { pluginStore } from "./lib/stores/plugins.svelte";
   import Toolbar from "./lib/components/Toolbar.svelte";
   import PaneGrid from "./lib/components/PaneGrid.svelte";
   import BlocksRail from "./lib/components/BlocksRail.svelte";
@@ -31,6 +32,13 @@
         workspace.restore(null);
       }
       persistence = persistWorkspace(workspace, api.saveWorkspace);
+      // Plugins that were approved are already running; list them and listen to what they answer.
+      try {
+        await pluginStore.load();
+        await pluginStore.listen();
+      } catch (error) {
+        app.toast("warn", `Could not load the plugins: ${error}`);
+      }
     })();
 
     // A window that is closing cannot wait for the debounce.

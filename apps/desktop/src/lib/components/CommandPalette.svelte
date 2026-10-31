@@ -6,6 +6,8 @@
   import { paletteEntries, type PaletteEntry } from "../paletteEntries";
   import { runAction } from "../runAction";
   import { app } from "../stores/app.svelte";
+  import { api } from "../api";
+  import { pluginStore } from "../stores/plugins.svelte";
   import { themes } from "../stores/themes.svelte";
   import { workspace } from "../stores/workspace.svelte";
 
@@ -22,6 +24,14 @@
       tabs: workspace.tabs.map((tab) => tab.title),
       currentThemeId: app.theme?.id ?? null,
       blurSupported: app.blurSupported,
+      plugins: pluginStore.running.flatMap((plugin) =>
+        plugin.manifest.commands.map((command) => ({
+          plugin: plugin.manifest.id,
+          pluginName: plugin.manifest.name,
+          id: command.id,
+          title: command.title,
+        })),
+      ),
       commands: {
         run: runAction,
         goToTab: (position) => {
@@ -38,6 +48,18 @@
               ? { theme: "dark" as const, darkTheme: theme.id }
               : { theme: "light" as const, lightTheme: theme.id };
           void app.updateSettings(choice).catch((error) => app.toast("err", `Could not change the theme: ${error}`));
+        },
+        runPluginCommand: (plugin, command) => {
+          const pane = workspace.activePane;
+          if (!pane.session) {
+            app.toast("warn", "The shell is not running yet");
+            return;
+          }
+          // The answer arrives on the plugin channel and names this terminal, so typing goes where it was run.
+          void api
+            .runPluginCommand(plugin, command, pane.cwd ?? pane.restoreDirectory, pane.session.id)
+            .catch((error) => app.toast("warn", String(error)));
+          focusTerminal();
         },
         toggleAppearance: () => void app.toggleTheme(),
         toggleBlur: () => {

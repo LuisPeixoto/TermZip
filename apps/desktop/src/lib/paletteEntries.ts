@@ -26,6 +26,8 @@ export interface PaletteInput {
   /** The theme in use, which is marked in the list. */
   currentThemeId: string | null;
   blurSupported: boolean;
+  /** The commands of the plugins that are running. */
+  plugins: readonly { plugin: string; pluginName: string; id: string; title: string }[];
   commands: {
     run(action: AppShortcut): void;
     goToTab(position: number): void;
@@ -33,6 +35,7 @@ export interface PaletteInput {
     useTheme(theme: Theme): void;
     toggleAppearance(): void;
     toggleBlur(): void;
+    runPluginCommand(plugin: string, command: string): void;
   };
 }
 
@@ -45,6 +48,15 @@ export function paletteEntries(input: PaletteInput): PaletteEntry[] {
   for (const action of ACTIONS) {
     if (action.id === "commandPalette" || tabPosition(action.id) !== null) continue;
     entries.push({ id: `action:${action.id}`, title: action.label, detail: key(action.id), run: () => commands.run(action.id) });
+  }
+
+  for (const entry of input.plugins) {
+    entries.push({
+      id: `plugin:${entry.plugin}:${entry.id}`,
+      title: `${entry.pluginName}: ${entry.title}`,
+      detail: "plugin",
+      run: () => commands.runPluginCommand(entry.plugin, entry.id),
+    });
   }
 
   input.tabs.slice(0, 9).forEach((title, position) => {

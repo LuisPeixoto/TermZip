@@ -13,6 +13,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     useTheme: vi.fn(),
     toggleAppearance: vi.fn(),
     toggleBlur: vi.fn(),
+    runPluginCommand: vi.fn(),
   };
   const input: PaletteInput = {
     platform: "macos",
@@ -22,6 +23,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     tabs: ["zsh", "server"],
     currentThemeId: "termzip-dark",
     blurSupported: true,
+    plugins: [],
     commands,
     ...extra,
   };
@@ -93,6 +95,21 @@ describe("the palette's entries", () => {
   it("offers the blur switch only where the system can blur", () => {
     expect(setup().entries.some((entry) => entry.id === "switch:blur")).toBe(true);
     expect(setup({ blurSupported: false }).entries.some((entry) => entry.id === "switch:blur")).toBe(false);
+  });
+
+  it("has an entry for each command of the running plugins", () => {
+    const plugins = [
+      { plugin: "demo", pluginName: "Demo plugin", id: "status", title: "Type git status" },
+      { plugin: "demo", pluginName: "Demo plugin", id: "log", title: "Type git log" },
+    ];
+    const { entries, commands } = setup({ plugins });
+    const typed = entries.find((entry) => entry.id === "plugin:demo:status");
+
+    expect(typed).toMatchObject({ title: "Demo plugin: Type git status", detail: "plugin" });
+    expect(entries.filter((entry) => entry.id.startsWith("plugin:"))).toHaveLength(2);
+    typed?.run();
+    expect(commands.runPluginCommand).toHaveBeenCalledWith("demo", "status");
+    expect(setup().entries.some((entry) => entry.id.startsWith("plugin:"))).toBe(false);
   });
 
   it("gives every entry a unique id", () => {
