@@ -112,6 +112,15 @@ export class WorkspaceStore {
     this.newTab();
   }
 
+  /** The pane whose shell has this session id, in any tab. */
+  paneBySession(session: number): Pane | undefined {
+    for (const tab of this.tabs) {
+      const found = tab.paneList.find((pane) => pane.session?.id === session);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
   /** The layout as it is saved: structure only, with the folder each shell is in. */
   snapshot(): Workspace {
     const tabs: WorkspaceTab[] = this.tabs.map((tab) => ({

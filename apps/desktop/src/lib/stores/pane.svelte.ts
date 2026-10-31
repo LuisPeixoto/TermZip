@@ -1,6 +1,7 @@
 import { api, type Block, type SessionInfo } from "../api";
 import { appendBlock, type StatusFilter } from "../blocks";
 import { NO_RESULTS, type SearchResults } from "../terminal/search";
+import { addLabel, pruneLabels, type Labels, type PluginLabel } from "../pluginEvents";
 import { toast } from "./toasts.svelte";
 
 /** What the terminal component lets the rest of the app do to its pane. */
@@ -8,6 +9,8 @@ export interface PaneController {
   restart(): void;
   focus(): void;
   clearSelection(): void;
+  /** Pastes text into the terminal, as if it were pasted by the user. */
+  paste(text: string): void;
 }
 
 /** One shell and everything the interface shows about it. */
@@ -26,6 +29,8 @@ export class Pane {
   viewport = $state({ rows: 0, columns: 0 });
   // Replaced as a whole on every change, so there is nothing to gain from a deep proxy.
   blocks = $state.raw<Block[]>([]);
+  /** Badges that plugins put on blocks, by block index. */
+  labels = $state.raw<Labels>({});
 
   /** What the blocks rail is narrowed to for this pane. */
   blockQuery = $state("");
@@ -54,6 +59,7 @@ export class Pane {
     this.title = null;
     this.cwd = null;
     this.blocks = [];
+    this.labels = {};
   }
 
   openSearch(): void {
@@ -77,10 +83,22 @@ export class Pane {
 
   addBlock(block: Block): void {
     this.blocks = appendBlock(this.blocks, block);
+    this.labels = pruneLabels(this.labels, this.blocks.map((entry) => entry.index));
   }
 
   setBlocks(list: Block[]): void {
     this.blocks = list;
+    this.labels = pruneLabels(this.labels, list.map((entry) => entry.index));
+  }
+
+  /** A plugin labels a block. */
+  addLabel(blockIndex: number, label: PluginLabel): void {
+    this.labels = addLabel(this.labels, blockIndex, label);
+  }
+
+  /** Pastes text a plugin asked to type into this terminal. Nothing happens when the terminal is gone. */
+  paste(text: string): void {
+    this.controller?.paste(text);
   }
 
   /** Types text into the running shell, as if it had been entered in the terminal. */
