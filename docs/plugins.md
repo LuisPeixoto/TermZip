@@ -28,7 +28,8 @@ Open **Preferences → Plugins** (⌘, Ctrl+,). There are two ways in.
 - **From a file.** Press **Install from file…** and pick a `.wasm` file. TermZip reads it, checks it, and lists it as
   *From a file: not verified by anyone*. Nobody but you has looked at it, so install only files from people you trust.
 - **From the catalog.** Open the **Catalog** tab, press **Load catalog**, and press **Install** on a plugin. It is
-  listed as *From the catalog, checked against its signature*. See [the catalog](#the-catalog).
+  listed as *From the catalog, checked against its signature*, for as long as the file is the one that was checked: if
+  it changes on disk afterwards it is listed as not verified. See [the catalog](#the-catalog).
 
 Installing never turns a plugin on. A plugin that was just installed is **Off**.
 
