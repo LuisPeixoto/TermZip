@@ -141,6 +141,7 @@
       {#snippet row(block)}
         <BlockCard
           {block}
+          labels={pane.labels[block.index]}
           expanded={isExpanded(block.index)}
           {copied}
           ontoggle={() => toggle(block.index)}

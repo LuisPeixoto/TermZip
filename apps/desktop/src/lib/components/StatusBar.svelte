@@ -1,6 +1,9 @@
 <script lang="ts">
   import { app } from "../stores/app.svelte";
   import { workspace } from "../stores/workspace.svelte";
+  import { pluginStore } from "../stores/plugins.svelte";
+
+  const items = $derived(Object.entries(pluginStore.statuses));
 </script>
 
 <footer
@@ -32,6 +35,11 @@
   <span class="mono">
     {workspace.activePane.viewport.columns}×{workspace.activePane.viewport.rows}
   </span>
+
+  {#each items as [plugin, text] (plugin)}
+    <span class="text-line-strong">·</span>
+    <span class="max-w-[16rem] truncate" title="From the plugin {pluginStore.name(plugin)}">{text}</span>
+  {/each}
 
   <span class="flex-1"></span>
 
