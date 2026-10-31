@@ -115,6 +115,16 @@
     }
   }
 
+  const confirmRemove =
+    "rounded-md border border-err/50 bg-err/10 px-2 py-1 text-[10.5px] text-err transition-colors aria-disabled:opacity-40";
+
+  /** Takes back "Uninstall for good?" and hands the focus to the button that asked it, which stays in place. */
+  function keep(event: MouseEvent) {
+    const row = (event.currentTarget as HTMLElement).parentElement;
+    removing = null;
+    row?.querySelector<HTMLButtonElement>("[data-remove]")?.focus();
+  }
+
   const small =
     "rounded-md border border-line px-2 py-1 text-[10.5px] text-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-40 aria-disabled:opacity-40";
 </script>
@@ -347,20 +357,21 @@
             {/if}
 
             <div class="mt-2.5 flex items-center gap-2">
+              <!-- One button for both steps, so the focus stays on it when it asks "for good?". -->
+              <button
+                type="button"
+                data-remove
+                class={removing === plugin.manifest.id ? confirmRemove : small}
+                aria-disabled={busy}
+                onclick={() => {
+                  if (removing === plugin.manifest.id) void uninstall(plugin);
+                  else removing = plugin.manifest.id;
+                }}
+              >
+                {removing === plugin.manifest.id ? "Uninstall for good?" : "Uninstall"}
+              </button>
               {#if removing === plugin.manifest.id}
-                <button
-                  type="button"
-                  class="rounded-md border border-err/50 bg-err/10 px-2 py-1 text-[10.5px] text-err disabled:opacity-40 aria-disabled:opacity-40"
-                  aria-disabled={busy}
-                  onclick={() => void uninstall(plugin)}
-                >
-                  Uninstall for good?
-                </button>
-                <button type="button" class={small} onclick={() => (removing = null)}>Keep</button>
-              {:else}
-                <button type="button" class={small} aria-disabled={busy} onclick={() => (removing = plugin.manifest.id)}>
-                  Uninstall
-                </button>
+                <button type="button" class={small} onclick={keep}>Keep</button>
               {/if}
               {#if plugin.manifest.homepage}
                 <span class="truncate text-[10.5px] text-faint" title={plugin.manifest.homepage}>
