@@ -1,9 +1,32 @@
 <script lang="ts">
   import { app } from "../../stores/app.svelte";
-  import type { Settings } from "../../api";
+  import { api, type Settings } from "../../api";
+  import { failed, found, summary, type UpdateState } from "../../updates";
   import { field, heading, hint } from "./styles";
 
   let { draft = $bindable() }: { draft: Settings } = $props();
+
+  // Updates are looked for only when this button is pressed (or at startup, if the checkbox below is on).
+  let update = $state<UpdateState>({ kind: "idle" });
+
+  async function checkNow() {
+    update = { kind: "checking" };
+    try {
+      update = found(await api.checkForUpdate());
+    } catch (error) {
+      update = failed(error);
+    }
+  }
+
+  async function install() {
+    update = { kind: "installing" };
+    try {
+      // The app restarts when this succeeds.
+      await api.installUpdate();
+    } catch (error) {
+      update = failed(error);
+    }
+  }
 </script>
 
 <div class="space-y-5">
@@ -73,5 +96,52 @@
         draft = { ...draft, workingDirectory: raw || null };
       }}
     />
+  </section>
+
+  <section>
+    <p class={heading}>Updates</p>
+    <div class="flex flex-wrap items-center gap-2.5 text-[12px]">
+      <span class="text-muted">TermZip <span class="mono text-fg">{app.version}</span></span>
+      <button
+        type="button"
+        class="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg hover:bg-hover disabled:opacity-50"
+        disabled={update.kind === "checking" || update.kind === "installing"}
+        onclick={checkNow}
+      >
+        {update.kind === "checking" ? "Checking…" : "Check for updates"}
+      </button>
+      {#if update.kind === "current"}
+        <span class="text-ok" role="status">You have the newest version.</span>
+      {/if}
+    </div>
+    {#if update.kind === "available"}
+      <div class="mt-2.5 space-y-2 rounded-lg border border-line bg-panel-2 p-3" role="status">
+        <p class="text-[12px] text-fg">{summary(update.info)}</p>
+        {#if update.info.notes}
+          <pre class="mono max-h-40 overflow-auto whitespace-pre-wrap text-[11px] text-muted">{update.info.notes}</pre>
+        {/if}
+        <button
+          type="button"
+          class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+          onclick={install}
+        >
+          Install and restart
+        </button>
+      </div>
+    {:else if update.kind === "installing"}
+      <p class="mt-2.5 text-[11.5px] text-muted" role="status">Downloading and checking the update… TermZip restarts when it is installed.</p>
+    {:else if update.kind === "error"}
+      <p class="mt-2.5 text-[11.5px] text-err" role="alert">{update.message}</p>
+    {/if}
+    <label class="mt-3 flex items-start gap-2.5 text-[12px]">
+      <input type="checkbox" bind:checked={draft.checkUpdatesOnLaunch} class="mt-0.5 size-3.5 accent-accent" />
+      <span>
+        <span class="font-medium text-fg">Check for updates when TermZip starts</span>
+        <span class="mt-0.5 block text-[10.5px] text-faint">
+          Off by default. It asks the update server (github.com) once at startup and only tells you if there is one: it
+          never installs by itself, and every update is verified against the key built into TermZip before it is used.
+        </span>
+      </span>
+    </label>
   </section>
 </div>
