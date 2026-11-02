@@ -8,6 +8,7 @@ Linux **Ctrl+Shift**, so plain Ctrl+R (reverse search), Ctrl+B and the other Ctr
 | Action | macOS | Windows and Linux |
 |---|---|---|
 | Command palette | ⇧⌘P | Ctrl+Shift+P |
+| Insert a snippet (the palette, snippets only) | ⇧⌘S | Ctrl+Shift+S |
 | Preferences | ⌘, | Ctrl+, |
 | Show or hide the command blocks | ⌘B | Ctrl+Shift+B |
 | New tab | ⌘T | Ctrl+Shift+T |
@@ -71,7 +72,7 @@ reading, and the file is rewritten in the canonical order). **Cmd** is the ⌘ k
 | Others | `Tab`, `Enter`, `Space`, `Backspace`, `Delete`, `Insert`, `Home`, `End`, `PageUp`, `PageDown` |
 | Punctuation | `Comma`, `Period`, `Slash`, `Semicolon`, `Quote`, `BracketLeft`, `BracketRight`, `Backslash`, `Minus`, `Equal`, `Backquote` |
 
-The action names are `commandPalette`, `preferences`, `blocks`, `newTab`, `closePane`, `splitRight`, `splitDown`,
+The action names are `commandPalette`, `snippets`, `preferences`, `blocks`, `newTab`, `closePane`, `splitRight`, `splitDown`,
 `nextTab`, `prevTab`, `focusLeft`, `focusRight`, `focusUp`, `focusDown`, `tab1` … `tab9`, `find` and `restart`.
 
 A hand-edited file is read as untrusted input: an entry that is not a well-formed chord (`"D"`, `"Shift+D"`, `"Cmd+,"`)
@@ -89,6 +90,11 @@ It lists:
 - every action above, with the shortcut **you** set;
 - **Go to tab N: name** for each open tab (up to nine);
 - **New tab: profile** for each profile and the built-in one;
+- **Snippet: name** for each of your [snippets](snippets.md) that applies in the folder of the terminal, and the values they
+  ask for in a small form (**⇧⌘S** opens the palette showing only the snippets);
+- **Task: command** for the scripts and commands of the project the terminal is in (see
+  [project tasks](project-tasks.md)): choosing one types it, never runs it;
+- **Open the repository in the browser** when the folder is in a git repository on a code host (see [git](git.md));
 - **Theme: name** for every theme, marking the one in use (it switches to that theme's appearance and saves it);
 - the switch between dark and light, and (where the system can blur) the window blur.
 

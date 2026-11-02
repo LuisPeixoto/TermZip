@@ -18,6 +18,14 @@ real hardware.
 | Translucent window and blur | ✅ vibrancy, manual validation | ⏳ acrylic, pending | ⏳ transparency, pending |
 | Shortcut editor and command palette | ✅ manual validation | ⏳ pending | ⏳ pending |
 | vim / top / tmux / SSH | ⏳ pending | ⏳ pending | ⏳ pending |
+| Snippets: palette, the form, typing without Enter, Preferences | ✅ manual validation | ⏳ pending | ⏳ pending |
+| Project tasks and profiles tied to folders | ✅ manual validation | ⏳ pending | ⏳ pending |
+| SSH profile: starts `ssh` and signs in to a real `sshd` (`tools/live-tests.sh`) | ✅ local | ⏳ pending | ⏳ pending |
+| SSH profile editor and host suggestions from `~/.ssh/config` | ✅ manual validation | ⏳ pending | ⏳ pending |
+| WSL profile: arguments and the UTF-16 list (unit tests) | ✅ local + CI | ✅ CI | ✅ CI |
+| WSL profile: starting a distribution, the list from `wsl.exe` | n/a | ⏳ pending (validation debt) | n/a |
+| Git in the status bar and Open the repository (real repositories in tests) | ✅ local + CI | ✅ CI | ✅ CI |
+| Git item in the running app | ✅ manual validation | ⏳ pending | ⏳ pending |
 | Packaged installer | ✅ debug app build (no bundle) | ⏳ release workflow | ⏳ release workflow |
 
 Legend: ✅ verified, ⏳ pending, n/a not applicable.
@@ -36,3 +44,7 @@ cd apps/desktop
 npm run check && npm run test && npm run build
 npm run tauri build -- --debug --no-bundle
 ```
+
+Tests that need something real (a throwaway `sshd` for the SSH profile) are `#[ignore]`d and run with
+`tools/live-tests.sh`; it starts what it needs on a free local port and deletes it when it ends, without touching your
+`~/.ssh`.

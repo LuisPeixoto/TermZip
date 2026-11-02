@@ -86,17 +86,26 @@ issue before beginning a larger architectural change.
 - [ ] Manual Windows/Linux validation of plugins (install from a file, the palette, links, the catalog); tracked as
   validation debt for Phase 7.
 
-## 📋 Phase 6: Developer workflows · v0.5
+## ✅ Phase 6: Developer workflows · v0.5
 
-- [ ] Snippets and workflows: reusable commands with `{{parameters}}`, found in the command palette and in
-  Preferences, optionally limited to a project folder. They are typed at the prompt and never run for you.
-- [ ] Project tasks: the scripts of `package.json`, Cargo, Makefile, justfile, and `deno.json` found from the folder of
-  the pane and offered in the palette. Profiles can be tied to folders.
-- [ ] SSH and WSL profiles that run `ssh` or `wsl.exe` with the system's own authentication; no private key, password,
-  or identity path is stored in TermZip.
-- [ ] Optional developer integrations that never use the network: the git branch and state in the status bar, and
-  opening the repository's page.
-- [ ] Manual Windows validation of WSL profiles; tracked as validation debt for Phase 7.
+- ✅ Snippets with `{{values}}` and an optional folder: a form in the command palette (⇧⌘S lists only snippets) and
+  **Preferences → Snippets**. The text is typed at the prompt and never run, with every control character removed in
+  Rust. See [snippets](snippets.md).
+- ✅ Project tasks in the palette: the scripts of `package.json`, Cargo's commands and aliases, Makefile targets, justfile
+  recipes and `deno.json` tasks, found the way each tool finds its file, with plain names only. Profiles can be tied to
+  folders. See [project tasks](project-tasks.md).
+- ✅ SSH and WSL profiles: `ssh … -- host` with the person's own agent and `~/.ssh/config`, no key, password or identity
+  file stored, hosts suggested from `~/.ssh/config`; `wsl.exe` with the installed distributions listed. Values are
+  checked twice and can never be read as an option. See [SSH and WSL](ssh-and-wsl.md).
+- ✅ Developer integrations that never use the network: the git branch and state in the status bar (`core.fsmonitor`
+  turned off, no locks, a timeout) and *Open the repository in the browser*, both off with `git_status = false`. See
+  [git](git.md).
+- ✅ `tools/live-tests.sh`: a signed-in SSH session against a throwaway `sshd`, run by hand.
+- Deviations from the plan, for the record: the tasks are read when the palette opens (nothing is cached or watched),
+  a remote profile never inherits a folder of this computer (found while wiring it), and the same `git_status` switch
+  covers the repository address as well as the status bar.
+- [ ] Manual Windows validation of WSL profiles (starting a distribution, the list from `wsl.exe`) and of the other new
+  screens on Windows and Linux; tracked as validation debt for Phase 7.
 
 ## 📋 Phase 7: Stabilization · v1.0
 

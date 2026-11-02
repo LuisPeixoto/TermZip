@@ -26,6 +26,8 @@
   <a href="docs/themes.md">Themes</a> ·
   <a href="docs/keyboard.md">Keyboard</a> ·
   <a href="docs/plugins.md">Plugins</a> ·
+  <a href="docs/snippets.md">Snippets</a> ·
+  <a href="docs/ssh-and-wsl.md">SSH and WSL</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
   <a href="docs/shell-integration.md">Shell integration</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a> ·
@@ -65,6 +67,17 @@ run again. Tabs and split panes keep several shells in one window, and your layo
 - **Plugins in a sandbox.** Small WebAssembly files add palette commands, block labels, status items and links. A plugin
   cannot read your files, use the network or start a program; it asks for each thing it may see or do, and you approve
   it first. A signed catalog is one click away, and you can write your own in Rust.
+- **Snippets that never run on their own.** Keep the commands you type again, with `{{values}}` to fill in
+  (`git checkout {{branch:main}}`). ⇧⌘S lists them, a small form asks for the values, and the text is typed at the prompt
+  for you to read and run: TermZip never presses Enter.
+- **Your project's tasks, one keystroke away.** The scripts of `package.json`, Cargo's commands, Makefile targets,
+  justfile recipes and `deno.json` tasks are in the palette for the folder you are in, typed (not run) when chosen. A
+  profile can be tied to a folder, so a new terminal there uses it.
+- **SSH and WSL profiles.** A tab that opens already connected, with `ssh` and your own agent and `~/.ssh/config`:
+  TermZip stores no key, password or identity file. On Windows, a profile can open a WSL distribution.
+- **Git where you look, never the network.** The branch, how far it is from its upstream and whether files changed, in
+  the status bar, and *Open the repository in the browser* in the palette. It runs `git` on your computer and can be
+  turned off.
 - **Zinc & blue by default.** A calm, high-contrast visual system with complete dark and light themes.
 
 ## Screenshots
@@ -134,6 +147,7 @@ See [docs/shell-integration.md](docs/shell-integration.md) and
 | Next / previous tab | ⇧⌘] / ⇧⌘[ | Ctrl+Tab / Ctrl+Shift+Tab |
 | Go to tab 1 to 9 | ⌘1 … ⌘9 | Ctrl+Shift+1 … 9 |
 | Command palette | ⇧⌘P | Ctrl+Shift+P |
+| Insert a snippet | ⇧⌘S | Ctrl+Shift+S |
 | Find in the terminal | ⌘F | Ctrl+Shift+F |
 | Toggle the blocks rail | ⌘B | Ctrl+Shift+B |
 | Restart the shell | ⌘R | Ctrl+Shift+R |
@@ -158,6 +172,10 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command. 
 | [Plugins](docs/plugins.md) | What a plugin can do, installing from a file or the signed catalog, permissions, and the limits. |
 | [Plugin API](docs/plugin-api.md) | For authors: the manifest, the ABI, actions, limits, the versioning policy, and the Rust SDK. |
 | [Profiles and restore](docs/profiles-and-restore.md) | Shell, folder, and environment per profile; what is saved between launches. |
+| [Snippets](docs/snippets.md) | Commands with `{{values}}`, the palette form, folders, and why a snippet is typed and never run. |
+| [Project tasks and folder profiles](docs/project-tasks.md) | The tasks of `package.json`, Cargo, Makefile, justfile and `deno.json`, and profiles tied to folders. |
+| [SSH and WSL](docs/ssh-and-wsl.md) | Profiles that connect, what is stored (nothing secret), what is checked, and the limits. |
+| [Git](docs/git.md) | The status bar item, opening the repository, turning it off, and how a repository you cloned cannot run anything. |
 | [Performance and limits](docs/performance.md) | Flow control for floods of output, block events, and every bound. |
 | [Shell integration](docs/shell-integration.md) | The OSC 133 markers, supported shells, and the limits of block capture. |
 | [Terminal compatibility](docs/terminal-compatibility.md) | What is implemented, verified, and still missing. |
@@ -177,6 +195,8 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command. 
 | Cross-platform PTY (ConPTY on Windows) | `crates/termzip-pty` |
 | Settings and shared tokens | `crates/termzip-core` |
 | Plugin API types, the host (sandbox, store, catalog) and the SDK | `crates/termzip-plugin-api`, `crates/termzip-plugins`, `crates/termzip-plugin-sdk` |
+| Project tasks and the git state of a folder | `crates/termzip-tasks`, `crates/termzip-git` |
+| Tests that need something real (a throwaway `sshd`) | `tools` |
 | Example plugins | `examples/plugins` |
 | App icon source | `assets/` |
 

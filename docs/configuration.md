@@ -27,6 +27,7 @@ scrollback_lines = 10000  # clamped to 1_000..200_000
 restore_session = true    # reopen tabs, splits, and folders on launch
 # default_profile = "work"  # which profile a plain new tab uses; empty: the built-in one
 plugins_catalog = true    # may Preferences → Plugins load the plugin catalog (the only network use of TermZip)
+git_status = true         # the git branch in the status bar, and Open the repository in the palette (see git.md)
 ```
 
 Out-of-range values are clamped (a value that is not a number gets its default) and unknown keys are ignored. The
@@ -64,10 +65,46 @@ font_family = "Fira Code"
 cursor_style = "bar"
 ```
 
+A profile can be tied to folders, so a new terminal that starts in one of them uses it (see
+[project tasks and folder profiles](project-tasks.md#profiles-tied-to-folders)), and it can start an SSH connection or
+a WSL distribution instead of a shell (see [SSH and WSL](ssh-and-wsl.md)):
+
+```toml
+[[profiles]]
+name = "API"
+folders = ["~/work/api", "/srv/api"]     # up to 16
+
+[[profiles]]
+name = "Build box"
+kind = "ssh"                              # "local" (the default) | "ssh" | "wsl"
+host = "build-box"                        # ssh: a Host of ~/.ssh/config, a name or an address
+# user = "deploy"
+# port = 2222
+# distribution = "Ubuntu"                 # wsl, instead of host
+```
+
 Bounds: 32 profiles, names up to 64 characters, 64 variables each, names of letters, digits and `_` (up to 128
 characters), values up to 4 KiB. `TERM`, `COLORTERM`, `TERM_PROGRAM`, `TERM_PROGRAM_VERSION`, `ZDOTDIR`, and anything
 starting with `TERMZIP_` cannot be set. Variables reach new shells only. See
 [profiles and restore](profiles-and-restore.md).
+
+## Snippets
+
+`[[snippets]]` holds the commands you keep, with optional `{{values}}`, edited in **Preferences → Snippets**. Up to 128,
+each a single line of at most 4 KiB. See [snippets](snippets.md).
+
+```toml
+[[snippets]]
+name = "Check out a branch"
+command = "git checkout {{branch:main}}"
+# description = "Switch to a branch"
+# folder = "~/work/app"                   # offered only in this folder and below
+```
+
+## Git
+
+`git_status` turns on the branch and state in the status bar and the palette's *Open the repository in the browser*.
+Everything is read on your computer with `git`, and with it off git is never started. See [git](git.md).
 
 ## Keyboard shortcuts
 
