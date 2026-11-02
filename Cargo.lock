@@ -3902,6 +3902,7 @@ dependencies = [
  "termzip-plugins",
  "termzip-pty",
  "termzip-shell",
+ "termzip-tasks",
  "wat",
 ]
 
