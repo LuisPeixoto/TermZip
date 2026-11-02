@@ -27,11 +27,22 @@ real hardware.
 | Git in the status bar and Open the repository (real repositories in tests) | ✅ local + CI | ✅ CI | ✅ CI |
 | Git item in the running app | ✅ manual validation | ⏳ pending | ⏳ pending |
 | Packaged installer | ✅ debug app build (no bundle) | ⏳ release workflow | ⏳ release workflow |
+| The built app launches, reaches a prompt and finishes a 100,000-line flood (`Smoke` workflow) | ✅ CI (Apple silicon runner) | ✅ CI (PowerShell) | ✅ CI (Xvfb) |
+| xterm.js conformance (21 sequence tests) | ✅ local + CI | ✅ CI | ✅ CI |
+| PTY conformance (`TERM`, resize, UTF-8, Ctrl+C, large paste) | ✅ local + CI | ✅ CI (ConPTY resize and UTF-8) | ✅ CI |
+| Contrast of every theme, axe-core on every screen, reduced motion | ✅ local + CI | ✅ CI | ✅ CI |
+| Screen reader support, used with a real screen reader | ⏳ pending (VoiceOver) | ⏳ pending (NVDA) | ⏳ pending (Orca) |
+| Update check and install, tampered file refused | ✅ throwaway copy of the app | ⏳ pending | ⏳ pending |
+| Homebrew cask installs (`--appdir`) | ✅ local | n/a | n/a |
+| Scoop and Winget manifests | n/a | ⏳ pending (not run on Windows) | n/a |
+| Fuzzing of every parser (12 targets, `Fuzz` workflow) | n/a | n/a | ✅ CI (no crash) |
+| Performance budgets | ✅ local reference + CI | ✅ CI (headless) | ✅ CI (headless) |
 
 Legend: ✅ verified, ⏳ pending, n/a not applicable.
 
-The release workflow builds signed/unsigned bundles depending on repository secrets. A successful CI build is not a
-substitute for manually opening the packaged app on each platform.
+The release workflow builds signed/unsigned bundles depending on repository secrets. A successful CI build and smoke run
+are not a substitute for a person opening the packaged app on each platform: that is the
+[validation checklist](validation-checklist.md), and the Windows and Linux rows marked pending are the debt 1.0 carries.
 
 ## Reproduce the macOS checks
 
