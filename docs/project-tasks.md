@@ -13,6 +13,10 @@ Task: just release            justfile
 Task: deno task dev           deno.json
 ```
 
+<p align="center">
+  <img src="images/termzip-tasks.png" width="780" alt="The command palette filtered on build, listing tasks of a Makefile, a justfile and a package.json" />
+</p>
+
 Choosing one **types** the command at the prompt; it never runs it. Read it, change it (add `-- --release`, say) and
 press Enter.
 

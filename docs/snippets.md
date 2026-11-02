@@ -6,6 +6,10 @@ A snippet is a command you want to type again, with the values that change fille
 > **A snippet is typed, never run.** The text appears at the prompt, as if you had pasted it, and waits for you to read
 > it, change it and press Enter. TermZip never presses Enter for you.
 
+<p align="center">
+  <img src="images/termzip-snippets.png" width="780" alt="The command palette showing a small form for the snippet Check out a branch, with the value filled in" />
+</p>
+
 ## Using one
 
 Press **⇧⌘S** (Ctrl+Shift+S on Windows and Linux): the palette opens showing only your snippets. Type a few letters,
@@ -20,6 +24,11 @@ The text goes to the terminal that had the keyboard, and needs a running shell.
 ## Writing one
 
 In **Preferences → Snippets**, choose **Add a snippet**:
+
+<p align="center">
+  <img src="images/termzip-snippets-preferences.png" width="780" alt="The Snippets preferences with a snippet open for editing; under the command it says that it asks for branch, which starts as main" />
+</p>
+
 
 | Field | What it is |
 |---|---|
