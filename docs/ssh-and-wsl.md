@@ -5,6 +5,10 @@ this computer. The tab opens already connected.
 
 ## SSH
 
+<p align="center">
+  <img src="images/termzip-ssh-profile.png" width="780" alt="The Profiles preferences with an SSH profile open for editing" />
+</p>
+
 In **Preferences → Profiles**, choose **Add a profile** and set *Starts* to **An SSH connection**:
 
 | Field | |

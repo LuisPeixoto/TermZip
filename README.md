@@ -101,6 +101,24 @@ run again. Tabs and split panes keep several shells in one window, and your layo
 </p>
 
 <p align="center">
+  <img src="docs/images/termzip-snippets.png" width="880" alt="The command palette showing a small form for the snippet Check out a branch, with the value branch filled in as release/0.5 and a note that the text is typed at the prompt and nothing runs until Enter is pressed" />
+  <br />
+  <sub>A snippet with a value to fill in (⇧⌘S). The text is typed at the prompt and waits for you to read it and press Enter; TermZip never presses it for you. The status bar shows the git branch, two commits ahead, with changed files.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/termzip-tasks.png" width="880" alt="The command palette filtered on build, listing the tasks of a Makefile, a justfile and a package.json that uses pnpm, each marked with its file, next to a profile for an SSH connection" />
+  <br />
+  <sub>Searching for <i>build</i> in a project folder: the tasks of its Makefile, justfile and <code>package.json</code> (with the package manager it uses), typed and never run.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/termzip-ssh-profile.png" width="880" alt="The Profiles preferences with an SSH profile open for editing: the host, the user and the port, and a note that TermZip stores no key, password or identity file" />
+  <br />
+  <sub>Preferences → Profiles. An SSH profile connects with your own agent and <code>~/.ssh/config</code>: TermZip stores no key, password or identity file. A profile can also be tied to folders, like <i>API</i>.</sub>
+</p>
+
+<p align="center">
   <img src="docs/images/termzip-plugin-catalog.png" width="880" alt="The Catalog tab of the Plugins preferences listing four signed plugins with their authors, sizes, and the permissions each asks for" />
   <br />
   <sub>Preferences → Plugins → Catalog. The list is checked against a signature before it is trusted, and every plugin shows what it will ask for.</sub>
