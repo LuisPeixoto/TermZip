@@ -334,6 +334,8 @@ export const api = {
   uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
   /** The `Host` aliases of `~/.ssh/config`, to offer when an SSH profile is made. Names only. */
   listSshHosts: () => invoke<string[]>("list_ssh_hosts"),
+  /** The installed WSL distributions; empty off Windows or when WSL is not set up. */
+  listWslDistributions: () => invoke<string[]>("list_wsl_distributions"),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
