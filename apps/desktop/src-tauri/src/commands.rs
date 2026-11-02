@@ -362,6 +362,10 @@ struct SessionStart {
     env: std::collections::BTreeMap<String, String>,
     /// The profile that was chosen only because the folder the shell starts in is tied to it.
     folder_profile: Option<String>,
+    /// An SSH connection or WSL distribution to start instead of a local shell.
+    remote: Option<termzip_core::Remote>,
+    /// Why the profile cannot be started (an SSH profile without a host).
+    problem: Option<String>,
 }
 
 /// `restored` is the folder a pane was in when the layout was saved: it wins while it still exists,
@@ -382,11 +386,20 @@ fn resolve_start(
         _ => None,
     };
     let launch = settings.launch_profile(profile_id.or(folder_profile.as_deref()));
+    // The folder a pane was in is a folder of this computer. It means nothing on the other side of an SSH
+    // connection or inside a WSL distribution, so a remote profile starts where it says, not where the pane was.
+    let working_directory = if launch.remote.is_some() {
+        launch.working_directory
+    } else {
+        restored.or(launch.working_directory)
+    };
     SessionStart {
         shell: launch.shell,
-        working_directory: restored.or(launch.working_directory),
+        working_directory,
         env: launch.env,
         folder_profile,
+        remote: launch.remote,
+        problem: launch.problem,
     }
 }
 
@@ -407,6 +420,9 @@ pub fn create_session(
         profile_id.as_deref(),
         restore_directory.as_deref(),
     );
+    if let Some(problem) = start.problem {
+        return Err(problem);
+    }
     let integration_dir = termzip_core::integration_dir().map_err(|error| error.to_string())?;
     let folder_profile = start.folder_profile.clone();
     let mut info = sessions
@@ -418,6 +434,7 @@ pub fn create_session(
                 working_directory: start.working_directory,
                 shell: start.shell,
                 env: start.env,
+                remote: start.remote,
             },
             &integration_dir,
         )
@@ -715,5 +732,53 @@ mod tests {
             termzip_core::Profile::from(plain).kind,
             termzip_core::ProfileKind::Local
         );
+    }
+
+    fn remote_settings(profile_toml: &str) -> Settings {
+        Settings::from_toml(&format!(
+            "working_directory = \"/Users/me\"\n\n{profile_toml}"
+        ))
+    }
+
+    #[test]
+    fn an_ssh_profile_ignores_the_folder_the_pane_was_in() {
+        let settings =
+            remote_settings("[[profiles]]\nname = \"Box\"\nkind = \"ssh\"\nhost = \"build-box\"\n");
+        let here = std::env::temp_dir();
+
+        let start = resolve_start(&settings, Some("box"), here.to_str());
+
+        assert!(matches!(
+            start.remote,
+            Some(termzip_core::Remote::Ssh { .. })
+        ));
+        assert_eq!(start.working_directory, None);
+        assert_eq!(start.problem, None);
+    }
+
+    #[test]
+    fn a_wsl_profile_starts_in_its_own_folder_not_in_one_of_this_computer() {
+        let settings = remote_settings(
+            "[[profiles]]\nname = \"Linux\"\nkind = \"wsl\"\nworking_directory = \"/home/me\"\n",
+        );
+        let here = std::env::temp_dir();
+
+        let start = resolve_start(&settings, Some("linux"), here.to_str());
+
+        assert_eq!(start.working_directory.as_deref(), Some("/home/me"));
+        assert!(matches!(
+            start.remote,
+            Some(termzip_core::Remote::Wsl { .. })
+        ));
+    }
+
+    #[test]
+    fn an_ssh_profile_without_a_host_is_a_problem_to_show_not_a_local_shell() {
+        let settings = remote_settings("[[profiles]]\nname = \"Empty\"\nkind = \"ssh\"\n");
+
+        let start = resolve_start(&settings, Some("empty"), None);
+
+        assert!(start.remote.is_none());
+        assert!(start.problem.unwrap().contains("no usable host"));
     }
 }
