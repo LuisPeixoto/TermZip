@@ -60,6 +60,23 @@ the affected version, operating system, impact, and a reproduction or proof of c
   and a hand-edited `[keybindings]` can never make one key do two things.
 - On macOS the translucent window uses Tauri's `macOSPrivateApi` (a private Apple API), which makes the app ineligible
   for the Mac App Store. It is used only to make the window transparent and to ask the system for its blur.
+- Snippets, project tasks and plugins only **type**: the text put at the prompt has every control character removed (a
+  snippet's value cannot press Enter or start an escape sequence; a task name can only be plain characters), so nothing
+  runs until you press Enter. Snippets live in `config.toml` in plain text, so do not put secrets in them.
+- The files of a project (`package.json`, Cargo config, Makefile, justfile, `deno.json`) are untrusted input: only
+  regular files of at most 256 KiB are read (a named pipe is never opened), nothing is run to read them, a task name must
+  be plain (letters, digits and `. _ : / @ + -`, never starting with `-`), and at most 200 tasks are listed.
+- SSH profiles store **no key, password, passphrase or identity-file path**: `ssh` signs in with your agent and
+  `~/.ssh/config`. The host, user and distribution that reach `ssh` and `wsl.exe` are checked in the settings and again
+  where the command is built (letters, digits and a few marks, never starting with `-`), and `ssh` is called with `--`
+  before the host, so a value can never be read as an option. The host suggestions read only the `Host` names of
+  `~/.ssh/config` (and the files it includes inside `~/.ssh`, bounded); keys, users and proxy commands are never read.
+- The git item runs `git status` and `git config` on your computer, never the network. A repository's own config can
+  name a program for `core.fsmonitor`, which a plain `git status` starts, so TermZip turns it off for its runs (a test
+  proves a program named by a repository is not started); it also sets `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`
+  and a 2-second timeout, and leaves git's `safe.directory` protection as it is. *Open the repository* keeps only the
+  host and the path of `origin`, drops any credentials in the address, refuses anything that is not a plain host and
+  path, and opens it through the same check as a click. With `git_status = false` git is never started.
 - Plugins are WebAssembly files that run in a sandbox with no imports: they cannot reach files, the network, processes
   or the clock. Each permission is shown before a plugin is turned on, the approval belongs to the SHA-256 of the file,
   and what a plugin answers is checked and cleaned before it is used. The catalog is verified with a built-in key and
