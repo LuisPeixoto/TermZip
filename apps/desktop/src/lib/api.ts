@@ -332,6 +332,8 @@ export const api = {
   enablePlugin: (id: string) => invoke<Plugin>("enable_plugin", { id }),
   disablePlugin: (id: string) => invoke<void>("disable_plugin", { id }),
   uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
+  /** The `Host` aliases of `~/.ssh/config`, to offer when an SSH profile is made. Names only. */
+  listSshHosts: () => invoke<string[]>("list_ssh_hosts"),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
