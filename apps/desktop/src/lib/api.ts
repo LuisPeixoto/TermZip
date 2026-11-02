@@ -99,6 +99,8 @@ export interface Settings {
   pluginsCatalog: boolean;
   /** Show the git branch and state of the terminal's folder in the status bar (read locally, never from the network). */
   gitStatus: boolean;
+  /** Keep an accessible copy of the terminal for a screen reader (slower on a flood). */
+  screenReader: boolean;
   defaultProfile: string | null;
   /** `action: "Shift+Cmd+E"`; an empty chord unbinds the action. */
   keybindings: Record<string, string>;
