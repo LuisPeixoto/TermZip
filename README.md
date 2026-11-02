@@ -131,6 +131,18 @@ run again. Tabs and split panes keep several shells in one window, and your layo
   <sub>Preferences → Plugins → Catalog. The list is checked against a signature before it is trusted, and every plugin shows what it will ask for.</sub>
 </p>
 
+<p align="center">
+  <img src="docs/images/termzip-updates.png" width="880" alt="The General preferences scrolled to Updates: the version 1.0.0, a Check for updates button, a card saying that a newer version is available with its release notes as plain text and an Install and restart button, and an unchecked option to check when TermZip starts" />
+  <br />
+  <sub>Preferences → General → Updates, here against a local test feed. Nothing is checked until you press the button; the notes are plain text, and installing needs a second click and a signature that matches the key built into the app.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/termzip-screen-reader.png" width="880" alt="The Terminal preferences with the Screen reader support option checked, below the cursor style, the blink option and the scrollback size" />
+  <br />
+  <sub>Preferences → Terminal. Screen reader support keeps an accessible copy of the terminal for assistive technology; it is off by default.</sub>
+</p>
+
 ## Getting started
 
 Install [Rust](https://rustup.rs) and [Node.js](https://nodejs.org) 20+, then:
