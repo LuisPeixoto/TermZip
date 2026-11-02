@@ -99,6 +99,9 @@ $bel = [char]7
 function __TermZip-Emit([string]$Body) {
     [Console]::Write("$esc]$Body$bel")
 }
+# The prompt the user already had, taken before it is replaced below (taking it after would be this very function).
+$Global:__TermZipOriginalPrompt = $function:prompt
+$Global:__TermZipStarted = $false
 function global:prompt {
     $ok = $?
     $code = if ($LASTEXITCODE -ne $null -and $LASTEXITCODE -ne 0) { $LASTEXITCODE }
@@ -106,12 +109,6 @@ function global:prompt {
     if ($Global:__TermZipStarted) {
         __TermZip-Emit "133;D;$code"
         $Global:__TermZipStarted = $false
-        $last = Get-History -Count 1
-        if ($last -and $Global:__TermZipLastId -ne $last.Id) {
-            $Global:__TermZipLastId = $last.Id
-            $bytes = [Text.Encoding]::UTF8.GetBytes($last.CommandLine)
-            __TermZip-Emit ("1337;CommandB64=" + [Convert]::ToBase64String($bytes))
-        }
     }
     __TermZip-Emit "133;A"
     __TermZip-Emit ("1337;CurrentDir=" + (Get-Location).Path)
@@ -121,13 +118,21 @@ function global:prompt {
         "PS> "
     }
 }
-$Global:__TermZipStarted = $false
-$Global:__TermZipOriginalPrompt = $function:prompt
-$Global:__TermZipLastId = -1
-# Re-arm the exec flag whenever a native command is about to run.
-$ExecutionContext.InvokeCommand.PreCommandLookupAction = {
-    param($CommandName, $CommandLookupEventArgs)
-    $Global:__TermZipStarted = $true
+# A command starts when Enter accepts a line. The line editor has the exact text at that moment, so it is read here
+# (a hook on every command lookup would also fire for what the prompt itself runs, and history may not have it yet).
+if (Get-Command Set-PSReadLineKeyHandler -ErrorAction SilentlyContinue) {
+    Set-PSReadLineKeyHandler -Key Enter -BriefDescription 'TermZipAcceptLine' -ScriptBlock {
+        $line = $null
+        $cursor = $null
+        [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+        if ($line -and $line.Trim().Length -gt 0) {
+            $bytes = [Text.Encoding]::UTF8.GetBytes($line)
+            __TermZip-Emit ("1337;CommandB64=" + [Convert]::ToBase64String($bytes))
+            __TermZip-Emit "133;C"
+            $Global:__TermZipStarted = $true
+        }
+        [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+    }
 }
 "#;
 
@@ -189,5 +194,41 @@ mod tests {
         assert_eq!(first, second);
         assert_eq!(std::fs::read_to_string(second).unwrap(), contents);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_powershell_script_marks_a_command_from_its_start_to_its_end() {
+        let script = script_for(ShellKind::PowerShell).unwrap();
+
+        // The text of the command, and where it starts and ends: without the start, nothing is a block.
+        assert!(script.contains("1337;CommandB64="));
+        assert!(script.contains("133;C"));
+        assert!(script.contains("133;D;"));
+        assert!(script.contains("133;A"));
+        // The command is read from the line editor when Enter is pressed.
+        assert!(script.contains("Set-PSReadLineKeyHandler -Key Enter"));
+        assert!(script.contains("GetBufferState"));
+    }
+
+    #[test]
+    fn the_powershell_script_does_not_hook_every_command_lookup() {
+        // That hook fires for what the prompt runs itself, which made a block of every prompt.
+        assert!(
+            !script_for(ShellKind::PowerShell)
+                .unwrap()
+                .contains("PreCommandLookupAction")
+        );
+    }
+
+    #[test]
+    fn the_original_prompt_is_taken_before_it_is_replaced() {
+        let script = script_for(ShellKind::PowerShell).unwrap();
+        let taken = script
+            .find("$Global:__TermZipOriginalPrompt = $function:prompt")
+            .unwrap();
+        let replaced = script.find("function global:prompt").unwrap();
+
+        // Taken after, it would be the function that calls it, and the prompt would recurse.
+        assert!(taken < replaced);
     }
 }
