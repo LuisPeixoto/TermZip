@@ -79,6 +79,7 @@ pub fn run() {
             commands::save_workspace,
             commands::list_blocks,
             remote::list_ssh_hosts,
+            remote::list_wsl_distributions,
             snippets::check_snippet,
             snippets::list_snippets,
             snippets::render_snippet,
