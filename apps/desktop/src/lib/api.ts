@@ -78,6 +78,15 @@ export interface GitStatus {
   truncated: boolean;
 }
 
+/** An update that is available (see docs/updates.md). */
+export interface UpdateInfo {
+  version: string;
+  currentVersion: string;
+  /** Plain text, cut to a limit; never markup. */
+  notes: string | null;
+  date: string | null;
+}
+
 export interface Settings {
   /** Whether the window is dark or light; each appearance has its own theme below. */
   theme: "dark" | "light";
@@ -97,6 +106,8 @@ export interface Settings {
   restoreSession: boolean;
   /** Whether the plugin catalog may be loaded from the network (only when the user asks). */
   pluginsCatalog: boolean;
+  /** Ask the update server for a newer version when TermZip starts (off by default; never installs by itself). */
+  checkUpdatesOnLaunch: boolean;
   /** Show the git branch and state of the terminal's folder in the status bar (read locally, never from the network). */
   gitStatus: boolean;
   defaultProfile: string | null;
@@ -364,6 +375,10 @@ export const api = {
   benchPlan: () => invoke<{ lines: number; command: string } | null>("bench_plan"),
   /** Reports a bench milestone; does nothing in a normal run. */
   benchMark: (name: string) => invoke<void>("bench_mark", { name }),
+  /** Asks the update server whether a newer version exists. Only call this because the person asked to (or turned on the check at startup). */
+  checkForUpdate: () => invoke<UpdateInfo | null>("check_for_update"),
+  /** Downloads the update found by the last check, verifies its signature, installs it and restarts. */
+  installUpdate: () => invoke<void>("install_update"),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
