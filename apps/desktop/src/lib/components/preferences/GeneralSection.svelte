@@ -27,11 +27,12 @@
     <label class="flex items-start gap-2.5 text-[12px]">
       <input type="checkbox" bind:checked={draft.gitStatus} class="mt-0.5 size-3.5 accent-accent" />
       <span>
-        <span class="font-medium text-fg">Show the git branch in the status bar</span>
+        <span class="font-medium text-fg">Use git in the status bar and the palette</span>
         <span class="mt-0.5 block text-[10.5px] text-faint">
-          The branch, how far it is from its upstream and whether files changed, for the folder of the terminal. It
-          runs <span class="mono">git status</span> on your computer and never uses the network. SSH and WSL
-          terminals do not show it.
+          Shows the branch, how far it is from its upstream and whether files changed, and offers <em>Open the
+          repository in the browser</em>, for the folder of the terminal. It runs <span class="mono">git</span> on
+          your computer and never uses the network; with this off git is never started. SSH and WSL terminals do
+          not use it.
         </span>
       </span>
     </label>

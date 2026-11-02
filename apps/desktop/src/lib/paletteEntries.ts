@@ -33,6 +33,8 @@ export interface PaletteInput {
   plugins: readonly { plugin: string; pluginName: string; id: string; title: string }[];
   /** The snippets that apply in the folder of the active pane. */
   snippets: readonly SnippetInfo[];
+  /** The web page of the repository the active pane is in, when it has one and git is on. */
+  repository: string | null;
   /** The tasks of the project the active pane is in (its scripts, Cargo commands, make targets). */
   tasks: readonly TaskInfo[];
   /** `"snippets"` lists nothing but the snippets (the Insert a snippet shortcut). */
@@ -49,7 +51,18 @@ export interface PaletteInput {
     useSnippet(snippet: SnippetInfo): void;
     /** Types the command of a task at the prompt; it is never run. */
     typeTask(task: TaskInfo): void;
+    /** Opens the page of the repository in the browser. */
+    openRepository(url: string): void;
   };
+}
+
+/** `github.com` for a repository page; the whole address when it cannot be read. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
 export function paletteEntries(input: PaletteInput): PaletteEntry[] {
@@ -82,6 +95,16 @@ export function paletteEntries(input: PaletteInput): PaletteEntry[] {
   }
 
   entries.push(...snippets);
+
+  if (input.repository) {
+    const url = input.repository;
+    entries.push({
+      id: "git:open-repository",
+      title: "Open the repository in the browser",
+      detail: hostOf(url),
+      run: () => commands.openRepository(url),
+    });
+  }
 
   for (const task of input.tasks) {
     entries.push({

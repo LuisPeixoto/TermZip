@@ -80,6 +80,7 @@ pub fn run() {
             commands::save_workspace,
             commands::list_blocks,
             git::git_status,
+            git::repository_page,
             remote::list_ssh_hosts,
             remote::list_wsl_distributions,
             snippets::check_snippet,

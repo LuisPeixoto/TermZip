@@ -19,6 +19,8 @@
   let snippets = $state.raw<SnippetInfo[]>([]);
   // The tasks of the project the active pane is in, read at the same time.
   let tasks = $state.raw<TaskInfo[]>([]);
+  // The web page of the repository the active pane is in, when it has one.
+  let repository = $state<string | null>(null);
   // The form that asks for the values of a snippet; the list is hidden while it is open.
   let form = $state<{ snippet: SnippetInfo; values: Record<string, string> } | null>(null);
   let formElement: HTMLFormElement | undefined = $state();
@@ -34,6 +36,7 @@
       blurSupported: app.blurSupported,
       snippets,
       tasks,
+      repository,
       scope: app.paletteScope,
       plugins: pluginStore.running.flatMap((plugin) =>
         plugin.manifest.commands.map((command) => ({
@@ -76,6 +79,10 @@
           if (snippet.parameters.length === 0) void insertSnippet(snippet, {});
           else form = { snippet, values: initialValues(snippet) };
         },
+        openRepository: (url) => {
+          // The same check as a link clicked in the terminal: only an http or https address is opened.
+          void api.openLink(url, null).catch((error) => app.toast("warn", String(error)));
+        },
         typeTask: (task) => {
           const pane = workspace.activePane;
           if (!pane.session) {
@@ -111,6 +118,10 @@
     api
       .listTasks(folder)
       .then((list) => (tasks = list))
+      .catch(() => {});
+    api
+      .repositoryPage(folder)
+      .then((page) => (repository = page))
       .catch(() => {});
   });
 

@@ -16,6 +16,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     runPluginCommand: vi.fn(),
     useSnippet: vi.fn(),
     typeTask: vi.fn(),
+    openRepository: vi.fn(),
   };
   const input: PaletteInput = {
     platform: "macos",
@@ -28,6 +29,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     plugins: [],
     snippets: [],
     tasks: [],
+    repository: null,
     commands,
     ...extra,
   };
@@ -200,6 +202,27 @@ describe("highlighting", () => {
     it("has no tasks in the snippets scope", () => {
       const { entries } = setup({ tasks: [build], scope: "snippets" });
       expect(entries).toEqual([]);
+    });
+  });
+
+  describe("the repository", () => {
+    it("offers to open the page of the repository, naming its host", () => {
+      const { entries, commands } = setup({ repository: "https://github.com/LuisPeixoto/TermZip" });
+      const entry = entries.find((candidate) => candidate.id === "git:open-repository");
+
+      expect(entry).toMatchObject({ title: "Open the repository in the browser", detail: "github.com" });
+      entry?.run();
+      expect(commands.openRepository).toHaveBeenCalledWith("https://github.com/LuisPeixoto/TermZip");
+    });
+
+    it("offers nothing when the folder has no repository page", () => {
+      const { entries } = setup({ repository: null });
+      expect(entries.some((entry) => entry.id === "git:open-repository")).toBe(false);
+    });
+
+    it("keeps the port of a self-hosted address in the detail", () => {
+      const { entries } = setup({ repository: "https://git.example.com:8443/team/app" });
+      expect(entries.find((entry) => entry.id === "git:open-repository")?.detail).toBe("git.example.com:8443");
     });
   });
 });
