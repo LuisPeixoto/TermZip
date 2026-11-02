@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::appearance::CursorStyle;
+use crate::paths::depth_if_inside;
 use crate::settings::{MAX_FONT_SIZE, MIN_FONT_SIZE};
 
 pub const MAX_PROFILES: usize = 32;
@@ -12,6 +13,8 @@ pub const MAX_NAME_CHARS: usize = 64;
 pub const MAX_ENV_VARS: usize = 64;
 pub const MAX_ENV_KEY_CHARS: usize = 128;
 pub const MAX_ENV_VALUE_BYTES: usize = 4 * 1024;
+pub const MAX_PROFILE_FOLDERS: usize = 16;
+pub const MAX_FOLDER_BYTES: usize = 1024;
 const MAX_THEME_ID_CHARS: usize = 64;
 
 /// The built-in profile: the top-level `shell` and `working_directory` of the settings.
@@ -41,8 +44,22 @@ pub struct Profile {
     pub font_size: Option<f32>,
     pub font_family: Option<String>,
     pub cursor_style: Option<CursorStyle>,
+    /// A new terminal started in one of these folders (or below) uses this profile, when no profile was asked
+    /// for. `~` is the home folder. Kept before `env`: TOML writes tables after plain values.
+    pub folders: Vec<String>,
     /// Extra environment variables. Kept last: TOML writes tables after plain values.
     pub env: BTreeMap<String, String>,
+}
+
+impl Profile {
+    /// How specifically one of the folders of this profile contains `path`: the depth of the deepest one that
+    /// does, or `None` when the profile is tied to no folder around it.
+    pub fn folder_depth(&self, path: &str) -> Option<usize> {
+        self.folders
+            .iter()
+            .filter_map(|folder| depth_if_inside(folder, path))
+            .max()
+    }
 }
 
 /// What a session actually starts with, after the profile was resolved against the settings.
@@ -69,6 +86,12 @@ pub fn is_valid_env_key(key: &str) -> bool {
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+fn is_valid_folder(folder: &str) -> bool {
+    !folder.trim().is_empty()
+        && folder.len() <= MAX_FOLDER_BYTES
+        && !folder.chars().any(char::is_control)
+}
+
 fn is_valid_env_value(value: &str) -> bool {
     value.len() <= MAX_ENV_VALUE_BYTES && !value.contains('\0')
 }
@@ -92,6 +115,18 @@ pub fn validate_profiles(profiles: &[Profile]) -> Result<(), String> {
             return Err(format!(
                 "The profile id “{DEFAULT_PROFILE_ID}” is reserved."
             ));
+        }
+        if profile.folders.len() > MAX_PROFILE_FOLDERS {
+            return Err(format!(
+                "The profile “{name}” is tied to more than {MAX_PROFILE_FOLDERS} folders."
+            ));
+        }
+        for folder in &profile.folders {
+            if !is_valid_folder(folder) {
+                return Err(format!(
+                    "“{folder}” in the profile “{name}” is not a usable folder (not empty, at most {MAX_FOLDER_BYTES} bytes, no control characters)."
+                ));
+            }
         }
         if profile.env.len() > MAX_ENV_VARS {
             return Err(format!(
@@ -166,6 +201,12 @@ pub(crate) fn normalize_profiles(profiles: Vec<Profile>) -> Vec<Profile> {
             .font_size
             .filter(|size| size.is_finite())
             .map(|size| size.clamp(MIN_FONT_SIZE, MAX_FONT_SIZE));
+        profile.folders = std::mem::take(&mut profile.folders)
+            .into_iter()
+            .map(|folder| folder.trim().to_owned())
+            .filter(|folder| is_valid_folder(folder))
+            .take(MAX_PROFILE_FOLDERS)
+            .collect();
         profile.env = std::mem::take(&mut profile.env)
             .into_iter()
             .filter(|(key, value)| {
@@ -341,5 +382,65 @@ mod tests {
         assert!(!is_valid_env_key(&"A".repeat(MAX_ENV_KEY_CHARS + 1)));
         assert!(is_reserved_env("zdotdir"));
         assert!(!is_reserved_env("TERMINAL"));
+    }
+
+    fn tied_to(name: &str, folders: &[&str]) -> Profile {
+        Profile {
+            folders: folders.iter().map(|folder| (*folder).to_owned()).collect(),
+            ..profile(name)
+        }
+    }
+
+    #[test]
+    fn a_profile_is_tied_to_the_folders_around_a_path() {
+        let work = tied_to("Work", &["/srv/work", "/srv/other"]);
+
+        assert!(work.folder_depth("/srv/work").is_some());
+        assert!(work.folder_depth("/srv/other/deep/er").is_some());
+        assert_eq!(work.folder_depth("/srv/workshop"), None);
+        assert_eq!(profile("Plain").folder_depth("/srv/work"), None);
+    }
+
+    #[test]
+    fn the_deepest_matching_folder_sets_how_specific_the_profile_is() {
+        let both = tied_to("Both", &["/srv", "/srv/work/api"]);
+        let broad = tied_to("Broad", &["/srv"]);
+
+        assert!(both.folder_depth("/srv/work/api/x") > broad.folder_depth("/srv/work/api/x"));
+    }
+
+    #[test]
+    fn validation_explains_a_folder_that_cannot_be_used() {
+        let problem =
+            |folders: &[&str]| validate_profiles(&[tied_to("Work", folders)]).unwrap_err();
+
+        assert!(problem(&[""]).contains("not a usable folder"));
+        assert!(problem(&["  "]).contains("not a usable folder"));
+        assert!(problem(&["/a\nb"]).contains("not a usable folder"));
+        assert!(problem(&[&"x".repeat(MAX_FOLDER_BYTES + 1)]).contains("not a usable folder"));
+        let many: Vec<String> = (0..=MAX_PROFILE_FOLDERS)
+            .map(|n| format!("/f{n}"))
+            .collect();
+        let many: Vec<&str> = many.iter().map(String::as_str).collect();
+        assert!(problem(&many).contains("more than"));
+        assert!(validate_profiles(&[tied_to("Work", &["~/work", "/srv/work"])]).is_ok());
+    }
+
+    #[test]
+    fn cleaning_trims_folders_and_drops_the_unusable_ones() {
+        let cleaned = normalize_profiles(vec![tied_to(
+            "Work",
+            &["  /srv/work  ", "", "/a\nb", "~/x"],
+        )]);
+
+        assert_eq!(cleaned[0].folders, ["/srv/work", "~/x"]);
+        let many: Vec<String> = (0..40).map(|n| format!("/f{n}")).collect();
+        let many: Vec<&str> = many.iter().map(String::as_str).collect();
+        assert_eq!(
+            normalize_profiles(vec![tied_to("Work", &many)])[0]
+                .folders
+                .len(),
+            MAX_PROFILE_FOLDERS
+        );
     }
 }
