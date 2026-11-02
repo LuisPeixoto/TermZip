@@ -1,0 +1,7 @@
+{
+  "tasks": {
+    "dev": "deno run --watch main.ts",
+    "test": "deno test -A"
+  },
+  "imports": { "std/": "https://deno.land/std/" }
+}

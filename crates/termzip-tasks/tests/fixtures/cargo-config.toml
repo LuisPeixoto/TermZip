@@ -1,0 +1,7 @@
+[alias]
+xtask = "run --package xtask --"
+b = "build"
+test = "test --workspace"
+
+[build]
+jobs = 4
