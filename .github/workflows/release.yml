@@ -66,15 +66,49 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/desktop
         run: npm ci
+      # Signing and notarization turn on only for the secrets that exist (see docs/distribution.md). Without them the
+      # release is built unsigned, and the log says so.
+      - name: Prepare signing
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          TRUSTED_SIGNING_ENDPOINT: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          TRUSTED_SIGNING_ACCOUNT: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          TRUSTED_SIGNING_PROFILE: ${{ vars.TRUSTED_SIGNING_PROFILE }}
+        run: tools/prepare-signing.sh
+      - name: Install the Windows signing tool
+        if: runner.os == 'Windows' && env.TERMZIP_SIGN_WINDOWS == 'yes'
+        run: cargo install trusted-signing-cli --locked
       - name: Build bundles
         working-directory: apps/desktop
         shell: bash
         run: |
+          args=()
+          if [ -n "${TERMZIP_TAURI_CONFIG:-}" ]; then args+=(--config "$TERMZIP_TAURI_CONFIG"); fi
           if [ -n "${{ matrix.target }}" ]; then
-            npm run tauri build -- --target "${{ matrix.target }}"
+            npm run tauri build -- --target "${{ matrix.target }}" "${args[@]}"
           else
-            npm run tauri build
+            npm run tauri build -- "${args[@]}"
           fi
+      - name: Verify the macOS signature
+        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != ''
+        shell: bash
+        run: |
+          found=0
+          while IFS= read -r app; do
+            found=1
+            codesign --verify --deep --strict --verbose=2 "$app"
+            if [ -n "${APPLE_ID:-}" ]; then xcrun stapler validate "$app" || spctl -a -vv "$app"; fi
+          done < <(find target -path '*/release/bundle/macos/*.app' -maxdepth 8 -type d)
+          [ "$found" = 1 ] || { echo "::error::No .app was found to verify"; exit 1; }
       - name: Collect artifacts
         shell: bash
         run: |
