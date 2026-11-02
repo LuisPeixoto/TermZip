@@ -4,6 +4,45 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-02
+
+Developer workflows: snippets, the tasks of your project, SSH and WSL profiles, and git in the status bar.
+
+### Added
+
+- Snippets: commands you keep, with `{{value}}` or `{{value:default}}` to fill in (`git checkout {{branch:main}}`),
+  optionally limited to a folder. **⇧⌘S** (Ctrl+Shift+S) opens the palette showing only snippets, a small form asks for
+  the values, and the text is **typed at the prompt, never run**: every control character is removed in Rust, so a value
+  cannot press Enter. Edit them in **Preferences → Snippets** or in `[[snippets]]`.
+- Project tasks in the command palette: the scripts of `package.json` (with npm, pnpm, yarn or bun), Cargo's commands and
+  aliases, Makefile targets, justfile recipes and `deno.json` tasks, for the folder of the terminal. They follow how
+  each tool finds its file (the nearest one up to the repository root; `make` only the current folder), only plain
+  names are offered, and choosing one types it.
+- Profiles can be tied to folders (`folders = ["~/work/api"]`): a new terminal that starts there uses the profile, the
+  most specific one winning, unless you chose another.
+- SSH profiles (`kind = "ssh"`, `host`, `user`, `port`) and WSL profiles (`kind = "wsl"`, `distribution`, Windows only).
+  TermZip runs `ssh … -- host` and `wsl.exe` and **stores no key, password or identity file**; the host field suggests
+  the `Host` names of `~/.ssh/config` and the distribution field the installed ones. The host, user and distribution
+  are checked twice and can never be read as an option.
+- The git branch and state in the status bar (`↑↓` against the upstream, a dot for changed files, a red `!` in a merge
+  conflict) and **Open the repository in the browser** in the palette, with credentials in the address dropped. It runs
+  `git` on your computer and never uses the network, `git_status = false` turns it off (and git is then never started),
+  and a repository you just cloned cannot make it run a program.
+- `tools/live-tests.sh`, which signs in to a throwaway `sshd` through an SSH profile (run by hand, never by CI).
+- Guides: snippets, project tasks and folder profiles, SSH and WSL, and git.
+
+### Changed
+
+- The command palette also lists snippets, project tasks and the repository, and has a snippets-only mode.
+- Preferences has a **Snippets** section, a *Starts* selector and a *folders* field in the profile form, and a git
+  switch in **General**.
+- A remote profile starts where it says, and never inherits the working folder of this computer.
+
+### Fixed
+
+- A profile tied to a folder is also used by the first terminal of a launch, which starts in the default working folder.
+- The help text of snippets said *Press* where it meant *Write*, and the profile help did not mention folders or SSH.
+
 ## [0.4.0] - 2026-10-31
 
 Extensions: plugins that run in a sandbox, a stable API to write them against, and a signed catalog to find them.
