@@ -57,6 +57,80 @@ pub struct Launch {
     pub integrated: bool,
 }
 
+/// A value that is safe as an argument of `ssh` or `wsl.exe`: not empty, no whitespace or control characters, and
+/// never starting with `-`, which the program would read as an option. The settings check the same and more; this
+/// is the last line, so a bug or a hand-built value upstream cannot turn a host name into an option.
+fn is_plain_argument(value: &str) -> bool {
+    !value.is_empty()
+        && !value.starts_with('-')
+        && !value.chars().any(|c| c.is_control() || c.is_whitespace())
+}
+
+/// `ssh [-l user] [-p port] -- host`. Authentication is `ssh`'s own: the agent, the keys and the
+/// `~/.ssh/config` of the person; TermZip passes none and stores none. There is no shell integration on the other
+/// side, so no command blocks.
+pub fn ssh_launch(host: &str, user: Option<&str>, port: Option<u16>) -> Result<Launch, String> {
+    if !is_plain_argument(host) {
+        return Err(format!("“{host}” cannot be used as an SSH host."));
+    }
+    let mut args = Vec::new();
+    if let Some(user) = user {
+        if !is_plain_argument(user) {
+            return Err(format!("“{user}” cannot be used as an SSH user."));
+        }
+        args.extend(["-l".to_owned(), user.to_owned()]);
+    }
+    if let Some(port) = port {
+        if port == 0 {
+            return Err("The SSH port must be from 1 to 65535.".to_owned());
+        }
+        args.extend(["-p".to_owned(), port.to_string()]);
+    }
+    // `--` ends the options, so what follows is the host whatever it looks like.
+    args.extend(["--".to_owned(), host.to_owned()]);
+    Ok(Launch {
+        program: PathBuf::from(if cfg!(windows) { "ssh.exe" } else { "ssh" }),
+        args,
+        env: Vec::new(),
+        integrated: false,
+    })
+}
+
+/// The arguments of `wsl.exe` for a distribution and a folder inside it.
+fn wsl_args(distribution: Option<&str>, directory: Option<&str>) -> Result<Vec<String>, String> {
+    let mut args = Vec::new();
+    if let Some(distribution) = distribution {
+        if !is_plain_argument(distribution) {
+            return Err(format!(
+                "“{distribution}” cannot be used as a WSL distribution."
+            ));
+        }
+        args.extend(["-d".to_owned(), distribution.to_owned()]);
+    }
+    if let Some(directory) = directory {
+        if directory.starts_with('-') || directory.chars().any(char::is_control) {
+            return Err(format!("“{directory}” cannot be used as a WSL folder."));
+        }
+        args.extend(["--cd".to_owned(), directory.to_owned()]);
+    }
+    Ok(args)
+}
+
+/// `wsl.exe [-d distribution] [--cd folder]`. WSL exists on Windows only. `directory` is a folder inside the
+/// distribution (or a Windows path, which `wsl.exe` translates).
+pub fn wsl_launch(distribution: Option<&str>, directory: Option<&str>) -> Result<Launch, String> {
+    let args = wsl_args(distribution, directory)?;
+    if !cfg!(windows) {
+        return Err("WSL profiles work on Windows only.".to_owned());
+    }
+    Ok(Launch {
+        program: PathBuf::from("wsl.exe"),
+        args,
+        env: Vec::new(),
+        integrated: false,
+    })
+}
+
 pub fn default_shell() -> PathBuf {
     #[cfg(windows)]
     {
@@ -222,7 +296,10 @@ fn quote_powershell(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{ShellKind, detect_shell_kind, launch_config, quote_fish, quote_powershell};
+    use super::{
+        ShellKind, detect_shell_kind, launch_config, quote_fish, quote_powershell, ssh_launch,
+        wsl_args, wsl_launch,
+    };
     use std::path::{Path, PathBuf};
 
     fn kind_of(name: &str) -> ShellKind {
@@ -364,5 +441,82 @@ mod tests {
         assert_eq!(quote_powershell("/a b"), "'/a b'");
         assert_eq!(quote_powershell("it's"), "'it''s'");
         assert_eq!(quote_powershell("it\u{2019}s"), "'it\u{2019}\u{2019}s'");
+    }
+
+    #[test]
+    fn ssh_connects_to_the_host_with_no_shell_integration() {
+        let launch = ssh_launch("build-box", None, None).unwrap();
+
+        assert_eq!(launch.args, ["--", "build-box"]);
+        assert!(launch.program.to_string_lossy().starts_with("ssh"));
+        assert!(!launch.integrated);
+        assert!(launch.env.is_empty());
+    }
+
+    #[test]
+    fn ssh_takes_a_user_and_a_port_before_the_host() {
+        let launch = ssh_launch("10.0.0.7", Some("deploy"), Some(2222)).unwrap();
+
+        assert_eq!(
+            launch.args,
+            ["-l", "deploy", "-p", "2222", "--", "10.0.0.7"]
+        );
+    }
+
+    #[test]
+    fn nothing_that_ssh_could_read_as_an_option_is_passed() {
+        for bad in [
+            "-oProxyCommand=touch /tmp/pwned",
+            "-v",
+            "",
+            "a b",
+            "a\nb",
+            "a\tb",
+        ] {
+            assert!(ssh_launch(bad, None, None).is_err(), "host {bad:?}");
+            assert!(ssh_launch("host", Some(bad), None).is_err(), "user {bad:?}");
+        }
+        assert!(ssh_launch("host", None, Some(0)).is_err());
+    }
+
+    #[test]
+    fn the_arguments_of_wsl_name_the_distribution_and_the_folder() {
+        assert_eq!(wsl_args(None, None).unwrap(), Vec::<String>::new());
+        assert_eq!(
+            wsl_args(Some("Ubuntu-22.04"), None).unwrap(),
+            ["-d", "Ubuntu-22.04"]
+        );
+        assert_eq!(
+            wsl_args(Some("Debian"), Some("/home/me/code")).unwrap(),
+            ["-d", "Debian", "--cd", "/home/me/code"]
+        );
+        assert_eq!(wsl_args(None, Some("~")).unwrap(), ["--cd", "~"]);
+    }
+
+    #[test]
+    fn wsl_refuses_what_it_would_read_as_an_option() {
+        assert!(wsl_args(Some("-u root"), None).is_err());
+        assert!(wsl_args(Some("a b"), None).is_err());
+        assert!(wsl_args(None, Some("-e /bin/sh")).is_err());
+        assert!(wsl_args(None, Some("a\nb")).is_err());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn wsl_is_a_windows_feature_and_says_so_elsewhere() {
+        assert_eq!(
+            wsl_launch(Some("Ubuntu"), None).unwrap_err(),
+            "WSL profiles work on Windows only."
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn wsl_runs_wsl_exe_on_windows() {
+        let launch = wsl_launch(Some("Ubuntu"), Some("/srv")).unwrap();
+
+        assert_eq!(launch.program, PathBuf::from("wsl.exe"));
+        assert_eq!(launch.args, ["-d", "Ubuntu", "--cd", "/srv"]);
+        assert!(!launch.integrated);
     }
 }

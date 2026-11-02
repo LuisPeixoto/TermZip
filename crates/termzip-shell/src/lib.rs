@@ -11,5 +11,7 @@ pub mod marker;
 pub mod scripts;
 
 pub use blocks::{Block, BlockTracker};
-pub use launch::{ShellKind, default_shell, detect_shell_kind, launch_config};
+pub use launch::{
+    Launch, ShellKind, default_shell, detect_shell_kind, launch_config, ssh_launch, wsl_launch,
+};
 pub use marker::{Marker, OscParser, strip_ansi};
