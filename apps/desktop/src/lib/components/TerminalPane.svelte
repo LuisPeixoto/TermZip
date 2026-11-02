@@ -11,6 +11,7 @@
   import { api, base64ToBytes, type SessionEvent, type Theme } from "../api";
   import { xtermTheme } from "../theme";
   import { app } from "../stores/app.svelte";
+  import { mayBlink, reducedMotion } from "../stores/motion.svelte";
   import { workspace } from "../stores/workspace.svelte";
   import type { Pane } from "../stores/pane.svelte";
   import { matchShortcut } from "../shortcuts";
@@ -83,7 +84,7 @@
     terminal.options.fontFamily = family;
     terminal.options.scrollback = scrollbackLines;
     terminal.options.cursorStyle = cursorStyle;
-    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.cursorBlink = mayBlink(cursorBlink, reducedMotion.value);
     terminal.options.lineHeight = lineHeight;
     terminal.options.letterSpacing = letterSpacing;
     untrack(() => fit());
@@ -158,7 +159,7 @@
     const initial = look;
     terminal = new Terminal({
       convertEol: false,
-      cursorBlink: settings.cursorBlink,
+      cursorBlink: mayBlink(settings.cursorBlink, reducedMotion.value),
       cursorStyle: initial?.cursorStyle ?? settings.cursorStyle,
       // A pane that is not focused keeps an outline, so it is clear where the keyboard is not.
       cursorInactiveStyle: "outline",
