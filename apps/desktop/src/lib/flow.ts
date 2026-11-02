@@ -32,3 +32,37 @@ export class AckBatcher {
     this.processed = 0;
   }
 }
+
+/** The most input held while the session id is not known yet. */
+export const MAX_QUEUED_INPUT = 64 * 1024;
+
+/**
+ * What the terminal says to the shell before the shell's session id is known: the answers to the questions a shell
+ * (or ConPTY, which always asks where the cursor is before it runs anything) puts to the terminal in its very first
+ * output, and keys pressed in that moment. Output arrives before `createSession` has answered, so without this the
+ * answer was dropped and, on Windows, the shell waited for it for ever: a blank terminal.
+ */
+export class InputQueue {
+  private parts: string[] = [];
+  private size = 0;
+
+  /** Holds `data` for later; what would pass the limit is dropped. */
+  push(data: string): void {
+    if (this.size + data.length > MAX_QUEUED_INPUT) return;
+    this.parts.push(data);
+    this.size += data.length;
+  }
+
+  /** Everything held, in order. The queue is empty afterwards. */
+  drain(): string[] {
+    const parts = this.parts;
+    this.parts = [];
+    this.size = 0;
+    return parts;
+  }
+
+  /** A new shell starts with nothing held for it. */
+  clear(): void {
+    this.drain();
+  }
+}
