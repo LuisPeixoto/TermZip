@@ -31,7 +31,42 @@ pub struct SettingsPayload {
     pub plugins_catalog: bool,
     pub default_profile: Option<String>,
     pub keybindings: std::collections::BTreeMap<String, String>,
+    pub snippets: Vec<SnippetPayload>,
     pub profiles: Vec<ProfilePayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnippetPayload {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub description: Option<String>,
+    pub folder: Option<String>,
+}
+
+impl From<termzip_core::Snippet> for SnippetPayload {
+    fn from(snippet: termzip_core::Snippet) -> Self {
+        Self {
+            id: snippet.id,
+            name: snippet.name,
+            command: snippet.command,
+            description: snippet.description,
+            folder: snippet.folder,
+        }
+    }
+}
+
+impl From<SnippetPayload> for termzip_core::Snippet {
+    fn from(payload: SnippetPayload) -> Self {
+        Self {
+            id: payload.id,
+            name: payload.name,
+            command: payload.command,
+            description: payload.description,
+            folder: payload.folder,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +136,7 @@ impl From<termzip_core::Settings> for SettingsPayload {
             restore_session: settings.restore_session,
             plugins_catalog: settings.plugins_catalog,
             default_profile: settings.default_profile,
+            snippets: settings.snippets.into_iter().map(Into::into).collect(),
             profiles: settings.profiles.into_iter().map(Into::into).collect(),
         }
     }
@@ -129,6 +165,7 @@ impl SettingsPayload {
             plugins_catalog: self.plugins_catalog,
             default_profile: self.default_profile,
             keybindings: self.keybindings,
+            snippets: self.snippets.into_iter().map(Into::into).collect(),
             profiles: self.profiles.into_iter().map(Into::into).collect(),
         }
     }
@@ -448,9 +485,9 @@ pub fn list_blocks(
 
 #[cfg(test)]
 mod tests {
-    use termzip_core::{Profile, Settings};
+    use termzip_core::{Profile, Settings, Snippet};
 
-    use super::resolve_start;
+    use super::{SettingsPayload, resolve_start};
 
     fn settings() -> Settings {
         let mut work = Profile {
@@ -494,5 +531,29 @@ mod tests {
         let start = resolve_start(&settings(), Some("ghost"), None);
         assert_eq!(start.working_directory.as_deref(), Some("/home/me"));
         assert!(start.env.is_empty());
+    }
+
+    #[test]
+    fn snippets_travel_through_the_settings_payload_and_come_back_intact() {
+        // The dialog sends the whole settings; a field the payload forgot would be erased on every save.
+        let settings = Settings {
+            snippets: vec![Snippet {
+                name: "Checkout".to_owned(),
+                command: "git checkout {{branch:main}}".to_owned(),
+                description: Some("Switch branch".to_owned()),
+                folder: Some("/srv/app".to_owned()),
+                ..Snippet::default()
+            }],
+            ..Settings::default()
+        }
+        .normalized();
+
+        let json = serde_json::to_value(SettingsPayload::from(settings.clone())).unwrap();
+        assert_eq!(
+            json["snippets"][0]["command"],
+            "git checkout {{branch:main}}"
+        );
+        let back: SettingsPayload = serde_json::from_value(json).unwrap();
+        assert_eq!(back.into_raw().snippets, settings.snippets);
     }
 }
