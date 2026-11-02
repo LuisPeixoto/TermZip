@@ -3,9 +3,10 @@
  * tab with each profile, to switch to each theme, and a few switches. The things to do are handed in,
  * so the list is built and tested without the stores.
  */
-import type { Profile, Theme, ThemeEntry } from "./api";
+import type { Profile, SnippetInfo, Theme, ThemeEntry } from "./api";
 import { ACTIONS, formatChord, type AppShortcut, type Bindings } from "./keybindings";
 import { tabPosition } from "./shortcuts";
+import { needsForm } from "./snippets";
 
 export interface PaletteEntry {
   /** Stable, so the recently used ones can be remembered. */
@@ -13,6 +14,8 @@ export interface PaletteEntry {
   title: string;
   /** The shortcut, or what kind of command this is. */
   detail: string;
+  /** The palette stays open after this one is chosen, because it goes on to ask something (a snippet's values). */
+  keepsOpen?: boolean;
   run: () => void;
 }
 
@@ -28,6 +31,10 @@ export interface PaletteInput {
   blurSupported: boolean;
   /** The commands of the plugins that are running. */
   plugins: readonly { plugin: string; pluginName: string; id: string; title: string }[];
+  /** The snippets that apply in the folder of the active pane. */
+  snippets: readonly SnippetInfo[];
+  /** `"snippets"` lists nothing but the snippets (the Insert a snippet shortcut). */
+  scope?: "snippets" | null;
   commands: {
     run(action: AppShortcut): void;
     goToTab(position: number): void;
@@ -36,6 +43,8 @@ export interface PaletteInput {
     toggleAppearance(): void;
     toggleBlur(): void;
     runPluginCommand(plugin: string, command: string): void;
+    /** Types the snippet, or opens the form that asks for its values. */
+    useSnippet(snippet: SnippetInfo): void;
   };
 }
 
@@ -43,6 +52,15 @@ export function paletteEntries(input: PaletteInput): PaletteEntry[] {
   const { platform, bindings, commands } = input;
   const entries: PaletteEntry[] = [];
   const key = (action: AppShortcut) => formatChord(bindings[action], platform);
+
+  const snippets: PaletteEntry[] = input.snippets.map((snippet) => ({
+    id: `snippet:${snippet.id}`,
+    title: `Snippet: ${snippet.name}`,
+    detail: "snippet",
+    keepsOpen: needsForm(snippet),
+    run: () => commands.useSnippet(snippet),
+  }));
+  if (input.scope === "snippets") return snippets;
 
   // The palette does not list itself, and the tabs are listed by name below instead of "Go to tab 3".
   for (const action of ACTIONS) {
@@ -58,6 +76,8 @@ export function paletteEntries(input: PaletteInput): PaletteEntry[] {
       run: () => commands.runPluginCommand(entry.plugin, entry.id),
     });
   }
+
+  entries.push(...snippets);
 
   input.tabs.slice(0, 9).forEach((title, position) => {
     const action = `tab${position + 1}` as AppShortcut;

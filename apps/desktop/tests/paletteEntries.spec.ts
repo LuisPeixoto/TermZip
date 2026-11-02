@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Profile } from "../src/lib/api";
+import type { Profile, SnippetInfo } from "../src/lib/api";
 import { defaultBindings } from "../src/lib/keybindings";
 import { paletteEntries, type PaletteInput } from "../src/lib/paletteEntries";
 import { highlight } from "../src/lib/fuzzy";
@@ -14,6 +14,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     toggleAppearance: vi.fn(),
     toggleBlur: vi.fn(),
     runPluginCommand: vi.fn(),
+    useSnippet: vi.fn(),
   };
   const input: PaletteInput = {
     platform: "macos",
@@ -24,6 +25,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     currentThemeId: "termzip-dark",
     blurSupported: true,
     plugins: [],
+    snippets: [],
     commands,
     ...extra,
   };
@@ -128,5 +130,46 @@ describe("highlighting", () => {
     ]);
     expect(highlight("abc", [])).toEqual([{ text: "abc", hit: false }]);
     expect(highlight("abc", [[0, 3]])).toEqual([{ text: "abc", hit: true }]);
+  });
+
+  describe("snippets", () => {
+    const status: SnippetInfo = { id: "status", name: "Git status", description: null, parameters: [] };
+    const checkout: SnippetInfo = {
+      id: "checkout",
+      name: "Checkout",
+      description: "Switch branch",
+      parameters: [{ name: "branch", default: "main" }],
+    };
+
+    it("lists each snippet, marked as one, and uses it when chosen", () => {
+      const { entries, commands } = setup({ snippets: [status, checkout] });
+      const entry = entries.find((candidate) => candidate.id === "snippet:status");
+
+      expect(entry).toMatchObject({ title: "Snippet: Git status", detail: "snippet" });
+      entry?.run();
+      expect(commands.useSnippet).toHaveBeenCalledWith(status);
+    });
+
+    it("keeps the palette open only for a snippet that asks for values", () => {
+      const { entries } = setup({ snippets: [status, checkout] });
+
+      expect(entries.find((entry) => entry.id === "snippet:status")?.keepsOpen).toBe(false);
+      expect(entries.find((entry) => entry.id === "snippet:checkout")?.keepsOpen).toBe(true);
+    });
+
+    it("lists nothing but the snippets in the snippets scope", () => {
+      const { entries } = setup({ snippets: [status, checkout], scope: "snippets" });
+
+      expect(entries.map((entry) => entry.id)).toEqual(["snippet:status", "snippet:checkout"]);
+    });
+
+    it("has an action to open the snippets, with its shortcut", () => {
+      const { entries } = setup();
+
+      expect(entries.find((entry) => entry.id === "action:snippets")).toMatchObject({
+        title: "Insert a snippet",
+        detail: "⇧⌘S",
+      });
+    });
   });
 });
