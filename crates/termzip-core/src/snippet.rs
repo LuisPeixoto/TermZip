@@ -190,6 +190,22 @@ fn has_control(text: &str) -> bool {
     text.chars().any(char::is_control)
 }
 
+/// What a command asks for, or the sentence that says why it cannot be a snippet. The dialog calls this while
+/// the command is typed; saving checks the same things.
+pub fn check_command(command: &str) -> Result<Vec<Parameter>, String> {
+    if command.len() > MAX_SNIPPET_COMMAND_BYTES {
+        return Err(format!(
+            "The command is longer than {MAX_SNIPPET_COMMAND_BYTES} bytes."
+        ));
+    }
+    if has_control(command) {
+        return Err(
+            "The command must be one line, without Tab or other control characters.".to_owned(),
+        );
+    }
+    parameters(command)
+}
+
 /// The first problem found, as a sentence the preferences dialog can show as it is.
 pub fn validate_snippets(snippets: &[Snippet]) -> Result<(), String> {
     if snippets.len() > MAX_SNIPPETS {
@@ -208,17 +224,7 @@ pub fn validate_snippets(snippets: &[Snippet]) -> Result<(), String> {
         if snippet.command.trim().is_empty() {
             return Err(format!("The snippet “{name}” has no command."));
         }
-        if snippet.command.len() > MAX_SNIPPET_COMMAND_BYTES {
-            return Err(format!(
-                "The command of “{name}” is longer than {MAX_SNIPPET_COMMAND_BYTES} bytes."
-            ));
-        }
-        if has_control(&snippet.command) {
-            return Err(format!(
-                "The command of “{name}” must be one line, without Tab or other control characters."
-            ));
-        }
-        parameters(&snippet.command).map_err(|problem| format!("In “{name}”: {problem}"))?;
+        check_command(&snippet.command).map_err(|problem| format!("In “{name}”: {problem}"))?;
         if let Some(description) = &snippet.description
             && description.chars().count() > MAX_SNIPPET_DESCRIPTION_CHARS
         {
@@ -554,5 +560,18 @@ mod tests {
             MAX_SNIPPET_DESCRIPTION_CHARS
         );
         assert_eq!(cleaned.folder, None);
+    }
+
+    #[test]
+    fn checking_a_command_gives_its_parameters_or_a_sentence() {
+        assert_eq!(check_command("git status").unwrap(), []);
+        assert_eq!(check_command("echo {{a}} {{b:x}}").unwrap().len(), 2);
+        assert!(check_command("ls\nrm x").unwrap_err().contains("one line"));
+        assert!(check_command("echo {{").unwrap_err().contains("closing"));
+        assert!(
+            check_command(&"x".repeat(5000))
+                .unwrap_err()
+                .contains("longer")
+        );
     }
 }
