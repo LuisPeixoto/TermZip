@@ -18,6 +18,8 @@ describe("the preference of the system", () => {
   });
 
   function stubMatchMedia(initial: boolean) {
+    // The module reads the preference when it is first loaded, and the static import above already loaded it.
+    vi.resetModules();
     let listener: ((event: { matches: boolean }) => void) | undefined;
     window.matchMedia = ((query: string) => ({
       matches: query.includes("reduce") ? initial : false,
