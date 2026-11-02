@@ -127,5 +127,5 @@ on and the hash you approved. A `state.json` that cannot be read approves nothin
 ## Plugins to start from
 
 [`examples/plugins`](../examples/plugins) has four, each a template for one kind of plugin: a notifier for long
-commands, an exit-status marker with a failure count, issue links, and snippets that type common commands. The
+commands, an exit-status marker with a failure count, issue links, and snippets that type common commands (TermZip also has [snippets](snippets.md) built in, with values to fill in). The
 [plugin API](plugin-api.md) explains how to write your own, in Rust or in anything that builds WebAssembly.

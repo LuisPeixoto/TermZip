@@ -9,7 +9,7 @@ and `src/lib.rs`, and build.
 | [`long-command-notify`](long-command-notify) | `blocks`, `notify` | A "slow" label and a message when a command that ran for more than ten seconds ends. |
 | [`exit-status`](exit-status) | `blocks` | A red label with the exit code on every failed command, and "N failed" in the status bar. |
 | [`issue-links`](issue-links) | nothing | `#123` and `owner/repo#123` in the output become links to the issue on GitHub. |
-| [`snippets`](snippets) | `type` | Palette commands that type a command you use often, without pressing Enter. |
+| [`snippets`](snippets) | `type` | Palette commands that type a command you use often, without pressing Enter. (TermZip now has [snippets](../../docs/snippets.md) built in, with values to fill in; this one stays as the smallest example of the `type` permission.) |
 
 ## Build
 
