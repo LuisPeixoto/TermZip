@@ -360,6 +360,10 @@ export const api = {
   gitStatus: (cwd: string | null) => invoke<GitStatus | null>("git_status", { cwd }),
   /** The web page of the repository a folder is in (`https://host/owner/repo`), from its `origin`; `null` when there is none or git is off. */
   repositoryPage: (cwd: string | null) => invoke<string | null>("repository_page", { cwd }),
+  /** `null` in a normal run; in bench mode what the webview should do (see docs/performance.md). */
+  benchPlan: () => invoke<{ lines: number } | null>("bench_plan"),
+  /** Reports a bench milestone; does nothing in a normal run. */
+  benchMark: (name: string) => invoke<void>("bench_mark", { name }),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
