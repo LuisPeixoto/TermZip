@@ -1,0 +1,22 @@
+[package]
+name = "termzip-bench"
+description = "Reproducible measurements of the parts of TermZip that handle a lot of data, and the check of the performance budgets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+serde_json.workspace = true
+termzip-core.workspace = true
+termzip-git.workspace = true
+termzip-pty.workspace = true
+termzip-shell.workspace = true
+termzip-tasks.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TIMEOUT_MS, runBench, type BenchDeps } from "../src/lib/bench";
 
-function setup(plan: { lines: number } | null = { lines: 1000 }) {
+function setup(plan: { lines: number; command: string } | null = { lines: 1000, command: "seq 1 1000" }) {
   const marks: string[] = [];
   const pane = { cwd: null as string | null, commands: [] as (string | null)[], written: [] as string[] };
   const deps: BenchDeps = {
@@ -32,7 +32,7 @@ describe("bench mode", () => {
   });
 
   it("types the flood once the first prompt is up, and reports each milestone in order", async () => {
-    const { deps, marks, pane } = setup({ lines: 1000 });
+    const { deps, marks, pane } = setup({ lines: 1000, command: "seq 1 1000" });
 
     const run = runBench(deps);
     await vi.advanceTimersByTimeAsync(100);
@@ -50,8 +50,22 @@ describe("bench mode", () => {
     expect(marks.at(-1)).toBe("done");
   });
 
+  it("types the command the backend chose, for a shell that has no seq", async () => {
+    const { deps, marks, pane } = setup({ lines: 3, command: "1..3" });
+    pane.cwd = "/work";
+
+    const run = runBench(deps);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(pane.written).toEqual(["1..3\r"]);
+    pane.commands.push("1..3");
+    await vi.advanceTimersByTimeAsync(100);
+    await run;
+
+    expect(marks.at(-1)).toBe("done");
+  });
+
   it("does not take another command for the flood", async () => {
-    const { deps, marks, pane } = setup({ lines: 5 });
+    const { deps, marks, pane } = setup({ lines: 5, command: "seq 1 5" });
     pane.cwd = "/work";
     pane.commands.push("seq 1 4");
 

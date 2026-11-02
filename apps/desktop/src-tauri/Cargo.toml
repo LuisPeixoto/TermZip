@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+publish = false
 
 [lib]
 name = "termzip_desktop_lib"
@@ -28,6 +29,7 @@ serde_json.workspace = true
 tauri.workspace = true
 tauri-plugin-clipboard-manager.workspace = true
 tauri-plugin-dialog.workspace = true
+tauri-plugin-updater.workspace = true
 termzip-core.workspace = true
 termzip-git.workspace = true
 termzip-plugin-api.workspace = true

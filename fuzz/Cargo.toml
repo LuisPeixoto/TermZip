@@ -1,0 +1,106 @@
+[package]
+name = "termzip-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+termzip-core = { path = "../crates/termzip-core" }
+termzip-git = { path = "../crates/termzip-git" }
+termzip-plugins = { path = "../crates/termzip-plugins" }
+termzip-shell = { path = "../crates/termzip-shell" }
+termzip-tasks = { path = "../crates/termzip-tasks" }
+
+# Not part of the main workspace: it needs a nightly toolchain.
+[workspace]
+
+[[bin]]
+name = "catalog_index"
+path = "fuzz_targets/catalog_index.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "git_output"
+path = "fuzz_targets/git_output.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "keybinding"
+path = "fuzz_targets/keybinding.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "osc_parser"
+path = "fuzz_targets/osc_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "plugin_module"
+path = "fuzz_targets/plugin_module.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "plugin_reply"
+path = "fuzz_targets/plugin_reply.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "snippet"
+path = "fuzz_targets/snippet.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ssh_config"
+path = "fuzz_targets/ssh_config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "task_files"
+path = "fuzz_targets/task_files.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "theme_import"
+path = "fuzz_targets/theme_import.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "workspace_file"
+path = "fuzz_targets/workspace_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wsl_list"
+path = "fuzz_targets/wsl_list.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1

@@ -29,7 +29,9 @@ pub struct SettingsPayload {
     pub working_directory: Option<String>,
     pub restore_session: bool,
     pub plugins_catalog: bool,
+    pub check_updates_on_launch: bool,
     pub git_status: bool,
+    pub screen_reader: bool,
     pub default_profile: Option<String>,
     pub keybindings: std::collections::BTreeMap<String, String>,
     pub snippets: Vec<SnippetPayload>,
@@ -162,7 +164,9 @@ impl From<termzip_core::Settings> for SettingsPayload {
             working_directory: settings.working_directory,
             restore_session: settings.restore_session,
             plugins_catalog: settings.plugins_catalog,
+            check_updates_on_launch: settings.check_updates_on_launch,
             git_status: settings.git_status,
+            screen_reader: settings.screen_reader,
             default_profile: settings.default_profile,
             snippets: settings.snippets.into_iter().map(Into::into).collect(),
             profiles: settings.profiles.into_iter().map(Into::into).collect(),
@@ -191,7 +195,9 @@ impl SettingsPayload {
             working_directory: self.working_directory,
             restore_session: self.restore_session,
             plugins_catalog: self.plugins_catalog,
+            check_updates_on_launch: self.check_updates_on_launch,
             git_status: self.git_status,
+            screen_reader: self.screen_reader,
             default_profile: self.default_profile,
             keybindings: self.keybindings,
             snippets: self.snippets.into_iter().map(Into::into).collect(),
@@ -827,5 +833,19 @@ mod tests {
         );
 
         assert_eq!(resolve_start(&settings, None, None).folder_profile, None);
+    }
+
+    #[test]
+    fn screen_reader_support_travels_through_the_payload() {
+        let settings = Settings {
+            screen_reader: true,
+            ..Settings::default()
+        };
+
+        let json = serde_json::to_value(SettingsPayload::from(settings)).unwrap();
+
+        assert_eq!(json["screenReader"], true);
+        let back: SettingsPayload = serde_json::from_value(json).unwrap();
+        assert!(back.into_raw().screen_reader);
     }
 }

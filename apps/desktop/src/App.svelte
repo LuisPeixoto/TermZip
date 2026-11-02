@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { api } from "./lib/api";
   import { runBench } from "./lib/bench";
+  import { checkAtStartup } from "./lib/updates";
   import { app } from "./lib/stores/app.svelte";
   import { persistWorkspace, type Persistence } from "./lib/stores/persist.svelte";
   import { workspace } from "./lib/stores/workspace.svelte";
@@ -51,6 +52,12 @@
       } catch (error) {
         app.toast("warn", `Could not load the plugins: ${error}`);
       }
+      // Only if the person turned it on in Preferences (off by default): look once, say so if there is an update.
+      void checkAtStartup({
+        enabled: app.settings.checkUpdatesOnLaunch,
+        check: () => api.checkForUpdate(),
+        notify: (text) => app.toast("ok", text),
+      });
     })();
 
     // A window that is closing cannot wait for the debounce.

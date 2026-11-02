@@ -11,6 +11,7 @@ mod sessions;
 mod snippets;
 mod tasks;
 mod themes;
+mod updates;
 mod window;
 
 use std::sync::Arc;
@@ -60,8 +61,10 @@ pub fn run() {
     builder
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(sessions)
         .manage(bench)
+        .manage(updates::UpdateState::default())
         .manage(host)
         .setup(|app| {
             // Start the plugins the user approved before the first terminal opens.
@@ -93,6 +96,8 @@ pub fn run() {
             snippets::list_snippets,
             snippets::render_snippet,
             tasks::list_tasks,
+            updates::check_for_update,
+            updates::install_update,
             themes::list_themes,
             themes::import_theme,
             themes::export_theme,

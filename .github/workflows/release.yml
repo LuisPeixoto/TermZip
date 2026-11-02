@@ -66,15 +66,53 @@ jobs:
       - name: Install frontend dependencies
         working-directory: apps/desktop
         run: npm ci
+      # Signing and notarization turn on only for the secrets that exist (see docs/distribution.md). Without them the
+      # release is built unsigned, and the log says so.
+      - name: Prepare signing
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          TRUSTED_SIGNING_ENDPOINT: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          TRUSTED_SIGNING_ACCOUNT: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          TRUSTED_SIGNING_PROFILE: ${{ vars.TRUSTED_SIGNING_PROFILE }}
+        run: tools/prepare-signing.sh
+      - name: Install the Windows signing tool
+        if: runner.os == 'Windows' && env.TERMZIP_SIGN_WINDOWS == 'yes'
+        run: cargo install trusted-signing-cli --locked
       - name: Build bundles
         working-directory: apps/desktop
         shell: bash
+        env:
+          # Signs the update files; the app checks them against the public key in tauri.conf.json.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
+          args=()
+          if [ -n "${TERMZIP_TAURI_CONFIG:-}" ]; then args+=(--config "$TERMZIP_TAURI_CONFIG"); fi
           if [ -n "${{ matrix.target }}" ]; then
-            npm run tauri build -- --target "${{ matrix.target }}"
+            npm run tauri build -- --target "${{ matrix.target }}" "${args[@]}"
           else
-            npm run tauri build
+            npm run tauri build -- "${args[@]}"
           fi
+      - name: Verify the macOS signature
+        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != ''
+        shell: bash
+        run: |
+          found=0
+          while IFS= read -r app; do
+            found=1
+            codesign --verify --deep --strict --verbose=2 "$app"
+            if [ -n "${APPLE_ID:-}" ]; then xcrun stapler validate "$app" || spctl -a -vv "$app"; fi
+          done < <(find target -path '*/release/bundle/macos/*.app' -maxdepth 8 -type d)
+          [ "$found" = 1 ] || { echo "::error::No .app was found to verify"; exit 1; }
       - name: Collect artifacts
         shell: bash
         run: |
@@ -82,8 +120,20 @@ jobs:
           # The desktop shell is a Cargo workspace member, so the build output is the workspace's
           # target/ at the repository root; with --target the bundles sit under target/<triple>/.
           find target -path '*/release/bundle/*' -type f \
-            \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.msi' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
+            \( -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.msi' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.sig' \) \
             -exec cp {} artifacts/ \;
+          # Both Macs build a file called TermZip.app.tar.gz; the updater needs to tell them apart.
+          version="${GITHUB_REF_NAME#v}"
+          case "${{ matrix.target }}" in
+            aarch64-apple-darwin) arch=aarch64 ;;
+            x86_64-apple-darwin) arch=x64 ;;
+            *) arch="" ;;
+          esac
+          if [ -n "$arch" ]; then
+            for suffix in "" ".sig"; do
+              mv "artifacts/TermZip.app.tar.gz$suffix" "artifacts/TermZip_${version}_${arch}.app.tar.gz$suffix"
+            done
+          fi
           ls -la artifacts
           if [ -z "$(ls -A artifacts)" ]; then
             echo "::error::No installer was found under target/*/release/bundle"
@@ -100,10 +150,23 @@ jobs:
     needs: desktop
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v7
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets
+      - name: Create latest.json for the updater
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # The notes of this version, from the changelog.
+          awk -v v="$version" '/^## \[/ { if (found) exit; found = index($0, "[" v "]") > 0; next } found' CHANGELOG.md > notes.md
+          rm -f assets/latest.json
+          python3 tools/make-latest-json.py --version "$version" --notes-file notes.md --assets assets \
+            --base-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME" > latest.json
+          cp latest.json assets/latest.json
+          gh release upload "$GITHUB_REF_NAME" latest.json --repo "$GITHUB_REPOSITORY" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create SHA-256 manifest
         run: |
           # A re-run must not hash the manifest uploaded by a previous run.

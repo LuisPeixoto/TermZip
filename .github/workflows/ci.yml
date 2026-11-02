@@ -68,6 +68,40 @@ jobs:
           --plugins examples/plugins/target/wasm32-unknown-unknown/release
           --out "$RUNNER_TEMP/catalog" --base-url https://example.com/catalog
 
+  scripts:
+    name: Scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test the signing preparation of the release
+        run: bash tools/test-prepare-signing.sh
+      - name: Test the latest.json the updater reads
+        run: python3 tools/test_make_latest_json.py
+
+  supply-chain:
+    name: Supply chain
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      # Advisories, licenses, banned and unknown sources: see deny.toml.
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: examples/plugins/Cargo.toml
+          command: check
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Audit the npm dependencies
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
   desktop:
     name: Desktop app (${{ matrix.os }})
     strategy:

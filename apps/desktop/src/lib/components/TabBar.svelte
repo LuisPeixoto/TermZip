@@ -98,7 +98,10 @@
   }}
 />
 
-<div bind:this={strip} class="flex min-w-0 items-center gap-1" role="tablist" aria-label="Tabs">
+<!-- A group of buttons, the active one marked with aria-current. It is not a tablist: that role promises arrow-key
+     navigation and allows nothing but tabs inside, and each tab here has a close button of its own. -->
+<div class="flex min-w-0 items-center gap-1">
+<div bind:this={strip} class="flex min-w-0 items-center gap-1" role="group" aria-label="Tabs">
   {#each workspace.tabs as tab (tab.id)}
     {@const active = tab.id === workspace.activeId}
     <div
@@ -125,8 +128,7 @@
       {:else}
         <button
           type="button"
-          role="tab"
-          aria-selected={active}
+          aria-current={active ? "true" : undefined}
           class="flex min-w-0 flex-1 items-center gap-1.5 truncate px-2 text-left"
           title={tab.title}
           onpointerdown={(event) => onPointerDown(event, tab.id)}
@@ -150,6 +152,7 @@
       {/if}
     </div>
   {/each}
+</div>
 
   <button
     type="button"

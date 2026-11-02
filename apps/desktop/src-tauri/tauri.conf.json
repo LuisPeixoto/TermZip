@@ -37,6 +37,21 @@
     "shortDescription": "A fast, modern terminal with command blocks",
     "longDescription": "TermZip is an open-source desktop terminal written in Rust. It runs your shell in a real terminal and turns every command into a block you can copy, re-run, and revisit.",
     "copyright": "MIT License — Luis Peixoto",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyM0JCQzZGMEM4MjI2NDAKUldSQUpvSU1iN3c3a3NUcHVBQjAxelN4S0s3WjlpVWtaNFdyaWQ2ZWVLTisvNnpVdWx1YW84VkMK",
+      "endpoints": [
+        "https://github.com/LuisPeixoto/TermZip/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
