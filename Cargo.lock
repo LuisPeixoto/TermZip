@@ -3960,6 +3960,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "termzip-tasks"
+version = "0.4.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "toml 0.9.12+spec-1.1.0",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
