@@ -55,6 +55,12 @@ pub fn list_snippets(cwd: Option<String>) -> Result<Vec<SnippetInfo>, String> {
     Ok(infos(&settings, cwd.as_deref()))
 }
 
+/// What a command being typed in Preferences asks for, or why it cannot be a snippet.
+#[tauri::command]
+pub fn check_snippet(command: String) -> Result<Vec<Parameter>, String> {
+    termzip_core::check_command(&command)
+}
+
 /// The text to put at the prompt. It never contains a line break, so it cannot run by itself.
 #[tauri::command]
 pub fn render_snippet(id: String, values: BTreeMap<String, String>) -> Result<String, String> {
@@ -137,6 +143,26 @@ mod tests {
         assert_eq!(
             render_by_id(&settings, "say", &BTreeMap::new()).unwrap_err(),
             "Fill in what first."
+        );
+    }
+
+    #[test]
+    fn a_command_being_typed_is_checked_as_it_will_be_saved() {
+        assert_eq!(
+            check_snippet("git checkout {{branch:main}}".to_owned())
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(
+            check_snippet("echo {{".to_owned())
+                .unwrap_err()
+                .contains("closing")
+        );
+        assert!(
+            check_snippet("a\nb".to_owned())
+                .unwrap_err()
+                .contains("one line")
         );
     }
 }

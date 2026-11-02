@@ -321,6 +321,8 @@ export const api = {
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
   listSnippets: (cwd: string | null) => invoke<SnippetInfo[]>("list_snippets", { cwd }),
+  /** What a command being typed asks for, or a sentence saying why it cannot be a snippet. */
+  checkSnippet: (command: string) => invoke<SnippetParameter[]>("check_snippet", { command }),
   /** The text of a snippet with its values filled in. It never has a line break, so it cannot run by itself. */
   renderSnippet: (id: string, values: Record<string, string>) => invoke<string>("render_snippet", { id, values }),
   /** Runs a command of a plugin from the terminal with this session; the answer comes on the plugin channel. */
