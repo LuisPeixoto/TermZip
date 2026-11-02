@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Profile } from "../src/lib/api";
 import {
   describeProfile,
+  describeRemote,
   formatEnv,
   formatFolders,
   parseEnv,
   parseFolders,
   parseFontSize,
+  parsePort,
   slug,
   uniqueProfileId,
 } from "../src/lib/profiles";
@@ -136,5 +138,43 @@ describe("the folders of a profile", () => {
     const base: Profile = { id: "p", name: "P", shell: null, workingDirectory: null, env: {} };
     expect(describeProfile({ ...base, folders: ["~/work/api"] })).toBe("for ~/work/api");
     expect(describeProfile({ ...base, folders: ["/a", "/b"], env: { A: "1" } })).toBe("for 2 folders · 1 variable");
+  });
+});
+
+describe("remote profiles", () => {
+  const base: Profile = { id: "p", name: "P", shell: null, workingDirectory: null, env: {} };
+
+  it("reads the port field: empty is ssh's own, otherwise 1 to 65535", () => {
+    expect(parsePort("")).toEqual({ port: null });
+    expect(parsePort(" 2222 ")).toEqual({ port: 2222 });
+    expect(parsePort("65535")).toEqual({ port: 65535 });
+    for (const bad of ["0", "65536", "-1", "22.5", "ssh", "1e3"]) {
+      expect("error" in parsePort(bad), bad).toBe(true);
+    }
+  });
+
+  it("says where an SSH profile connects", () => {
+    expect(describeRemote({ ...base, kind: "ssh", host: "build-box" })).toBe("ssh build-box");
+    expect(describeRemote({ ...base, kind: "ssh", host: "10.0.0.7", user: "deploy", port: 2222 })).toBe(
+      "ssh deploy@10.0.0.7:2222",
+    );
+    expect(describeRemote({ ...base, kind: "ssh" })).toBe("ssh (no host)");
+  });
+
+  it("says which distribution a WSL profile opens", () => {
+    expect(describeRemote({ ...base, kind: "wsl", distribution: "Ubuntu" })).toBe("WSL Ubuntu");
+    expect(describeRemote({ ...base, kind: "wsl" })).toBe("WSL (default distribution)");
+  });
+
+  it("says nothing about a local profile, or one from before profiles had a kind", () => {
+    expect(describeRemote(base)).toBeNull();
+    expect(describeRemote({ ...base, kind: "local" })).toBeNull();
+  });
+
+  it("describes a remote profile by where it connects, not by a shell of this computer", () => {
+    const ssh: Profile = { ...base, kind: "ssh", host: "build-box", shell: "/bin/zsh", workingDirectory: "/local" };
+    expect(describeProfile(ssh)).toBe("ssh build-box");
+    const wsl: Profile = { ...base, kind: "wsl", distribution: "Debian", shell: "/bin/zsh", workingDirectory: "~/code" };
+    expect(describeProfile(wsl)).toBe("WSL Debian · ~/code");
   });
 });

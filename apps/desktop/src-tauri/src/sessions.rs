@@ -16,8 +16,9 @@ use serde::Serialize;
 use tauri::ipc::Channel;
 
 use crate::flow::FlowControl;
+use termzip_core::Remote;
 use termzip_pty::{PtyOptions, PtySession};
-use termzip_shell::{Block, BlockTracker, OscParser};
+use termzip_shell::{Block, BlockTracker, Launch, OscParser};
 
 const EXIT_POLL: Duration = Duration::from_millis(400);
 /// After the PTY closes, the child may need a moment before its status is
@@ -60,6 +61,8 @@ pub struct SessionRequest {
     pub shell: Option<String>,
     /// The profile's variables; the integration's own win over them.
     pub env: BTreeMap<String, String>,
+    /// An SSH connection or a WSL distribution to start instead of a local shell.
+    pub remote: Option<Remote>,
 }
 
 /// Told about every finished block of every session, with the id of the session.
@@ -132,6 +135,33 @@ pub struct Sessions {
     observer: Mutex<Option<BlockObserver>>,
 }
 
+/// What to spawn for a request, and the name the tab falls back to when the program sets no title: for a remote
+/// profile that is where it connects (`ssh build-box`), otherwise the shell's own name.
+fn launch_for(
+    remote: Option<&Remote>,
+    shell: Option<&str>,
+    working_directory: Option<&str>,
+    integration_dir: &Path,
+) -> anyhow::Result<(Launch, Option<String>)> {
+    match remote {
+        Some(Remote::Ssh { host, user, port }) => {
+            let launch = termzip_shell::ssh_launch(host, user.as_deref(), *port)
+                .map_err(anyhow::Error::msg)?;
+            Ok((launch, Some(format!("ssh {host}"))))
+        }
+        Some(Remote::Wsl { distribution }) => {
+            let launch = termzip_shell::wsl_launch(distribution.as_deref(), working_directory)
+                .map_err(anyhow::Error::msg)?;
+            let label = match distribution {
+                Some(name) => format!("wsl {name}"),
+                None => "wsl".to_owned(),
+            };
+            Ok((launch, Some(label)))
+        }
+        None => Ok((termzip_shell::launch_config(shell, integration_dir), None)),
+    }
+}
+
 impl Sessions {
     /// Who is told about finished blocks, for sessions created from now on.
     pub fn set_block_observer(&self, observer: BlockObserver) {
@@ -156,15 +186,24 @@ impl Sessions {
             working_directory,
             shell: shell_override,
             env: profile_env,
+            remote,
         } = request;
-        let launch = termzip_shell::launch_config(shell_override.as_deref(), integration_dir);
+        let (launch, label) = launch_for(
+            remote.as_ref(),
+            shell_override.as_deref(),
+            working_directory.as_deref(),
+            integration_dir,
+        )?;
         // The profile's variables go first: the integration's own (ZDOTDIR and friends) win.
         let mut environment = profile_env;
         environment.extend(launch.env.iter().cloned());
         let options = PtyOptions {
             shell: Some(launch.program.clone()),
             args: launch.args.clone(),
-            working_directory: working_directory.map(std::path::PathBuf::from),
+            // WSL takes its folder as an argument, inside the distribution; an SSH connection starts here.
+            working_directory: working_directory
+                .filter(|_| remote.is_none())
+                .map(std::path::PathBuf::from),
             rows,
             columns,
             environment,
@@ -174,11 +213,13 @@ impl Sessions {
         let id = self.allocate_id();
         let info = SessionInfo {
             id,
-            shell: launch
-                .program
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "shell".to_owned()),
+            shell: label.unwrap_or_else(|| {
+                launch
+                    .program
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "shell".to_owned())
+            }),
             integrated: launch.integrated,
             folder_profile: None,
         };
@@ -406,6 +447,7 @@ mod tests {
             .create(
                 channel,
                 SessionRequest {
+                    remote: None,
                     rows: 24,
                     columns: 80,
                     working_directory: None,
@@ -655,6 +697,7 @@ mod tests {
             .create(
                 channel,
                 SessionRequest {
+                    remote: None,
                     rows: 24,
                     columns: 80,
                     working_directory: None,
@@ -720,5 +763,61 @@ mod tests {
             })
             .collect();
         String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    #[test]
+    fn an_ssh_profile_starts_ssh_and_names_the_tab_after_the_host() {
+        let remote = Remote::Ssh {
+            host: "build-box".to_owned(),
+            user: Some("deploy".to_owned()),
+            port: Some(2222),
+        };
+
+        let (launch, label) = launch_for(
+            Some(&remote),
+            Some("/bin/zsh"),
+            Some("/local"),
+            Path::new("/x"),
+        )
+        .unwrap();
+
+        assert!(launch.program.to_string_lossy().starts_with("ssh"));
+        assert_eq!(
+            launch.args,
+            ["-l", "deploy", "-p", "2222", "--", "build-box"]
+        );
+        assert!(!launch.integrated);
+        assert_eq!(label.as_deref(), Some("ssh build-box"));
+    }
+
+    #[test]
+    fn a_host_that_reads_as_an_option_never_reaches_ssh() {
+        let remote = Remote::Ssh {
+            host: "-oProxyCommand=touch /tmp/pwned".to_owned(),
+            user: None,
+            port: None,
+        };
+
+        assert!(launch_for(Some(&remote), None, None, Path::new("/x")).is_err());
+    }
+
+    #[test]
+    fn a_local_profile_starts_its_shell_and_keeps_the_shell_s_name() {
+        let (launch, label) = launch_for(None, Some("/bin/sh"), None, Path::new("/x")).unwrap();
+
+        assert_eq!(launch.program, Path::new("/bin/sh"));
+        assert_eq!(label, None);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn a_wsl_profile_says_it_needs_windows_elsewhere() {
+        let remote = Remote::Wsl {
+            distribution: Some("Ubuntu".to_owned()),
+        };
+
+        let problem = launch_for(Some(&remote), None, None, Path::new("/x")).unwrap_err();
+
+        assert_eq!(problem.to_string(), "WSL profiles work on Windows only.");
     }
 }

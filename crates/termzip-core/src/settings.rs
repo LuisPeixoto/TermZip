@@ -236,10 +236,14 @@ impl Settings {
                 LaunchProfile {
                     id: profile.id.clone(),
                     shell: profile.shell.clone().or_else(|| self.shell.clone()),
-                    working_directory: profile
-                        .working_directory
-                        .clone()
-                        .or_else(|| self.working_directory.clone()),
+                    // The built-in folder is a folder of this computer: a remote profile only has the folder it
+                    // names itself, never one inherited from here.
+                    working_directory: profile.working_directory.clone().or_else(|| {
+                        remote
+                            .is_none()
+                            .then(|| self.working_directory.clone())
+                            .flatten()
+                    }),
                     env: profile.env.clone(),
                     remote,
                     problem,
@@ -952,5 +956,33 @@ AWS_PROFILE = "work"
 
         assert!(text.contains("git_status = false"), "{text}");
         assert!(!Settings::from_toml(&text).git_status);
+    }
+
+    #[test]
+    fn a_remote_profile_never_inherits_the_folder_of_this_computer() {
+        let settings = Settings::from_toml(
+            "working_directory = \"/Users/me\"\n\n[[profiles]]\nname = \"Linux\"\nkind = \"wsl\"\n\n[[profiles]]\nname = \"Box\"\nkind = \"ssh\"\nhost = \"box\"\n\n[[profiles]]\nname = \"Home\"\nkind = \"wsl\"\nworking_directory = \"/home/me\"\n\n[[profiles]]\nname = \"Plain\"\n",
+        );
+
+        assert_eq!(
+            settings.launch_profile(Some("linux")).working_directory,
+            None
+        );
+        assert_eq!(settings.launch_profile(Some("box")).working_directory, None);
+        assert_eq!(
+            settings
+                .launch_profile(Some("home"))
+                .working_directory
+                .as_deref(),
+            Some("/home/me")
+        );
+        // A local profile still inherits it.
+        assert_eq!(
+            settings
+                .launch_profile(Some("plain"))
+                .working_directory
+                .as_deref(),
+            Some("/Users/me")
+        );
     }
 }
