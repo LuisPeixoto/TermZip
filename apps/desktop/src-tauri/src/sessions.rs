@@ -983,7 +983,11 @@ mod tests {
         // what is being checked. What is: every number is there, once, in order.
         let numbers: Vec<u32> = String::from_utf8_lossy(&output)
             .split('\n')
-            .filter_map(|line| line.trim_matches('\r').parse().ok())
+            // The first number sits after the prompt that is still on its line ("$ 1").
+            .filter_map(|line| {
+                let line = line.trim_matches('\r');
+                line.strip_prefix("$ ").unwrap_or(line).parse().ok()
+            })
             .collect();
 
         if numbers.len() != 60_000 {
