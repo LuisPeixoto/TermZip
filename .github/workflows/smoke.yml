@@ -1,0 +1,113 @@
+name: Smoke
+
+# Builds the release app and runs it in bench mode on each system: the window opens, the shell starts, the first
+# prompt arrives, a flood is typed and its block finishes. It also runs the headless measurements and checks them
+# against docs/performance-budgets.toml. The report and a screenshot are kept as artifacts.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - .github/workflows/smoke.yml
+      - tools/smoke.sh
+      - crates/termzip-bench/**
+      - docs/performance-budgets.toml
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  smoke:
+    name: Smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb imagemagick x11-apps
+      - name: Build the release app
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npm run tauri build -- --no-bundle
+
+      - name: Measure the parts that handle a lot of data
+        run: cargo run --release -p termzip-bench -- run --json headless.json
+      - name: Check them against the budgets
+        env:
+          # The budgets are for the reference hardware; a shared runner is much slower, so only a large regression fails.
+          TERMZIP_BENCH_SLACK: "4"
+        run: cargo run --release -p termzip-bench -- check docs/performance-budgets.toml headless.json
+
+      - name: Run the app (Linux)
+        if: runner.os == 'Linux'
+        env:
+          # No GPU on the runner.
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+        run: xvfb-run -a -s "-screen 0 1280x800x24" tools/smoke.sh
+      - name: Run the app (macOS)
+        if: runner.os == 'macOS'
+        run: tools/smoke.sh
+      - name: Run the app (Windows, with PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force smoke-out | Out-Null
+          $home_dir = Join-Path $env:RUNNER_TEMP 'termzip-home'
+          New-Item -ItemType Directory -Force $home_dir | Out-Null
+          $pwsh = (Get-Command pwsh).Source -replace '\\', '/'
+          "shell = `"$pwsh`"`nrestore_session = false`ngit_status = false`n" | Set-Content -Encoding ascii (Join-Path $home_dir 'config.toml')
+          $env:TERMZIP_HOME = $home_dir
+          $env:TERMZIP_BENCH = (Join-Path $PWD 'smoke-out/app.json')
+          $env:TERMZIP_BENCH_LINES = '100000'
+          # PowerShell has no seq: one number per line.
+          $env:TERMZIP_BENCH_COMMAND = '1..{lines}'
+          $app = Start-Process -FilePath 'target/release/termzip.exe' -PassThru -RedirectStandardError smoke-out/app.log
+          $deadline = (Get-Date).AddMinutes(3)
+          while (-not (Test-Path $env:TERMZIP_BENCH) -and (Get-Date) -lt $deadline -and -not $app.HasExited) { Start-Sleep -Milliseconds 500 }
+          Start-Sleep -Seconds 1
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          [System.Drawing.Graphics]::FromImage($bitmap).CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bitmap.Save((Join-Path $PWD 'smoke-out/screen.png'))
+          if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
+          if (-not (Test-Path $env:TERMZIP_BENCH)) { Get-Content smoke-out/app.log; throw 'no report' }
+          $report = Get-Content $env:TERMZIP_BENCH -Raw | ConvertFrom-Json
+          "{0} {1}: prompt after {2:N0} ms, {3:N0} lines at {4:N0} per second" -f $report.os, $report.arch, $report.launchToPromptMs, $report.lines, $report.floodLinesPerSecond
+          if ($report.failed) { throw 'the run did not complete' }
+
+      - name: Check the app against the budgets (the reference system only)
+        if: runner.os == 'macOS'
+        run: cargo run --release -p termzip-bench -- check docs/performance-budgets.toml headless.json smoke-out/app.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: smoke-${{ matrix.os }}
+          path: |
+            smoke-out/
+            headless.json
