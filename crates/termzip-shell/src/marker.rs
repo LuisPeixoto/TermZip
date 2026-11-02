@@ -44,6 +44,12 @@ impl OscParser {
         Self::default()
     }
 
+    /// How many bytes are being kept for the next call (a marker that has not ended).
+    #[cfg(test)]
+    fn pending_len(&self) -> usize {
+        self.pending.len()
+    }
+
     /// Feed bytes and return every complete marker found. Incomplete trailing
     /// sequences are kept for the next call.
     pub fn feed(&mut self, bytes: &[u8]) -> Vec<Marker> {
@@ -56,11 +62,14 @@ impl OscParser {
     /// Like [`Self::feed`], but also reports where each marker started and ended
     /// in `bytes`, so callers can attribute the non-marker bytes to regions.
     pub fn feed_ranges(&mut self, bytes: &[u8]) -> Vec<MarkerHit> {
-        let prior_len = self.pending.len();
+        let mut prior_len = self.pending.len();
         self.pending.extend_from_slice(bytes);
         if self.pending.len() > MAX_PENDING_BYTES {
             let overflow = self.pending.len() - MAX_PENDING_BYTES;
             self.pending.drain(..overflow);
+            // Everything moved forward by what was cut, and this chunk's bytes with it. Without this the chunk
+            // would be taken for older than it is and a marker in it would be dropped.
+            prior_len = prior_len.saturating_sub(overflow);
         }
 
         let mut hits = Vec::new();
@@ -88,9 +97,17 @@ impl OscParser {
             search_from = marker_end;
         }
 
-        if search_from > 0 {
-            self.pending.drain(..search_from);
-        }
+        // Keep only what the next call needs: a marker that has not ended yet, or an escape that may be the start
+        // of one. Plain output that has been seen is never kept, so a long output cannot fill the buffer and push
+        // the bytes around a later marker out of place.
+        let keep_from = match find_intro(&self.pending, search_from) {
+            Some(start) => start,
+            None if self.pending.len() > search_from && self.pending.last() == Some(&0x1b) => {
+                self.pending.len() - 1
+            }
+            None => self.pending.len(),
+        };
+        self.pending.drain(..keep_from);
         hits
     }
 }
@@ -337,5 +354,93 @@ mod tests {
         // A capture limit can end in the middle of a multibyte character.
         let cut = &"\u{e9}".as_bytes()[..1];
         assert_eq!(strip_ansi(cut), "\u{fffd}");
+    }
+
+    /// Plain output with no marker in it, `size` bytes, split the way a PTY delivers it.
+    fn plain(parser: &mut OscParser, size: usize, chunk: usize) {
+        let data = vec![b'x'; size];
+        for piece in data.chunks(chunk) {
+            assert!(parser.feed_ranges(piece).is_empty());
+        }
+    }
+
+    #[test]
+    fn a_marker_after_a_lot_of_plain_output_is_still_found() {
+        // A command that prints more than the parser's buffer (64 KiB) must still end with its marker: this used to
+        // be dropped, so the block of `ls -R` or `cat big.log` never finished.
+        for chunk in [1, 17, 4096, 16 * 1024, 64 * 1024, 100_000] {
+            let mut parser = OscParser::new();
+            plain(&mut parser, 300_000, chunk);
+
+            let hits = parser.feed_ranges(b"\x1b]133;D;0\x07");
+
+            assert_eq!(hits.len(), 1, "chunk size {chunk}");
+            assert_eq!(hits[0].marker, Marker::ExecEnd(Some(0)));
+            assert_eq!((hits[0].start, hits[0].end), (0, 10), "chunk size {chunk}");
+        }
+    }
+
+    #[test]
+    fn the_range_of_a_marker_is_right_after_a_lot_of_plain_output() {
+        let mut parser = OscParser::new();
+        plain(&mut parser, 200_000, 4096);
+
+        let hits = parser.feed_ranges(b"abc\x1b]133;D;3\x07def");
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!((hits[0].start, hits[0].end), (3, 13));
+        assert_eq!(hits[0].marker, Marker::ExecEnd(Some(3)));
+    }
+
+    #[test]
+    fn a_marker_split_across_chunks_after_a_lot_of_output_is_found() {
+        let mut parser = OscParser::new();
+        plain(&mut parser, 200_000, 4096);
+
+        assert!(parser.feed_ranges(b"output\x1b]133;").is_empty());
+        let hits = parser.feed_ranges(b"D;0\x07");
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].marker, Marker::ExecEnd(Some(0)));
+        // It started in the previous chunk, so in this one it starts at 0.
+        assert_eq!(hits[0].start, 0);
+    }
+
+    #[test]
+    fn plain_output_is_not_kept_after_it_has_been_seen() {
+        let mut parser = OscParser::new();
+        plain(&mut parser, 1_000_000, 4096);
+
+        assert!(
+            parser.pending_len() <= 1,
+            "{} bytes are kept",
+            parser.pending_len()
+        );
+    }
+
+    #[test]
+    fn a_lone_escape_at_the_end_of_a_chunk_is_kept_for_the_next() {
+        let mut parser = OscParser::new();
+
+        assert!(parser.feed_ranges(b"text\x1b").is_empty());
+        let hits = parser.feed_ranges(b"]133;A\x07");
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].marker, Marker::PromptStart);
+    }
+
+    #[test]
+    fn an_unterminated_marker_is_kept_only_up_to_the_limit() {
+        let mut parser = OscParser::new();
+        let mut data = b"\x1b]133;".to_vec();
+        data.extend(vec![b'y'; 500_000]);
+        for piece in data.chunks(4096) {
+            parser.feed_ranges(piece);
+        }
+
+        assert!(parser.pending_len() <= super::MAX_PENDING_BYTES);
+        // And the parser still works afterwards.
+        let hits = parser.feed_ranges(b"\x07\x1b]133;A\x07");
+        assert!(hits.iter().any(|hit| hit.marker == Marker::PromptStart));
     }
 }
