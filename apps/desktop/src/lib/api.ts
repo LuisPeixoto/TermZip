@@ -79,6 +79,8 @@ export interface Settings {
   restoreSession: boolean;
   /** Whether the plugin catalog may be loaded from the network (only when the user asks). */
   pluginsCatalog: boolean;
+  /** Show the git branch and state of the terminal's folder in the status bar (read locally, never from the network). */
+  gitStatus: boolean;
   defaultProfile: string | null;
   /** `action: "Shift+Cmd+E"`; an empty chord unbinds the action. */
   keybindings: Record<string, string>;
