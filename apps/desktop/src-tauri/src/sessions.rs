@@ -978,12 +978,18 @@ mod tests {
         thread::sleep(Duration::from_millis(300));
 
         let (output, sizes) = output_of(&collected);
-        let text = String::from_utf8_lossy(&output);
-        let expected: String = (1..=60_000u32).map(|n| format!("{n}\r\n")).collect();
+        // The numbers, one per line, whatever the tty put around them: the macOS tty sometimes turns a newline into
+        // two carriage returns and a newline under load (with or without gathering), which is its business, not
+        // what is being checked. What is: every number is there, once, in order.
+        let numbers: Vec<u32> = String::from_utf8_lossy(&output)
+            .split('\n')
+            .filter_map(|line| line.trim_matches('\r').parse().ok())
+            .collect();
 
+        assert_eq!(numbers.len(), 60_000, "{} numbers arrived", numbers.len());
         assert!(
-            text.contains(&expected),
-            "the numbers are missing or out of order"
+            numbers.iter().copied().eq(1..=60_000u32),
+            "the numbers are out of order or repeated"
         );
         assert!(sizes.iter().all(|size| *size <= COALESCE_BYTES + 8192));
     }
