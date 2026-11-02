@@ -27,6 +27,9 @@ AWS_PROFILE = "work"
 - A new tab or split without an explicit profile starts in the folder of the pane you were in. Choosing a profile from
   the menu starts in that profile's own folder.
 - Variables reach **new** shells only; open shells keep the environment they started with.
+- A profile can be **tied to folders** (a new terminal that starts there uses it; see
+  [project tasks and folder profiles](project-tasks.md#profiles-tied-to-folders)) and can start an **SSH connection or a
+  WSL distribution** instead of a shell (see [SSH and WSL](ssh-and-wsl.md)).
 - A profile can also have a **terminal theme, font size, font family and cursor** of its own. They apply to the open
   terminals of the profile as soon as you save (see [appearance](appearance.md#per-profile-looks)).
 
