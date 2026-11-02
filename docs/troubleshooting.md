@@ -133,6 +133,54 @@ The terminal slows the shell down on purpose when it has 1 MiB of output it has 
 close to what the program has done and Ctrl+C stops it. If the lag is large the page may be busy; see
 [performance](performance.md).
 
+## A snippet is missing from the palette
+
+A snippet with a **folder** is offered only while the terminal is in that folder or below, so check the folder (`~` is
+your home folder, and the comparison is by whole folders). A terminal without [shell integration](shell-integration.md)
+does not report where it is, so a snippet limited to a folder is not offered there. A snippet that cannot be used (an
+empty command, a `{{` that never closes) is dropped when `config.toml` is read; saving from Preferences explains it
+instead. See [snippets](snippets.md).
+
+## A project task is missing from the palette
+
+Which file counts follows the tool: the **nearest** `package.json`, Cargo, justfile or `deno.json` above the terminal's
+folder (up to the root of the repository), but only the Makefile of the **current** folder for `make`. Names with
+anything but letters, digits and `. _ : / @ + -` are not offered, a file over 256 KiB is not read, and a
+`deno.jsonc` is not read. The terminal needs to report its folder, which needs
+[shell integration](shell-integration.md). See [project tasks](project-tasks.md).
+
+## A profile tied to a folder is not used
+
+It applies to a **new** terminal that starts in one of its folders (or below), and only when you did not choose another
+profile, **Built-in** included. The folder must exist, the match is by whole folders without following symbolic links,
+and the deepest matching folder wins. A terminal that is already open keeps its profile. See
+[folder profiles](project-tasks.md#profiles-tied-to-folders).
+
+## An SSH profile does not connect
+
+The terminal shows what `ssh` says, so read it first: a name that does not resolve, a key the agent does not have, or a
+host key that changed. TermZip stores no key or password; `ssh` uses your agent and `~/.ssh/config`, so try the same
+`ssh host` in any terminal. A profile with no host is a message when it starts, and **ssh not found** means `ssh` is not
+on your `PATH` (on Windows it is `ssh.exe` of OpenSSH). See [SSH and WSL](ssh-and-wsl.md).
+
+## A WSL profile says it needs Windows, or lists no distributions
+
+WSL exists on Windows only, so a WSL profile started elsewhere says so. On Windows the list comes from `wsl.exe -l -q`
+(it can take a moment to wake up, and is given 3 seconds); if it is empty, run `wsl -l -q` yourself, and type the name in
+the field. See [SSH and WSL](ssh-and-wsl.md#wsl).
+
+## The git item is not in the status bar
+
+It is shown for a terminal on this computer, inside a git repository, with `git` on your `PATH`, and while **Use git in
+the status bar and the palette** is on in Preferences. A terminal without [shell integration](shell-integration.md) does
+not report its folder, and an SSH or WSL terminal shows nothing. A very big repository can take longer than the 2 seconds
+git is given. See [git](git.md).
+
+## Open the repository is not in the palette
+
+It needs a repository whose `origin` is the address of a code host: a folder on this computer or an odd address has no
+web page. `git remote -v` shows what `origin` is. See [git](git.md#open-the-repository).
+
 ## Plugins
 
 ### A plugin says “Off: the file changed after you turned it on”
