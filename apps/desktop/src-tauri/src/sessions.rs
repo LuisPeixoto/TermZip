@@ -820,4 +820,80 @@ mod tests {
 
         assert_eq!(problem.to_string(), "WSL profiles work on Windows only.");
     }
+
+    /// Signs in to a real `sshd` through an SSH profile, the way a person would: the host is an alias in an SSH
+    /// config. `ssh` is found through the `PATH` of the profile, where a wrapper adds `-F <a throwaway config>` and
+    /// passes on every other argument as TermZip built it, so nothing of the real `~/.ssh` is read or written.
+    ///
+    /// Needs a throwaway server: run `tools/live-tests.sh`, which starts one and sets the variable.
+    #[test]
+    #[ignore = "needs a throwaway sshd: run tools/live-tests.sh"]
+    fn an_ssh_profile_signs_in_to_a_real_sshd_and_runs_a_command() {
+        let bin =
+            std::env::var("TERMZIP_LIVE_SSH_BIN").expect("run this through tools/live-tests.sh");
+        let path = std::env::join_paths(std::iter::once(std::path::PathBuf::from(bin)).chain(
+            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+        ))
+        .unwrap();
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let dir = std::env::temp_dir().join("termzip-sessions-live");
+
+        let info = sessions
+            .create(
+                channel,
+                SessionRequest {
+                    remote: Some(Remote::Ssh {
+                        host: "livebox".to_owned(),
+                        user: None,
+                        port: None,
+                    }),
+                    rows: 24,
+                    columns: 80,
+                    working_directory: None,
+                    shell: None,
+                    env: BTreeMap::from([("PATH".to_owned(), path.to_string_lossy().into_owned())]),
+                },
+                &dir,
+            )
+            .unwrap();
+        assert_eq!(info.shell, "ssh livebox");
+        assert!(!info.integrated, "the other side has no shell integration");
+        // The sum is computed by the remote shell, so the answer is not in what was typed.
+        sessions
+            .get(info.id)
+            .unwrap()
+            .write(b"echo live-$((40+2))\nexit\n")
+            .unwrap();
+
+        for _ in 0..300 {
+            if collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|e| e["type"] == "exit")
+            {
+                break;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        let events = collected.lock().unwrap();
+        let output: Vec<u8> = events
+            .iter()
+            .filter(|e| e["type"] == "data")
+            .flat_map(|e| {
+                base64::engine::general_purpose::STANDARD
+                    .decode(e["data"].as_str().unwrap())
+                    .unwrap()
+            })
+            .collect();
+        let text = String::from_utf8_lossy(&output);
+        assert!(
+            text.contains("live-42"),
+            "no answer from the remote shell: {text:?}"
+        );
+        let exits: Vec<_> = events.iter().filter(|e| e["type"] == "exit").collect();
+        assert_eq!(exits.len(), 1, "the connection did not end: {text:?}");
+        assert_eq!(exits[0]["code"], 0);
+    }
 }
