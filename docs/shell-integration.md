@@ -20,7 +20,7 @@ TermZip's scripts also emit two private markers used for nicer blocks:
 | zsh | Full | Injected through a `ZDOTDIR` shim that sources your own `~/.zshenv`/`~/.zshrc`; hooks via `add-zsh-hook`. |
 | bash | Full | Injected through `--rcfile` after sourcing `~/.bashrc`; uses a `DEBUG` trap. |
 | fish | Full | Loaded with `fish -C`; uses `fish_preexec` / `fish_postexec` events. |
-| PowerShell | Partial | Blocks include the command (from history), exit code, and duration; there is no pre-exec hook, so the input region is empty. |
+| PowerShell | Full | A PSReadLine handler on Enter reads the typed line and reports it before the command starts; the prompt reports the exit code. Needs PSReadLine (included with PowerShell 7 and Windows PowerShell 5.1). |
 | cmd.exe | None | Plain terminal; no block capture. |
 | Other (tcsh, nushell…) | None | Plain terminal; no block capture. |
 
@@ -32,8 +32,9 @@ The status bar shows **shell integration** when markers are available and **plai
 - It never sends anything over the network.
 - Compound bash commands emit one block for the whole line; bash's `DEBUG` trap fires per simple command, so nested
   subcommands are folded into the first block.
-- PowerShell takes the command from its history, so a block can be labeled with the wrong command when history is
-  disabled or rewritten by a plugin.
+- PowerShell: TermZip **rebinds Enter** in PSReadLine (`TermZipAcceptLine`) to read the line before it is accepted. The
+  script runs after your profile, so it replaces a custom binding of Enter you set there (the line is still accepted
+  normally). Without PSReadLine there is no integration.
 - Password prompts and hidden input cannot be captured; those blocks show “command not captured”.
 
 ## When TermZip cannot prepare the integration

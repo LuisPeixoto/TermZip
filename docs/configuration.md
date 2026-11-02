@@ -28,6 +28,8 @@ restore_session = true    # reopen tabs, splits, and folders on launch
 # default_profile = "work"  # which profile a plain new tab uses; empty: the built-in one
 plugins_catalog = true    # may Preferences → Plugins load the plugin catalog (the only network use of TermZip)
 git_status = true         # the git branch in the status bar, and Open the repository in the palette (see git.md)
+screen_reader = false     # screen reader support in the terminal (see accessibility.md)
+check_updates_on_launch = false   # look for a new version once at startup; never installs (see updates.md)
 ```
 
 Out-of-range values are clamped (a value that is not a number gets its default) and unknown keys are ignored. The

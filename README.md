@@ -34,6 +34,7 @@
   <a href="docs/terminal-compatibility.md">Compatibility</a> ·
   <a href="docs/compatibility-matrix.md">Test matrix</a> ·
   <a href="docs/distribution.md">Distribution</a> ·
+  <a href="docs/stability.md">Stability</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -79,6 +80,12 @@ run again. Tabs and split panes keep several shells in one window, and your layo
   the status bar, and *Open the repository in the browser* in the palette. It runs `git` on your computer and can be
   turned off.
 - **Zinc & blue by default.** A calm, high-contrast visual system with complete dark and light themes.
+- **Accessible.** Optional screen reader support, no motion when the system asks for none, and every color of the
+  interface held to WCAG AA contrast in every theme, imported ones too.
+- **Updates only when you ask.** *Check for updates* in Preferences shows the version and notes; installing needs a click
+  and a signature that matches the key built into the app. Nothing is checked in the background unless you turn it on.
+- **Stable from 1.0.** The settings file, the saved layout, the theme format and plugin API 1 are [promised](docs/stability.md)
+  to keep working through 1.x.
 
 ## Screenshots
 
@@ -134,6 +141,11 @@ cd TermZip/apps/desktop
 npm install
 npm run tauri dev
 ```
+
+Or install a release: `brew install --cask luispeixoto/termzip/termzip` on macOS,
+`scoop bucket add termzip https://github.com/LuisPeixoto/scoop-termzip && scoop install termzip` on Windows, or download
+a bundle from the [releases](https://github.com/LuisPeixoto/TermZip/releases). Builds are not yet signed with an
+Apple or Windows certificate; see [troubleshooting](docs/troubleshooting.md#macos-or-windows-warns-that-the-app-is-from-an-unidentified-developer).
 
 Build a release bundle:
 
@@ -194,13 +206,18 @@ Ctrl keys always reach your shell. Ctrl+C still interrupts the running command. 
 | [Project tasks and folder profiles](docs/project-tasks.md) | The tasks of `package.json`, Cargo, Makefile, justfile and `deno.json`, and profiles tied to folders. |
 | [SSH and WSL](docs/ssh-and-wsl.md) | Profiles that connect, what is stored (nothing secret), what is checked, and the limits. |
 | [Git](docs/git.md) | The status bar item, opening the repository, turning it off, and how a repository you cloned cannot run anything. |
-| [Performance and limits](docs/performance.md) | Flow control for floods of output, block events, and every bound. |
+| [Performance and limits](docs/performance.md) | Flow control for floods of output, block events, every bound, and the performance budgets. |
+| [Stability](docs/stability.md) | What 1.0 promises to keep, and what it does not. |
+| [Accessibility](docs/accessibility.md) | Screen reader support, reduced motion, contrast, and how they are checked. |
+| [Updates](docs/updates.md) | Checking and installing an update, what protects it, and the maintainer's side. |
+| [Security review](docs/security-review.md) | The attack surface, every input and its bound, findings, and the scope for an independent audit. |
+| [Validation checklist](docs/validation-checklist.md) | What to check by hand on each system before a release. |
 | [Shell integration](docs/shell-integration.md) | The OSC 133 markers, supported shells, and the limits of block capture. |
 | [Terminal compatibility](docs/terminal-compatibility.md) | What is implemented, verified, and still missing. |
 | [Compatibility matrix](docs/compatibility-matrix.md) | What has been exercised on each operating system. |
 | [Architecture](docs/architecture.md) | Crates, the session stream, and the design rules. |
 | [Troubleshooting](docs/troubleshooting.md) | Symptom, cause, and fix for the problems seen so far. |
-| [Distribution](docs/distribution.md) | Building bundles and the release workflow. |
+| [Distribution](docs/distribution.md) | Building bundles, the release workflow, signing credentials and the Homebrew, Scoop and Winget channels. |
 | [Roadmap](docs/roadmap.md) | Finished phases and what comes next. |
 
 ## Project structure
