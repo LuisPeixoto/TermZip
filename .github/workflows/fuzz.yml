@@ -1,0 +1,51 @@
+name: Fuzz
+
+# Every parser that reads something untrusted has a target in `fuzz/`. This runs them for a while each week and on
+# demand; a crash is uploaded as an artifact and becomes a regression test and a fix.
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Seconds per target
+        default: "120"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - catalog_index
+          - git_output
+          - keybinding
+          - osc_parser
+          - plugin_module
+          - plugin_reply
+          - snippet
+          - ssh_config
+          - task_files
+          - theme_import
+          - workspace_file
+          - wsl_list
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - run: cargo install cargo-fuzz --locked
+      - name: Fuzz
+        run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=${{ github.event.inputs.seconds || '120' }} -rss_limit_mb=2048
+      - name: Keep the crash
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}

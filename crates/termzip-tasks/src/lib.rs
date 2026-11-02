@@ -17,7 +17,10 @@ use std::path::Path;
 
 use serde::Serialize;
 
-pub use parse::{MAX_NAME_CHARS, is_plain_name};
+pub use parse::{
+    MAX_NAME_CHARS, cargo_aliases, deno_tasks, is_plain_name, justfile_recipes, makefile_targets,
+    package_manager_field, package_scripts,
+};
 
 /// The biggest file that is read.
 pub const MAX_FILE_BYTES: u64 = 256 * 1024;
