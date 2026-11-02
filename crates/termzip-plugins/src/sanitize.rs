@@ -5,22 +5,12 @@
 //! label or in typed text must never reach the terminal), no characters that reorder or hide text, and a limit
 //! on the length. What does not pass is dropped, not repaired into something else.
 
+use termzip_core::hides_or_reorders;
 use termzip_plugin_api::{
     Action, MAX_LABEL_CHARS, MAX_NOTIFY_CHARS, MAX_STATUS_CHARS, MAX_TYPE_BYTES, Permission,
 };
 
 const MAX_URL_BYTES: usize = 2048;
-
-/// Characters that are invisible or change how the text around them is laid out, which makes text lie:
-/// zero-width spaces, direction marks and overrides, joiners and the byte order mark.
-fn hides_or_reorders(c: char) -> bool {
-    matches!(c,
-        '\u{200B}'..='\u{200F}'
-        | '\u{202A}'..='\u{202E}'
-        | '\u{2060}'..='\u{2064}'
-        | '\u{2066}'..='\u{2069}'
-        | '\u{FEFF}')
-}
 
 /// Text to show: one line, no control characters, no hidden or reordering ones, at most `limit` characters.
 /// Whitespace runs (including line breaks) become a single space.
@@ -50,20 +40,9 @@ pub fn clean_line(text: &str, limit: usize) -> String {
     out
 }
 
-/// Text to type: every control character goes (so no line break, no Tab, no escape sequence: nothing is
-/// run and nothing is completed), and so do the hidden and reordering ones. At most `MAX_TYPE_BYTES`.
+/// Text to type: see [`termzip_core::clean_typed`]. At most `MAX_TYPE_BYTES`.
 pub fn clean_typed(text: &str) -> String {
-    let mut out = String::new();
-    for c in text.chars() {
-        if c.is_control() || hides_or_reorders(c) {
-            continue;
-        }
-        if out.len() + c.len_utf8() > MAX_TYPE_BYTES {
-            break;
-        }
-        out.push(c);
-    }
-    out
+    termzip_core::clean_typed(text, MAX_TYPE_BYTES)
 }
 
 /// An address that is safe to hand to the browser: `http` or `https`, plain ASCII in the host, no user name
