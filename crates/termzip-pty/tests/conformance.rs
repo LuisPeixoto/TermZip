@@ -31,6 +31,7 @@ fn collect_until(
 }
 
 /// Collects everything until the program ends (the channel closes) or `timeout` passes.
+#[cfg(unix)]
 fn collect_all(output: &Receiver<Vec<u8>>, timeout: Duration) -> Vec<u8> {
     let deadline = Instant::now() + timeout;
     let mut received = Vec::new();
