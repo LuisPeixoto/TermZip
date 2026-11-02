@@ -88,9 +88,15 @@ issue before beginning a larger architectural change.
 
 ## 📋 Phase 6: Developer workflows · v0.5
 
-- [ ] Reusable command workflows, snippets, project profiles, and task runners.
-- [ ] SSH and WSL profiles without storing private keys or shell secrets in TermZip.
-- [ ] Optional developer integrations, with network access disabled unless a feature explicitly needs it.
+- [ ] Snippets and workflows: reusable commands with `{{parameters}}`, found in the command palette and in
+  Preferences, optionally limited to a project folder. They are typed at the prompt and never run for you.
+- [ ] Project tasks: the scripts of `package.json`, Cargo, Makefile, justfile, and `deno.json` found from the folder of
+  the pane and offered in the palette. Profiles can be tied to folders.
+- [ ] SSH and WSL profiles that run `ssh` or `wsl.exe` with the system's own authentication; no private key, password,
+  or identity path is stored in TermZip.
+- [ ] Optional developer integrations that never use the network: the git branch and state in the status bar, and
+  opening the repository's page.
+- [ ] Manual Windows validation of WSL profiles; tracked as validation debt for Phase 7.
 
 ## 📋 Phase 7: Stabilization · v1.0
 
