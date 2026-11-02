@@ -3,7 +3,7 @@
  * tab with each profile, to switch to each theme, and a few switches. The things to do are handed in,
  * so the list is built and tested without the stores.
  */
-import type { Profile, SnippetInfo, Theme, ThemeEntry } from "./api";
+import type { Profile, SnippetInfo, TaskInfo, Theme, ThemeEntry } from "./api";
 import { ACTIONS, formatChord, type AppShortcut, type Bindings } from "./keybindings";
 import { tabPosition } from "./shortcuts";
 import { needsForm } from "./snippets";
@@ -33,6 +33,8 @@ export interface PaletteInput {
   plugins: readonly { plugin: string; pluginName: string; id: string; title: string }[];
   /** The snippets that apply in the folder of the active pane. */
   snippets: readonly SnippetInfo[];
+  /** The tasks of the project the active pane is in (its scripts, Cargo commands, make targets). */
+  tasks: readonly TaskInfo[];
   /** `"snippets"` lists nothing but the snippets (the Insert a snippet shortcut). */
   scope?: "snippets" | null;
   commands: {
@@ -45,6 +47,8 @@ export interface PaletteInput {
     runPluginCommand(plugin: string, command: string): void;
     /** Types the snippet, or opens the form that asks for its values. */
     useSnippet(snippet: SnippetInfo): void;
+    /** Types the command of a task at the prompt; it is never run. */
+    typeTask(task: TaskInfo): void;
   };
 }
 
@@ -78,6 +82,15 @@ export function paletteEntries(input: PaletteInput): PaletteEntry[] {
   }
 
   entries.push(...snippets);
+
+  for (const task of input.tasks) {
+    entries.push({
+      id: `task:${task.source}:${task.name}`,
+      title: `Task: ${task.command}`,
+      detail: task.source,
+      run: () => commands.typeTask(task),
+    });
+  }
 
   input.tabs.slice(0, 9).forEach((title, position) => {
     const action = `tab${position + 1}` as AppShortcut;
