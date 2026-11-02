@@ -60,6 +60,24 @@ export interface TaskInfo {
   command: string;
 }
 
+/** Where the repository of a folder stands; see docs/git.md. */
+export interface GitStatus {
+  /** `null` while HEAD is detached. */
+  branch: string | null;
+  detached: boolean;
+  /** The first characters of the commit HEAD is on; `null` in a repository with no commit yet. */
+  commit: string | null;
+  ahead: number;
+  behind: number;
+  hasUpstream: boolean;
+  staged: number;
+  modified: number;
+  untracked: number;
+  conflicted: number;
+  /** The output was cut, so the counts may be higher. */
+  truncated: boolean;
+}
+
 export interface Settings {
   /** Whether the window is dark or light; each appearance has its own theme below. */
   theme: "dark" | "light";
@@ -336,6 +354,8 @@ export const api = {
   uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
   /** The `Host` aliases of `~/.ssh/config`, to offer when an SSH profile is made. Names only. */
   listSshHosts: () => invoke<string[]>("list_ssh_hosts"),
+  /** The git state of a folder; `null` when it is in no repository or the setting is off. Read locally, never from the network. */
+  gitStatus: (cwd: string | null) => invoke<GitStatus | null>("git_status", { cwd }),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
