@@ -10,6 +10,7 @@
 //! - Git's own protection against a repository owned by someone else (`safe.directory`) is left as it is.
 
 mod parse;
+mod remote;
 
 use std::io::{self, Read};
 use std::path::Path;
@@ -18,6 +19,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 pub use parse::{GitStatus, MAX_OUTPUT_BYTES, parse_status};
+pub use remote::remote_to_https;
 
 /// How long git may take before it is stopped; a huge repository on a slow disk gives no status instead of a wait.
 pub const TIMEOUT: Duration = Duration::from_secs(2);
@@ -85,4 +87,19 @@ pub fn status(dir: &Path) -> Option<GitStatus> {
         ],
     )?;
     parse_status(&output)
+}
+
+/// The address of the `origin` remote of the repository `dir` is in. Reading the config starts no program and
+/// uses no network.
+pub fn origin_url(dir: &Path) -> Option<String> {
+    let output = run_git(dir, &["config", "--get", "remote.origin.url"])?;
+    let url = String::from_utf8(output).ok()?;
+    let url = url.trim();
+    (!url.is_empty()).then(|| url.to_owned())
+}
+
+/// The web page of the repository `dir` is in, from its `origin` remote: `https://host/owner/repo`. `None` when
+/// there is no repository, no `origin`, or it is not the address of a code host.
+pub fn repository_page(dir: &Path) -> Option<String> {
+    remote_to_https(&origin_url(dir)?)
 }

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use termzip_git::{GitStatus, parse_status, status};
+use termzip_git::{GitStatus, origin_url, parse_status, repository_page, status};
 
 fn fixture(name: &str) -> GitStatus {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -210,4 +210,55 @@ fn a_program_named_by_the_repository_is_not_started() {
     if !started_by_plain_git {
         eprintln!("this git does not run core.fsmonitor hooks here; the check proved nothing");
     }
+}
+
+#[test]
+fn the_page_of_a_repository_comes_from_its_origin() {
+    if !git_is_installed() {
+        return;
+    }
+    let scratch = Scratch::new();
+    let dir = &scratch.0;
+    assert!(git(dir, &["init", "-q", "-b", "main"]));
+
+    // No origin yet.
+    assert_eq!(origin_url(dir), None);
+    assert_eq!(repository_page(dir), None);
+
+    assert!(git(
+        dir,
+        &[
+            "remote",
+            "add",
+            "origin",
+            "https://token123@github.com/LuisPeixoto/TermZip.git"
+        ]
+    ));
+    assert_eq!(
+        origin_url(dir).as_deref(),
+        Some("https://token123@github.com/LuisPeixoto/TermZip.git")
+    );
+    let page = repository_page(dir).unwrap();
+    assert_eq!(page, "https://github.com/LuisPeixoto/TermZip");
+    assert!(!page.contains("token123"));
+    // From a folder inside the repository too.
+    fs::create_dir(dir.join("sub")).unwrap();
+    assert_eq!(
+        repository_page(&dir.join("sub")).as_deref(),
+        Some(page.as_str())
+    );
+}
+
+#[test]
+fn an_origin_on_this_computer_has_no_page() {
+    if !git_is_installed() {
+        return;
+    }
+    let scratch = Scratch::new();
+    let dir = &scratch.0;
+    assert!(git(dir, &["init", "-q", "-b", "main"]));
+    assert!(git(dir, &["remote", "add", "origin", "/srv/repos/app.git"]));
+
+    assert_eq!(origin_url(dir).as_deref(), Some("/srv/repos/app.git"));
+    assert_eq!(repository_page(dir), None);
 }
