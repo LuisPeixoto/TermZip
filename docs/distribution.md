@@ -37,8 +37,34 @@ publishing.
 
 ## Package managers
 
-Homebrew, Scoop, Winget and Flathub distribution is planned for Phase 7. Do not publish package manifests until the
-bundle names, checksums and installers have been verified on each platform.
+| Channel | How to install | Where it lives |
+| --- | --- | --- |
+| Homebrew (macOS) | `brew install --cask luispeixoto/termzip/termzip` | [`LuisPeixoto/homebrew-termzip`](https://github.com/LuisPeixoto/homebrew-termzip), one cask for both Macs |
+| Scoop (Windows) | `scoop bucket add termzip https://github.com/LuisPeixoto/scoop-termzip` then `scoop install termzip` | [`LuisPeixoto/scoop-termzip`](https://github.com/LuisPeixoto/scoop-termzip) |
+| Winget (Windows) | `winget install LuisPeixoto.TermZip`, once the manifests are accepted | `packaging/winget/`, submitted by hand |
+
+`tools/update-packages.sh vX.Y.Z` writes the three manifests from the release's own `SHA256SUMS` and, with `--push`,
+pushes the tap and the bucket. Run it after a release is published. `tools/test-update-packages.sh` tests it without the
+network and runs in CI.
+
+What was verified: the cask passes `brew style` and `brew audit --online --strict` and installs and uninstalls with
+`brew install --cask --appdir=<folder>`. The Scoop manifest is valid JSON and uses the NSIS installer silently, but it
+has **not been run on a Windows computer** yet. The Winget manifests are not submitted: that is a pull request to
+`microsoft/winget-pkgs`, which the maintainer opens by hand (copy `packaging/winget/manifests` there). Flathub is not
+started.
+
+### Signing credentials
+
+Releases are unsigned until these repository secrets exist; `tools/prepare-signing.sh` turns signing on by itself when
+they do:
+
+- **macOS** (needs an Apple Developer Program membership): `APPLE_CERTIFICATE` (a Developer ID Application certificate
+  exported as `.p12`, base64), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, and for notarization `APPLE_ID`,
+  `APPLE_PASSWORD` (an app-specific password) and `APPLE_TEAM_ID`.
+- **Windows** (Azure Trusted Signing): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (a service principal) and
+  `TRUSTED_SIGNING_ENDPOINT`, `TRUSTED_SIGNING_ACCOUNT`, `TRUSTED_SIGNING_PROFILE`.
+- **Updates** are signed separately, with the key already stored as `TAURI_SIGNING_PRIVATE_KEY` and
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (see [updates](updates.md)).
 
 ## Versioning
 

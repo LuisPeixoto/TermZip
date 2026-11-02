@@ -6,8 +6,8 @@ environment.
 
 ## Supported versions
 
-Before the first stable release, security fixes are developed against the latest `main` branch. Once releases begin,
-the latest release receives security fixes while the project is below 1.0.
+Security fixes go into the **latest 1.x release**. Older releases are not patched: update to the newest one (the
+app can look for it with **Check for updates** in Preferences → General). Fixes are developed against `main`.
 
 ## Reporting a vulnerability
 
@@ -81,6 +81,17 @@ the affected version, operating system, impact, and a reproduction or proof of c
   or the clock. Each permission is shown before a plugin is turned on, the approval belongs to the SHA-256 of the file,
   and what a plugin answers is checked and cleaned before it is used. The catalog is verified with a built-in key and
   the network is used only when you press a button. See the threat model below.
+
+- **Updates** are never automatic. *Check for updates* (and an optional check at launch, off by default) asks GitHub for
+  `latest.json`, from Rust, never from the webview. The update file's signature is verified against the public key built
+  into TermZip before anything is installed, and a person confirms with *Install and restart*. A file that does not
+  match is refused and nothing on the computer is changed. Release builds are not yet signed with an operating-system
+  certificate or notarized; check the `SHA256SUMS` of a first download.
+- **Package channels** (the Homebrew tap and the Scoop bucket) point at the files of a release and carry the SHA-256
+  from that release's `SHA256SUMS`; the package managers refuse a file that does not match. Report a problem with a
+  package like any other.
+
+The full review, with the attack surface and the limits, is in [docs/security-review.md](docs/security-review.md).
 
 ## Plugin threat model
 

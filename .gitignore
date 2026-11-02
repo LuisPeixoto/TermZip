@@ -9,3 +9,6 @@ Thumbs.db
 *.dmp
 *.swp
 *.swo
+
+# Rendered by tools/update-packages.sh
+/packaging/_out/
