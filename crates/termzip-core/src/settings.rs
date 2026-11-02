@@ -16,6 +16,7 @@ use crate::keybindings::{normalize_keybindings, validate_keybindings};
 use crate::profile::{
     DEFAULT_PROFILE_ID, LaunchProfile, Profile, normalize_profiles, slug, validate_profiles,
 };
+use crate::snippet::{Snippet, normalize_snippets, validate_snippets};
 use crate::storage::{set_aside, write_atomic};
 
 pub const DEFAULT_FONT_SIZE: f32 = 14.0;
@@ -66,8 +67,10 @@ pub struct Settings {
     /// The profile a new tab starts with; `None` is the built-in one.
     pub default_profile: Option<String>,
     /// Shortcut overrides, `action = "Cmd+Shift+D"`; an empty chord unbinds the action. Tables come
-    /// after the plain values, and `profiles` last of all.
+    /// after the plain values, then the lists of tables (`snippets`, and `profiles` last of all).
     pub keybindings: BTreeMap<String, String>,
+    /// Commands to keep and put at the prompt, with optional `{{parameters}}`.
+    pub snippets: Vec<Snippet>,
     pub profiles: Vec<Profile>,
 }
 
@@ -92,6 +95,7 @@ impl Default for Settings {
             plugins_catalog: true,
             default_profile: None,
             keybindings: BTreeMap::new(),
+            snippets: Vec::new(),
             profiles: Vec::new(),
         }
     }
@@ -180,6 +184,7 @@ impl Settings {
             .working_directory
             .map(|directory| directory.trim().to_owned())
             .filter(|directory| !directory.is_empty());
+        self.snippets = normalize_snippets(self.snippets);
         self.profiles = normalize_profiles(self.profiles);
         let known: Vec<&str> = self.profiles.iter().map(|p| p.id.as_str()).collect();
         self.default_profile = self
@@ -192,6 +197,7 @@ impl Settings {
     /// Problems that deserve an explanation instead of a silent clean-up, as a sentence to show.
     pub fn validate(&self) -> Result<(), String> {
         validate_profiles(&self.profiles)?;
+        validate_snippets(&self.snippets)?;
         validate_keybindings(&self.keybindings)
     }
 
@@ -298,10 +304,13 @@ pub enum SettingsError {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::ffi::OsString;
     use std::path::{Path, PathBuf};
 
-    use super::{DEFAULT_FONT_SIZE, MAX_SCROLLBACK_LINES, Profile, Settings, data_dir_with};
+    use super::{
+        DEFAULT_FONT_SIZE, MAX_SCROLLBACK_LINES, Profile, Settings, Snippet, data_dir_with,
+    };
 
     fn temp_dir(name: &str) -> PathBuf {
         let dir =
@@ -694,5 +703,67 @@ AWS_PROFILE = "work"
         assert_eq!(cleaned.keybindings.len(), 1);
         assert_eq!(cleaned.keybindings["splitRight"], "Shift+Cmd+E");
         assert!(cleaned.validate().is_ok());
+    }
+
+    #[test]
+    fn snippets_survive_a_round_trip_through_toml() {
+        let settings = Settings {
+            snippets: vec![
+                Snippet {
+                    name: "Checkout".to_owned(),
+                    command: "git checkout {{branch:main}}".to_owned(),
+                    description: Some("Switch branch".to_owned()),
+                    folder: Some("~/work".to_owned()),
+                    ..Snippet::default()
+                },
+                Snippet {
+                    name: "Status".to_owned(),
+                    command: "git status".to_owned(),
+                    ..Snippet::default()
+                },
+            ],
+            keybindings: BTreeMap::from([("snippets".to_owned(), "Cmd+Shift+S".to_owned())]),
+            profiles: vec![profile("Work")],
+            ..Settings::default()
+        }
+        .normalized();
+
+        let text = toml::to_string_pretty(&settings).expect("snippets must serialize");
+        assert!(
+            text.contains("[keybindings]")
+                && text.contains("[[snippets]]")
+                && text.contains("[[profiles]]"),
+            "{text}"
+        );
+        assert_eq!(Settings::from_toml(&text), settings);
+    }
+
+    #[test]
+    fn a_config_from_before_snippets_loads_without_any() {
+        let settings = Settings::from_toml("font_size = 15.0\n");
+        assert!(settings.snippets.is_empty());
+        assert_eq!(settings.font_size, 15.0);
+    }
+
+    #[test]
+    fn a_hand_written_snippet_is_loaded_and_cleaned() {
+        let settings = Settings::from_toml(
+            "[[snippets]]\nname = \"Deploy\"\ncommand = \"make deploy ENV={{env:staging}}\"\n\n[[snippets]]\nname = \"Broken\"\ncommand = \"echo {{\"\n",
+        );
+        assert_eq!(settings.snippets.len(), 1);
+        assert_eq!(settings.snippets[0].id, "deploy");
+    }
+
+    #[test]
+    fn saving_refuses_a_snippet_that_cannot_work() {
+        let settings = Settings {
+            snippets: vec![Snippet {
+                name: "Bad".to_owned(),
+                command: "echo {{".to_owned(),
+                ..Snippet::default()
+            }],
+            ..Settings::default()
+        };
+        assert!(settings.validate().unwrap_err().contains("In “Bad”"));
     }
 }
