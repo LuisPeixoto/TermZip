@@ -109,10 +109,19 @@ issue before beginning a larger architectural change.
 
 ## 📋 Phase 7: Stabilization · v1.0
 
-- [ ] Documented performance budgets measured on reference hardware.
-- [ ] Broad cross-platform terminal conformance and accessibility testing.
-- [ ] Signed/notarized installers, package-manager distribution, update policy, and release checksums.
-- [ ] An independent security audit of the plugin sandbox and of the catalog's signing.
+- [ ] Documented performance budgets, measured with a reproducible bench mode and checked in CI.
+- [ ] Terminal conformance tests (xterm sequences, the PTY) and an accessibility pass: screen reader support, reduced
+  motion, contrast of every theme, and automated checks of the interface.
+- [ ] Signing wired for macOS and Windows behind repository secrets, an opt-in update check with signed updates, and
+  Homebrew, Scoop and Winget manifests.
+- [ ] A security pre-audit: supply-chain checks, fuzzing of every parser, a written review, and the scope for an
+  independent audit.
+- [ ] A smoke test that launches the built app on macOS, Windows and Linux in CI.
+- [ ] 1.0.0: what is promised to stay stable.
+
+After 1.0, and outside what one person on one computer can finish: the independent audit, notarization and Windows
+signing (they need certificates), interactive validation on real Windows and Linux machines, the Winget submission and
+Flathub.
 
 ## Ideas
 
