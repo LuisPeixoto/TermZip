@@ -7,6 +7,7 @@
   import KeyboardSection from "./preferences/KeyboardSection.svelte";
   import PluginsSection from "./preferences/PluginsSection.svelte";
   import ProfilesSection from "./preferences/ProfilesSection.svelte";
+  import SnippetsSection from "./preferences/SnippetsSection.svelte";
   import TerminalSection from "./preferences/TerminalSection.svelte";
   import { app } from "../stores/app.svelte";
   import { api, type Settings } from "../api";
@@ -19,6 +20,7 @@
     { id: "terminal", label: "Terminal", component: TerminalSection },
     { id: "keyboard", label: "Keyboard", component: KeyboardSection },
     { id: "profiles", label: "Profiles", component: ProfilesSection },
+    { id: "snippets", label: "Snippets", component: SnippetsSection },
     { id: "plugins", label: "Plugins", component: PluginsSection },
   ];
 
