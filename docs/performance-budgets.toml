@@ -1,0 +1,29 @@
+# The performance budgets of TermZip: what it is expected to meet on the reference hardware (see
+# docs/performance.md). `termzip-bench check docs/performance-budgets.toml <results.json>...` compares measurements
+# with them and fails only when one is more than twice as bad as its budget, because a shared CI runner is slower
+# and noisier than the reference computer. A budget is either `min` (a rate) or `max` (a time or a size).
+#
+# Measured with `cargo run --release -p termzip-bench -- run` on the reference hardware.
+
+# --- the parts that handle a lot of data (termzip-bench) ---
+
+[metrics.osc_parser_mb_s]          # the marker parser over the output of a shell with integration
+min = 1000
+
+[metrics.block_tracker_mb_s]       # the parser plus the block tracker
+min = 600
+
+[metrics.theme_import_us]          # importing one theme file
+max = 200
+
+[metrics.task_files_us]            # reading a package.json, a Makefile and a justfile
+max = 10
+
+[metrics.git_status_us]            # reading the output of `git status`
+max = 1
+
+[metrics.snippet_render_us]        # rendering one snippet
+max = 2
+
+[metrics.pty_mb_s]                 # what a real PTY carries to the reader (Unix only)
+min = 10
