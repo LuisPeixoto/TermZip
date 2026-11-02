@@ -11,6 +11,7 @@
   import { api, base64ToBytes, type SessionEvent, type Theme } from "../api";
   import { xtermTheme } from "../theme";
   import { app } from "../stores/app.svelte";
+  import { mayBlink, reducedMotion } from "../stores/motion.svelte";
   import { workspace } from "../stores/workspace.svelte";
   import type { Pane } from "../stores/pane.svelte";
   import { matchShortcut } from "../shortcuts";
@@ -75,7 +76,7 @@
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
-    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing } = app.settings;
+    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing, screenReader } = app.settings;
     const family = fontFamily();
     if (!terminal || !look) return;
     const { fontSize, cursorStyle } = look;
@@ -83,9 +84,10 @@
     terminal.options.fontFamily = family;
     terminal.options.scrollback = scrollbackLines;
     terminal.options.cursorStyle = cursorStyle;
-    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.cursorBlink = mayBlink(cursorBlink, reducedMotion.value);
     terminal.options.lineHeight = lineHeight;
     terminal.options.letterSpacing = letterSpacing;
+    terminal.options.screenReaderMode = screenReader;
     untrack(() => fit());
     requestAnimationFrame(() => fit());
   });
@@ -158,7 +160,7 @@
     const initial = look;
     terminal = new Terminal({
       convertEol: false,
-      cursorBlink: settings.cursorBlink,
+      cursorBlink: mayBlink(settings.cursorBlink, reducedMotion.value),
       cursorStyle: initial?.cursorStyle ?? settings.cursorStyle,
       // A pane that is not focused keeps an outline, so it is clear where the keyboard is not.
       cursorInactiveStyle: "outline",
@@ -169,6 +171,7 @@
       lineHeight: settings.lineHeight,
       letterSpacing: settings.letterSpacing,
       scrollback: settings.scrollbackLines,
+      screenReaderMode: settings.screenReader,
       allowTransparency: app.translucent,
       theme: initial ? xtermTheme(initial.theme, app.translucent) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.

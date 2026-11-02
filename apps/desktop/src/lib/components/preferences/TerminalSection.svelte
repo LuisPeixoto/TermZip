@@ -121,4 +121,17 @@
       {/each}
     </select>
   </section>
+
+  <section>
+    <label class="flex items-start gap-2.5 text-[12px]">
+      <input type="checkbox" bind:checked={draft.screenReader} class="mt-0.5 size-3.5 accent-accent" />
+      <span>
+        <span class="font-medium text-fg">Screen reader support</span>
+        <span class="mt-0.5 block text-[10.5px] text-faint">
+          Keeps an accessible copy of the terminal that a screen reader can read, and announces new output. It makes a
+          flood of output slower, so turn it on only if you use a screen reader. See the accessibility guide.
+        </span>
+      </span>
+    </label>
+  </section>
 </div>

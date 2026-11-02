@@ -117,14 +117,18 @@ export function chromeTokens(theme: Theme): Record<string, string> {
   const hover = own.hover ?? mix(background, foreground, dark ? 0.11 : 0.06);
   const line = own.line ?? mix(background, foreground, dark ? 0.125 : 0.1);
   const lineStrong = own.line_strong ?? mix(background, foreground, dark ? 0.22 : 0.17);
-  // Text and controls sit on the panels and on the terminal's own background, so they must read on both.
-  const surfaces = [panel, background];
-  const muted = own.muted ?? readableOn(mix(background, foreground, dark ? 0.64 : 0.74), surfaces, 4.5, foreground);
-  const faint = own.faint ?? readableOn(mix(background, foreground, dark ? 0.43 : 0.39), surfaces, 3, foreground);
-  // The accent colors controls and focus rings, so it must be seen whatever the theme says.
-  const accent = readableOn(theme.colors.accent ?? ansi[4], surfaces, 3, foreground);
-  const status = (own: string | undefined, fromAnsi: string) =>
-    own ?? readableOn(fromAnsi, surfaces, 3, foreground);
+  // Text sits on the terminal's background, on the panels, on the fields and on a hovered row, so it has to read on
+  // all of them: 4.5:1 (WCAG AA), because small text needs that however light it is meant to look. This holds for
+  // the values a theme sets itself too, so an imported theme cannot make the interface unreadable.
+  const surfaces = [background, panel, panel2, elevated, hover];
+  const readable = (color: string) => readableOn(color, surfaces, 4.5, foreground);
+  const muted = readable(own.muted ?? mix(background, foreground, dark ? 0.64 : 0.74));
+  const faint = readable(own.faint ?? mix(background, foreground, dark ? 0.43 : 0.39));
+  // The accent colors controls, focus rings and some text, so it must be seen whatever the theme says.
+  const accent = readable(theme.colors.accent ?? ansi[4]);
+  const status = (own: string | undefined, fromAnsi: string) => readable(own ?? fromAnsi);
+  // The label on a button painted with the accent: whichever of white and black reads better on it.
+  const onAccent = contrast("#ffffff", accent) >= contrast("#000000", accent) ? "#ffffff" : "#000000";
   const selection = parseColor(theme.colors.selection);
 
   return {
@@ -139,6 +143,7 @@ export function chromeTokens(theme: Theme): Record<string, string> {
     "--muted": muted,
     "--faint": faint,
     "--accent": accent,
+    "--on-accent": onAccent,
     "--accent-soft": own.accent_soft ? cssColor(own.accent_soft) : withAlpha(accent, dark ? 0.14 : 0.1),
     "--ok": status(own.ok, ansi[2]),
     "--warn": status(own.warn, ansi[3]),

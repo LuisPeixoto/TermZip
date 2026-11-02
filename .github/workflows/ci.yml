@@ -68,6 +68,14 @@ jobs:
           --plugins examples/plugins/target/wasm32-unknown-unknown/release
           --out "$RUNNER_TEMP/catalog" --base-url https://example.com/catalog
 
+  scripts:
+    name: Scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test the signing preparation of the release
+        run: bash tools/test-prepare-signing.sh
+
   supply-chain:
     name: Supply chain
     runs-on: ubuntu-24.04
