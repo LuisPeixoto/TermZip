@@ -375,6 +375,8 @@
   <p class="text-[10.5px] text-faint">
     A profile only needs what differs: an empty field uses the built-in profile or the app's setting. Its theme,
     font and cursor are for its terminals; the window around them keeps the app's theme. Environment variables
-    reach new shells; the ones TermZip manages (TERM, ZDOTDIR, TERMZIP_…) cannot be set.
+    reach new shells; the ones TermZip manages (TERM, ZDOTDIR, TERMZIP_…) cannot be set. A profile tied to
+    folders is used by a new terminal that starts in one of them, or below. An SSH or WSL profile connects
+    instead of starting a shell here.
   </p>
 </div>
