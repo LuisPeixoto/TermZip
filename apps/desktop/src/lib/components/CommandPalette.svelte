@@ -301,7 +301,7 @@
           </button>
           <button
             type="submit"
-            class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40"
+            class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-on-accent hover:opacity-90 disabled:opacity-40"
             disabled={missing.length > 0}
             title={missing.length > 0 ? `Fill in ${missing.join(", ")}` : undefined}
           >

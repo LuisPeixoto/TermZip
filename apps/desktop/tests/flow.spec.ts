@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AckBatcher } from "../src/lib/flow";
+import { AckBatcher, InputQueue, MAX_QUEUED_INPUT } from "../src/lib/flow";
 
 function batcher(batch = 100, ready = () => true) {
   const sent: number[] = [];
@@ -40,5 +40,42 @@ describe("AckBatcher", () => {
     b.reset();
     b.add(90);
     expect(sent).toEqual([]);
+  });
+});
+
+describe("InputQueue", () => {
+  it("holds what the terminal said before the session id was known, in order", () => {
+    const queue = new InputQueue();
+    // ConPTY asks where the cursor is and the terminal answers; then a key is pressed.
+    queue.push("\x1b[1;1R");
+    queue.push("l");
+    queue.push("s");
+
+    expect(queue.drain()).toEqual(["\x1b[1;1R", "l", "s"]);
+  });
+
+  it("is empty after it was drained, so nothing goes out twice", () => {
+    const queue = new InputQueue();
+    queue.push("a");
+    queue.drain();
+
+    expect(queue.drain()).toEqual([]);
+  });
+
+  it("drops what would pass the limit, and keeps what came before it", () => {
+    const queue = new InputQueue();
+    queue.push("first");
+    queue.push("x".repeat(MAX_QUEUED_INPUT));
+    queue.push("last");
+
+    expect(queue.drain()).toEqual(["first", "last"]);
+  });
+
+  it("starts empty for a new shell", () => {
+    const queue = new InputQueue();
+    queue.push("left over from the shell before");
+    queue.clear();
+
+    expect(queue.drain()).toEqual([]);
   });
 });
