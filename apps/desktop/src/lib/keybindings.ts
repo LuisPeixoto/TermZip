@@ -19,6 +19,7 @@ export type AppShortcut =
   | "splitDown"
   | "find"
   | "commandPalette"
+  | "snippets"
   | "nextTab"
   | "prevTab"
   | "focusLeft"
@@ -38,6 +39,7 @@ const TABS: TabNumber[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 export const ACTIONS: readonly ActionInfo[] = [
   { id: "commandPalette", label: "Command palette", group: "General" },
+  { id: "snippets", label: "Insert a snippet", group: "General" },
   { id: "preferences", label: "Preferences", group: "General" },
   { id: "blocks", label: "Show or hide the command blocks", group: "General" },
   { id: "newTab", label: "New tab", group: "Tabs and panes" },
@@ -67,6 +69,7 @@ export function defaultBindings(platform: string): Bindings {
   const tabs = Object.fromEntries(TABS.map((n) => [`tab${n}`, `${main}${n}`]));
   return {
     commandPalette: mac ? "Shift+Cmd+P" : "Ctrl+Shift+P",
+    snippets: mac ? "Shift+Cmd+S" : "Ctrl+Shift+S",
     preferences: mac ? "Cmd+Comma" : "Ctrl+Comma",
     restart: `${main}R`,
     blocks: `${main}B`,

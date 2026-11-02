@@ -24,6 +24,8 @@ function createAppStore() {
   // While a shortcut is being recorded, no shortcut may act: the keys are the answer, not commands.
   let recordingShortcut = $state(false);
   let paletteOpen = $state(false);
+  // What the open palette lists: everything, or only the snippets (the Insert a snippet shortcut).
+  let paletteScope = $state<"snippets" | null>(null);
   // The commands used last, newest first, so the palette opens on what is likely wanted again.
   let recentActions = $state.raw<string[]>([]);
 
@@ -147,14 +149,30 @@ function createAppStore() {
     rememberAction(id: string) {
       recentActions = [id, ...recentActions.filter((known) => known !== id)].slice(0, 8);
     },
+    get paletteScope() {
+      return paletteScope;
+    },
     togglePalette() {
       // The palette and the preferences both take the keyboard; only one at a time.
       if (settingsOpen) return;
+      paletteScope = null;
       paletteOpen = !paletteOpen;
       if (!paletteOpen) focusTerminal();
     },
+    /** Opens the palette showing only the snippets; pressed again it closes, as the palette does. */
+    toggleSnippets() {
+      if (settingsOpen) return;
+      if (paletteOpen && paletteScope === "snippets") {
+        paletteOpen = false;
+        focusTerminal();
+        return;
+      }
+      paletteScope = "snippets";
+      paletteOpen = true;
+    },
     closePalette() {
       paletteOpen = false;
+      paletteScope = null;
       focusTerminal();
     },
     get recordingShortcut() {
