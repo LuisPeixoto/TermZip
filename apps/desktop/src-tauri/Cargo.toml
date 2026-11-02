@@ -33,6 +33,7 @@ termzip-plugin-api.workspace = true
 termzip-plugins.workspace = true
 termzip-pty.workspace = true
 termzip-shell.workspace = true
+termzip-tasks.workspace = true
 
 [dev-dependencies]
 minisign.workspace = true

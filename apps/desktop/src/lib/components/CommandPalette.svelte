@@ -6,7 +6,7 @@
   import { paletteEntries, type PaletteEntry } from "../paletteEntries";
   import { runAction } from "../runAction";
   import { app } from "../stores/app.svelte";
-  import { api, type SnippetInfo } from "../api";
+  import { api, type SnippetInfo, type TaskInfo } from "../api";
   import { initialValues, missingValues } from "../snippets";
   import { pluginStore } from "../stores/plugins.svelte";
   import { themes } from "../stores/themes.svelte";
@@ -17,6 +17,8 @@
   let input: HTMLInputElement | undefined = $state();
   // The snippets of the folder the active pane is in, read when the palette opens.
   let snippets = $state.raw<SnippetInfo[]>([]);
+  // The tasks of the project the active pane is in, read at the same time.
+  let tasks = $state.raw<TaskInfo[]>([]);
   // The form that asks for the values of a snippet; the list is hidden while it is open.
   let form = $state<{ snippet: SnippetInfo; values: Record<string, string> } | null>(null);
   let formElement: HTMLFormElement | undefined = $state();
@@ -31,6 +33,7 @@
       currentThemeId: app.theme?.id ?? null,
       blurSupported: app.blurSupported,
       snippets,
+      tasks,
       scope: app.paletteScope,
       plugins: pluginStore.running.flatMap((plugin) =>
         plugin.manifest.commands.map((command) => ({
@@ -73,6 +76,16 @@
           if (snippet.parameters.length === 0) void insertSnippet(snippet, {});
           else form = { snippet, values: initialValues(snippet) };
         },
+        typeTask: (task) => {
+          const pane = workspace.activePane;
+          if (!pane.session) {
+            app.toast("warn", "The shell is not running yet");
+            return;
+          }
+          // Only typed: the command waits at the prompt for you to read it and press Enter.
+          pane.paste(task.command);
+          focusTerminal();
+        },
         toggleAppearance: () => void app.toggleTheme(),
         toggleBlur: () => {
           void app
@@ -89,10 +102,16 @@
   onMount(() => {
     input?.focus();
     const pane = workspace.activePane;
+    const folder = pane.cwd ?? pane.restoreDirectory ?? null;
     api
-      .listSnippets(pane.cwd ?? pane.restoreDirectory ?? null)
+      .listSnippets(folder)
       .then((list) => (snippets = list))
       .catch((error) => app.toast("warn", `Could not load the snippets: ${error}`));
+    // A project without tasks, or a folder that cannot be read, is not worth a message.
+    api
+      .listTasks(folder)
+      .then((list) => (tasks = list))
+      .catch(() => {});
   });
 
   // The first field of the form is ready to type in as soon as the form opens.

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Profile, SnippetInfo } from "../src/lib/api";
+import type { Profile, SnippetInfo, TaskInfo } from "../src/lib/api";
 import { defaultBindings } from "../src/lib/keybindings";
 import { paletteEntries, type PaletteInput } from "../src/lib/paletteEntries";
 import { highlight } from "../src/lib/fuzzy";
@@ -15,6 +15,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     toggleBlur: vi.fn(),
     runPluginCommand: vi.fn(),
     useSnippet: vi.fn(),
+    typeTask: vi.fn(),
   };
   const input: PaletteInput = {
     platform: "macos",
@@ -26,6 +27,7 @@ function setup(extra: Partial<PaletteInput> = {}) {
     blurSupported: true,
     plugins: [],
     snippets: [],
+    tasks: [],
     commands,
     ...extra,
   };
@@ -170,6 +172,34 @@ describe("highlighting", () => {
         title: "Insert a snippet",
         detail: "⇧⌘S",
       });
+    });
+  });
+
+  describe("tasks", () => {
+    const build: TaskInfo = { source: "package.json", name: "build", command: "pnpm run build" };
+    const test: TaskInfo = { source: "Cargo", name: "test", command: "cargo test" };
+
+    it("lists each task by the command it types, with where it comes from", () => {
+      const { entries, commands } = setup({ tasks: [build, test] });
+      const entry = entries.find((candidate) => candidate.id === "task:package.json:build");
+
+      expect(entry).toMatchObject({ title: "Task: pnpm run build", detail: "package.json" });
+      expect(entry?.keepsOpen).toBeUndefined();
+      entry?.run();
+      expect(commands.typeTask).toHaveBeenCalledWith(build);
+    });
+
+    it("tells apart tasks of different sources with the same name", () => {
+      const other: TaskInfo = { source: "Makefile", name: "build", command: "make build" };
+      const ids = setup({ tasks: [build, other] }).entries.map((entry) => entry.id);
+
+      expect(ids).toContain("task:package.json:build");
+      expect(ids).toContain("task:Makefile:build");
+    });
+
+    it("has no tasks in the snippets scope", () => {
+      const { entries } = setup({ tasks: [build], scope: "snippets" });
+      expect(entries).toEqual([]);
     });
   });
 });

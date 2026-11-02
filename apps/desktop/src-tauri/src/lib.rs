@@ -6,6 +6,7 @@ mod links;
 mod plugins;
 mod sessions;
 mod snippets;
+mod tasks;
 mod themes;
 mod window;
 
@@ -79,6 +80,7 @@ pub fn run() {
             snippets::check_snippet,
             snippets::list_snippets,
             snippets::render_snippet,
+            tasks::list_tasks,
             themes::list_themes,
             themes::import_theme,
             themes::export_theme,
