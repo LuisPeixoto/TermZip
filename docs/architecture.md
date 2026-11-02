@@ -62,6 +62,8 @@ Raw bytes flow to the terminal unchanged; the marker parser observes the stream 
 | `termzip-plugin-api` | What the app and a plugin agree on: the manifest, the permissions, and the JSON events and actions (golden-tested). No platform code. |
 | `termzip-plugins` | The plugin host: reading and checking a `.wasm` file, the store and the approvals, the `wasmi` sandbox and its runtime, link patterns, and the signed catalog. No platform code. |
 | `termzip-plugin-sdk` | For plugin authors: a trait, typed events and actions, and the macros that write the exports. The app does not use it. |
+| `termzip-tasks` | The tasks of a project (`package.json`, Cargo, Makefile, justfile, `deno.json`) found from a folder. Pure parsers and a bounded file reader. No platform code. |
+| `termzip-git` | The git state of a folder (`git status`, run with `core.fsmonitor` off and a timeout) and the web page of an `origin` remote. |
 | `termzip-desktop` | Tauri commands, session registry, event emission, app lifecycle. |
 
 ## The interface: panes, tabs and the workspace
@@ -89,6 +91,32 @@ profile and stores a validated copy of the layout (`workspace.json`) when the we
   keyboard and for the command palette. See [keyboard](keyboard.md).
 - **The window** is created transparent. The page paints itself opaque unless the opacity is lowered, and the system's
   blur (vibrancy, acrylic) is requested only while it is. See [appearance](appearance.md).
+
+## Developer workflows
+
+Four features share one rule: **text that TermZip puts at the prompt is typed, never run.** The cleaning lives in
+`termzip-core` (`text.rs`): every control character and every character that hides or reorders text is removed, and
+the result is bounded. Plugins and snippets go through it; a project task needs none, because its name can only be
+plain characters and the rest of the line is fixed. The interface only pastes what Rust hands back.
+
+- **Snippets** (`snippet.rs` in `termzip-core`): the model, the `{{value:default}}` syntax, validation, and rendering.
+  The parser lives only in Rust; the interface asks for the values a command wants (`check_snippet`, `list_snippets`)
+  and for the finished text (`render_snippet`). The palette (`CommandPalette.svelte`) lists them and shows the form.
+  See [snippets](snippets.md).
+- **Project tasks** (`termzip-tasks`): readers of five file kinds that take text and return names, and `detect`, which
+  walks up from a folder the way each tool does. `list_tasks` runs it on a blocking thread when the palette opens.
+  See [project tasks](project-tasks.md).
+- **Folder profiles** (`Profile.folders`, `Settings::profile_for_folder`): `create_session` picks the most specific
+  profile for the folder a shell starts in and reports it (`folderProfile`), and the pane keeps it, so the look and the
+  saved layout follow. The matching stays in Rust.
+- **SSH and WSL profiles** (`ProfileKind`, `Remote`): `launch_profile` yields a `Remote` instead of a shell, and
+  `Sessions::create` builds `ssh … -- host` or `wsl.exe …` in `termzip-shell` (`ssh_launch`, `wsl_launch`) instead of
+  `launch_config`. Values are validated in the settings and again where the command is built. The suggestions come from
+  `ssh_config.rs` (host names of `~/.ssh/config`) and `wsl.rs` (the UTF-16 output of `wsl.exe -l -q`).
+  See [SSH and WSL](ssh-and-wsl.md).
+- **Git** (`termzip-git`): the status bar item is one store (`git.svelte.ts`) that follows the folder of the active
+  terminal and drops answers for folders already left; the work is one `git status` per change, on a blocking thread.
+  See [git](git.md).
 
 ## Plugins
 
@@ -144,6 +172,10 @@ sees is in [plugins](plugins.md).
   save dialog (see [themes](themes.md#limits)).
 - Clicking text in the terminal goes to the backend, which only opens http(s) and mailto URLs and files that exist,
   and never starts a program (see [links](links.md)).
+- Snippets, project tasks and plugins can only type: the text has no control character (cleaned, or for a task made of
+  plain names only), so nothing runs until you press Enter. Project files and SSH or git data are untrusted: plain names only, bounded sizes, and nothing is run to
+  read them (git is run with `core.fsmonitor` off, see [git](git.md#a-repository-you-just-cloned)). TermZip stores no SSH
+  key or password.
 - Plugins run in a sandbox with no imports, so they cannot reach files, the network, processes or the clock; each
   permission is shown before a plugin is turned on, the approval belongs to the file's SHA-256, and a plugin's answers
   are checked and cleaned before they are used. The catalog is verified with a built-in minisign key, and the network
