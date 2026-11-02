@@ -2,11 +2,22 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 
 export type CursorStyle = "block" | "bar" | "underline";
 
+/** What a profile starts: a shell on this computer, an `ssh` connection or a WSL distribution. */
+export type ProfileKind = "local" | "ssh" | "wsl";
+
 export interface Profile {
   id: string;
   name: string;
   shell: string | null;
   workingDirectory: string | null;
+  /** `local` when left out. */
+  kind?: ProfileKind;
+  /** SSH: a host name, address or `Host` alias of `~/.ssh/config`. No key or password is ever stored. */
+  host?: string | null;
+  user?: string | null;
+  port?: number | null;
+  /** WSL: the distribution; empty is the default one. */
+  distribution?: string | null;
   /** The profile's own look for its terminal; the app's when left out. */
   theme?: string | null;
   fontSize?: number | null;

@@ -11,7 +11,10 @@ mod workspace;
 
 pub use appearance::CursorStyle;
 pub use keybindings::{MAX_KEYBINDINGS, normalize_chord, validate_keybindings};
-pub use profile::{DEFAULT_PROFILE_ID, LaunchProfile, Profile, slug, validate_profiles};
+pub use profile::{
+    DEFAULT_PROFILE_ID, LaunchProfile, Profile, ProfileKind, Remote, is_valid_host,
+    is_valid_remote_name, slug, validate_profiles,
+};
 pub use settings::{HOME_ENV, Settings, SettingsError, data_dir, integration_dir, settings_path};
 pub use snippet::{
     MAX_PARAMETER_NAME_CHARS, MAX_PARAMETER_VALUE_BYTES, MAX_PARAMETERS, MAX_SNIPPET_COMMAND_BYTES,

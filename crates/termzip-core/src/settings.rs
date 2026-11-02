@@ -224,20 +224,30 @@ impl Settings {
                 .or_else(|| self.default_profile.as_deref().and_then(find))
         };
         match chosen {
-            Some(profile) => LaunchProfile {
-                id: profile.id.clone(),
-                shell: profile.shell.clone().or_else(|| self.shell.clone()),
-                working_directory: profile
-                    .working_directory
-                    .clone()
-                    .or_else(|| self.working_directory.clone()),
-                env: profile.env.clone(),
-            },
+            Some(profile) => {
+                let (remote, problem) = match profile.remote() {
+                    Ok(remote) => (remote, None),
+                    Err(problem) => (None, Some(problem)),
+                };
+                LaunchProfile {
+                    id: profile.id.clone(),
+                    shell: profile.shell.clone().or_else(|| self.shell.clone()),
+                    working_directory: profile
+                        .working_directory
+                        .clone()
+                        .or_else(|| self.working_directory.clone()),
+                    env: profile.env.clone(),
+                    remote,
+                    problem,
+                }
+            }
             None => LaunchProfile {
                 id: DEFAULT_PROFILE_ID.to_owned(),
                 shell: self.shell.clone(),
                 working_directory: self.working_directory.clone(),
                 env: Default::default(),
+                remote: None,
+                problem: None,
             },
         }
     }
@@ -844,5 +854,82 @@ AWS_PROFILE = "work"
     fn a_profile_from_before_folders_loads_without_any() {
         let settings = Settings::from_toml("[[profiles]]\nname = \"Work\"\n");
         assert!(settings.profiles[0].folders.is_empty());
+    }
+
+    #[test]
+    fn a_remote_profile_launches_a_connection_not_a_shell() {
+        let settings = Settings::from_toml(
+            "[[profiles]]\nname = \"Build box\"\nkind = \"ssh\"\nhost = \"build-box\"\nport = 2222\n\n[[profiles]]\nname = \"Linux\"\nkind = \"wsl\"\ndistribution = \"Ubuntu\"\n",
+        );
+
+        let ssh = settings.launch_profile(Some("build-box"));
+        assert_eq!(
+            ssh.remote,
+            Some(crate::Remote::Ssh {
+                host: "build-box".to_owned(),
+                user: None,
+                port: Some(2222)
+            })
+        );
+        assert_eq!(ssh.problem, None);
+        let wsl = settings.launch_profile(Some("linux"));
+        assert_eq!(
+            wsl.remote,
+            Some(crate::Remote::Wsl {
+                distribution: Some("Ubuntu".to_owned())
+            })
+        );
+        let built_in = settings.launch_profile(Some("default"));
+        assert_eq!((built_in.remote, built_in.problem), (None, None));
+    }
+
+    #[test]
+    fn an_ssh_profile_without_a_host_is_refused_not_turned_into_a_local_shell() {
+        let settings = Settings::from_toml("[[profiles]]\nname = \"Empty\"\nkind = \"ssh\"\n");
+
+        let launch = settings.launch_profile(Some("empty"));
+
+        assert_eq!(launch.remote, None);
+        assert!(launch.problem.unwrap().contains("no usable host"));
+    }
+
+    #[test]
+    fn a_profile_from_before_remote_profiles_is_local() {
+        let settings = Settings::from_toml("[[profiles]]\nname = \"Work\"\n");
+        assert_eq!(settings.profiles[0].kind, crate::ProfileKind::Local);
+        assert_eq!(settings.launch_profile(Some("work")).remote, None);
+    }
+
+    #[test]
+    fn remote_profiles_survive_a_round_trip_through_toml() {
+        let settings = Settings {
+            profiles: vec![
+                Profile {
+                    name: "Box".to_owned(),
+                    kind: crate::ProfileKind::Ssh,
+                    host: Some("build-box".to_owned()),
+                    user: Some("deploy".to_owned()),
+                    port: Some(2222),
+                    folders: vec!["~/box".to_owned()],
+                    ..Profile::default()
+                },
+                Profile {
+                    name: "Linux".to_owned(),
+                    kind: crate::ProfileKind::Wsl,
+                    distribution: Some("Ubuntu".to_owned()),
+                    ..Profile::default()
+                },
+            ],
+            ..Settings::default()
+        }
+        .normalized();
+
+        let text = toml::to_string_pretty(&settings).expect("remote profiles must serialize");
+
+        assert!(
+            text.contains("kind = \"ssh\"") && text.contains("kind = \"wsl\""),
+            "{text}"
+        );
+        assert_eq!(Settings::from_toml(&text), settings);
     }
 }

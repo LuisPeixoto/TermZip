@@ -76,6 +76,17 @@ pub struct ProfilePayload {
     pub name: String,
     pub shell: Option<String>,
     pub working_directory: Option<String>,
+    /// Missing from a profile the interface just created, like the fields after it, so it may be absent.
+    #[serde(default)]
+    pub kind: termzip_core::ProfileKind,
+    #[serde(default)]
+    pub host: Option<String>,
+    #[serde(default)]
+    pub user: Option<String>,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub distribution: Option<String>,
     pub theme: Option<String>,
     pub font_size: Option<f32>,
     pub font_family: Option<String>,
@@ -93,6 +104,11 @@ impl From<termzip_core::Profile> for ProfilePayload {
             name: profile.name,
             shell: profile.shell,
             working_directory: profile.working_directory,
+            kind: profile.kind,
+            host: profile.host,
+            user: profile.user,
+            port: profile.port,
+            distribution: profile.distribution,
             theme: profile.theme,
             font_size: profile.font_size,
             font_family: profile.font_family,
@@ -110,6 +126,11 @@ impl From<ProfilePayload> for termzip_core::Profile {
             name: payload.name,
             shell: payload.shell,
             working_directory: payload.working_directory,
+            kind: payload.kind,
+            host: payload.host,
+            user: payload.user,
+            port: payload.port,
+            distribution: payload.distribution,
             theme: payload.theme,
             font_size: payload.font_size,
             font_family: payload.font_family,
@@ -665,6 +686,34 @@ mod tests {
         assert_eq!(
             resolve_start(&settings, None, here.to_str()).folder_profile,
             None
+        );
+    }
+
+    #[test]
+    fn a_remote_profile_travels_through_the_payload_and_a_plain_one_stays_local() {
+        let profile = Profile {
+            name: "Box".to_owned(),
+            kind: termzip_core::ProfileKind::Ssh,
+            host: Some("build-box".to_owned()),
+            user: Some("deploy".to_owned()),
+            port: Some(2222),
+            ..Profile::default()
+        };
+        let json = serde_json::to_value(super::ProfilePayload::from(profile.clone())).unwrap();
+        assert_eq!(json["kind"], "ssh");
+        assert_eq!(json["port"], 2222);
+        let back: Profile = serde_json::from_value::<super::ProfilePayload>(json)
+            .unwrap()
+            .into();
+        assert_eq!(back, profile);
+
+        let plain: super::ProfilePayload = serde_json::from_str(
+            r#"{"id":"a","name":"A","shell":null,"workingDirectory":null,"env":{}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            termzip_core::Profile::from(plain).kind,
+            termzip_core::ProfileKind::Local
         );
     }
 }

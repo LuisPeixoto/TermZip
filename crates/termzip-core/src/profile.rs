@@ -13,6 +13,8 @@ pub const MAX_NAME_CHARS: usize = 64;
 pub const MAX_ENV_VARS: usize = 64;
 pub const MAX_ENV_KEY_CHARS: usize = 128;
 pub const MAX_ENV_VALUE_BYTES: usize = 4 * 1024;
+pub const MAX_HOST_CHARS: usize = 253;
+pub const MAX_REMOTE_NAME_CHARS: usize = 64;
 pub const MAX_PROFILE_FOLDERS: usize = 16;
 pub const MAX_FOLDER_BYTES: usize = 1024;
 const MAX_THEME_ID_CHARS: usize = 64;
@@ -30,6 +32,29 @@ const RESERVED_ENV: [&str; 5] = [
 ];
 const RESERVED_ENV_PREFIX: &str = "TERMZIP_";
 
+/// What a profile starts: a shell on this computer, an `ssh` connection, or a WSL distribution.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProfileKind {
+    #[default]
+    Local,
+    Ssh,
+    Wsl,
+}
+
+/// Where a remote profile connects. TermZip stores no key, password or identity file: `ssh` asks the agent and
+/// reads `~/.ssh/config` as it always does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Remote {
+    Ssh {
+        host: String,
+        user: Option<String>,
+        port: Option<u16>,
+    },
+    /// `None` is the default distribution.
+    Wsl { distribution: Option<String> },
+}
+
 /// Fields left empty inherit from the built-in profile, so a profile only says what differs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -39,6 +64,16 @@ pub struct Profile {
     pub name: String,
     pub shell: Option<String>,
     pub working_directory: Option<String>,
+    /// A shell here (the default), an SSH connection or a WSL distribution; see [`ProfileKind`].
+    pub kind: ProfileKind,
+    /// SSH: the host name, address or `Host` alias of `~/.ssh/config`.
+    pub host: Option<String>,
+    /// SSH: the user, when it is not the one in `~/.ssh/config`.
+    pub user: Option<String>,
+    /// SSH: the port, when it is not 22 or the one in `~/.ssh/config`.
+    pub port: Option<u16>,
+    /// WSL: the distribution; empty is the default one.
+    pub distribution: Option<String>,
     /// The id of the theme the terminal of this profile uses; the app's theme when empty.
     pub theme: Option<String>,
     pub font_size: Option<f32>,
@@ -69,6 +104,10 @@ pub struct LaunchProfile {
     pub shell: Option<String>,
     pub working_directory: Option<String>,
     pub env: BTreeMap<String, String>,
+    /// Set for an SSH or WSL profile: what to connect to instead of starting a local shell.
+    pub remote: Option<Remote>,
+    /// Why the profile cannot be started, as a sentence (an SSH profile without a host); never set otherwise.
+    pub problem: Option<String>,
 }
 
 pub fn is_reserved_env(key: &str) -> bool {
@@ -84,6 +123,27 @@ pub fn is_valid_env_key(key: &str) -> bool {
     key.len() <= MAX_ENV_KEY_CHARS
         && (first.is_ascii_alphabetic() || first == '_')
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// A host name, address (IPv6 too) or alias: it ends up as the argument of `ssh`, so it can never start with `-`
+/// (which `ssh` would read as an option) and has no character a shell or a config file gives a meaning to.
+pub fn is_valid_host(host: &str) -> bool {
+    !host.is_empty()
+        && host.len() <= MAX_HOST_CHARS
+        && !host.starts_with('-')
+        && host
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '-'))
+}
+
+/// A user name or a WSL distribution name.
+pub fn is_valid_remote_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().count() <= MAX_REMOTE_NAME_CHARS
+        && !name.starts_with('-')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
 }
 
 fn is_valid_folder(folder: &str) -> bool {
@@ -116,6 +176,7 @@ pub fn validate_profiles(profiles: &[Profile]) -> Result<(), String> {
                 "The profile id “{DEFAULT_PROFILE_ID}” is reserved."
             ));
         }
+        validate_remote(profile, name)?;
         if profile.folders.len() > MAX_PROFILE_FOLDERS {
             return Err(format!(
                 "The profile “{name}” is tied to more than {MAX_PROFILE_FOLDERS} folders."
@@ -154,6 +215,48 @@ pub fn validate_profiles(profiles: &[Profile]) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_remote(profile: &Profile, name: &str) -> Result<(), String> {
+    match profile.kind {
+        ProfileKind::Local => Ok(()),
+        ProfileKind::Ssh => {
+            let host = profile.host.as_deref().map(str::trim).unwrap_or("");
+            if host.is_empty() {
+                return Err(format!("The SSH profile “{name}” needs a host."));
+            }
+            if !is_valid_host(host) {
+                return Err(format!(
+                    "“{host}” is not a host name TermZip can pass to ssh (letters, digits and . _ : -, up to {MAX_HOST_CHARS} characters, not starting with a dash)."
+                ));
+            }
+            if let Some(user) = profile
+                .user
+                .as_deref()
+                .map(str::trim)
+                .filter(|user| !user.is_empty())
+                && !is_valid_remote_name(user)
+            {
+                return Err(format!(
+                    "“{user}” is not a user name TermZip can pass to ssh (letters, digits and . _ -, not starting with a dash)."
+                ));
+            }
+            if profile.port == Some(0) {
+                return Err("The port must be from 1 to 65535.".to_owned());
+            }
+            Ok(())
+        }
+        ProfileKind::Wsl => match profile.distribution.as_deref().map(str::trim) {
+            Some(distribution)
+                if !distribution.is_empty() && !is_valid_remote_name(distribution) =>
+            {
+                Err(format!(
+                    "“{distribution}” is not a WSL distribution name (letters, digits and . _ -, not starting with a dash)."
+                ))
+            }
+            _ => Ok(()),
+        },
+    }
+}
+
 /// `Work Laptop!` becomes `work-laptop`.
 pub fn slug(text: &str) -> String {
     let mut out = String::new();
@@ -173,6 +276,55 @@ fn blank_to_none(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+/// Keeps only what the kind of profile uses, so a value left over from an earlier kind never reaches a command.
+fn normalize_remote(profile: &mut Profile) {
+    profile.host = blank_to_none(profile.host.take()).filter(|host| is_valid_host(host));
+    profile.user = blank_to_none(profile.user.take()).filter(|user| is_valid_remote_name(user));
+    profile.distribution =
+        blank_to_none(profile.distribution.take()).filter(|name| is_valid_remote_name(name));
+    profile.port = profile.port.filter(|port| *port != 0);
+    match profile.kind {
+        ProfileKind::Local => {
+            profile.host = None;
+            profile.user = None;
+            profile.port = None;
+            profile.distribution = None;
+        }
+        ProfileKind::Ssh => profile.distribution = None,
+        ProfileKind::Wsl => {
+            profile.host = None;
+            profile.user = None;
+            profile.port = None;
+        }
+    }
+}
+
+impl Profile {
+    /// Where this profile connects, or why it cannot: an SSH profile needs a host.
+    pub fn remote(&self) -> Result<Option<Remote>, String> {
+        match self.kind {
+            ProfileKind::Local => Ok(None),
+            ProfileKind::Ssh => match self.host.as_deref().filter(|host| is_valid_host(host)) {
+                Some(host) => Ok(Some(Remote::Ssh {
+                    host: host.to_owned(),
+                    user: self.user.clone().filter(|user| is_valid_remote_name(user)),
+                    port: self.port.filter(|port| *port != 0),
+                })),
+                None => Err(format!(
+                    "The SSH profile “{}” has no usable host. Open Preferences → Profiles and give it one.",
+                    self.name
+                )),
+            },
+            ProfileKind::Wsl => Ok(Some(Remote::Wsl {
+                distribution: self
+                    .distribution
+                    .clone()
+                    .filter(|name| is_valid_remote_name(name)),
+            })),
+        }
+    }
+}
+
 /// Cleans what the file or the dialog handed over: bounds every field, drops what cannot be used,
 /// and gives every profile a unique id. It never fails; `validate_profiles` reports problems first.
 pub(crate) fn normalize_profiles(profiles: Vec<Profile>) -> Vec<Profile> {
@@ -185,6 +337,7 @@ pub(crate) fn normalize_profiles(profiles: Vec<Profile>) -> Vec<Profile> {
         } else {
             name
         };
+        normalize_remote(&mut profile);
         profile.shell = blank_to_none(profile.shell);
         profile.working_directory = blank_to_none(profile.working_directory);
         profile.theme = profile
@@ -441,6 +594,166 @@ mod tests {
                 .folders
                 .len(),
             MAX_PROFILE_FOLDERS
+        );
+    }
+
+    fn ssh(name: &str, host: &str) -> Profile {
+        Profile {
+            kind: ProfileKind::Ssh,
+            host: Some(host.to_owned()),
+            ..profile(name)
+        }
+    }
+
+    #[test]
+    fn an_ssh_profile_needs_a_host_that_ssh_cannot_read_as_an_option() {
+        let problem = |host: &str| validate_profiles(&[ssh("Box", host)]).unwrap_err();
+
+        assert!(problem("").contains("needs a host"));
+        assert!(problem("-oProxyCommand=touch pwned").contains("not a host name"));
+        assert!(problem("-v").contains("not a host name"));
+        for hostile in [
+            "a b", "a;b", "a|b", "a$(b)", "a`b`", "a@b", "a/b", "a\nb", "é", "a'b",
+        ] {
+            assert!(problem(hostile).contains("not a host name"), "{hostile:?}");
+        }
+        assert!(problem(&"h".repeat(MAX_HOST_CHARS + 1)).contains("not a host name"));
+        for good in [
+            "build-box",
+            "build.example.com",
+            "10.0.0.7",
+            "::1",
+            "fe80::1",
+            "my_alias",
+        ] {
+            assert!(validate_profiles(&[ssh("Box", good)]).is_ok(), "{good}");
+        }
+    }
+
+    #[test]
+    fn the_user_and_the_port_are_checked() {
+        let mut box_ = ssh("Box", "build-box");
+        box_.user = Some("-oProxyCommand=x".to_owned());
+        assert!(
+            validate_profiles(&[box_.clone()])
+                .unwrap_err()
+                .contains("not a user name")
+        );
+        box_.user = Some("deploy.bot".to_owned());
+        box_.port = Some(0);
+        assert!(
+            validate_profiles(&[box_.clone()])
+                .unwrap_err()
+                .contains("1 to 65535")
+        );
+        box_.port = Some(2222);
+        assert!(validate_profiles(&[box_]).is_ok());
+    }
+
+    #[test]
+    fn a_wsl_profile_needs_no_distribution_but_a_given_one_must_be_a_plain_name() {
+        let wsl = |name: Option<&str>| Profile {
+            kind: ProfileKind::Wsl,
+            distribution: name.map(str::to_owned),
+            ..profile("Linux")
+        };
+
+        assert!(validate_profiles(&[wsl(None)]).is_ok());
+        assert!(validate_profiles(&[wsl(Some("Ubuntu-22.04"))]).is_ok());
+        assert!(
+            validate_profiles(&[wsl(Some("-u root"))])
+                .unwrap_err()
+                .contains("distribution")
+        );
+        assert!(validate_profiles(&[wsl(Some("a b"))]).is_err());
+    }
+
+    #[test]
+    fn a_local_profile_ignores_what_it_does_not_use() {
+        let local = Profile {
+            host: Some("-oProxyCommand=x".to_owned()),
+            port: Some(0),
+            ..profile("Local")
+        };
+        assert!(validate_profiles(&[local]).is_ok());
+    }
+
+    #[test]
+    fn cleaning_keeps_only_what_the_kind_uses() {
+        let mixed = |kind| Profile {
+            kind,
+            host: Some(" build-box ".to_owned()),
+            user: Some("deploy".to_owned()),
+            port: Some(2222),
+            distribution: Some("Ubuntu".to_owned()),
+            ..profile("Mixed")
+        };
+
+        let local = &normalize_profiles(vec![mixed(ProfileKind::Local)])[0];
+        assert_eq!(
+            (&local.host, &local.user, local.port, &local.distribution),
+            (&None, &None, None, &None)
+        );
+        let ssh = &normalize_profiles(vec![mixed(ProfileKind::Ssh)])[0];
+        assert_eq!(ssh.host.as_deref(), Some("build-box"));
+        assert_eq!(
+            (ssh.user.as_deref(), ssh.port, &ssh.distribution),
+            (Some("deploy"), Some(2222), &None)
+        );
+        let wsl = &normalize_profiles(vec![mixed(ProfileKind::Wsl)])[0];
+        assert_eq!(wsl.distribution.as_deref(), Some("Ubuntu"));
+        assert_eq!((&wsl.host, &wsl.user, wsl.port), (&None, &None, None));
+    }
+
+    #[test]
+    fn cleaning_drops_a_value_that_would_not_pass_validation() {
+        let hostile = Profile {
+            host: Some("-oProxyCommand=x".to_owned()),
+            user: Some("a b".to_owned()),
+            port: Some(0),
+            kind: ProfileKind::Ssh,
+            ..profile("Hostile")
+        };
+
+        let cleaned = &normalize_profiles(vec![hostile])[0];
+
+        assert_eq!(
+            (&cleaned.host, &cleaned.user, cleaned.port),
+            (&None, &None, None)
+        );
+    }
+
+    #[test]
+    fn a_remote_profile_says_where_it_connects_or_why_it_cannot() {
+        assert_eq!(profile("Local").remote(), Ok(None));
+        let mut box_ = ssh("Box", "build-box");
+        box_.user = Some("deploy".to_owned());
+        box_.port = Some(2222);
+        assert_eq!(
+            box_.remote(),
+            Ok(Some(Remote::Ssh {
+                host: "build-box".to_owned(),
+                user: Some("deploy".to_owned()),
+                port: Some(2222)
+            }))
+        );
+        let hostless = Profile {
+            kind: ProfileKind::Ssh,
+            ..profile("Empty")
+        };
+        assert!(hostless.remote().unwrap_err().contains("no usable host"));
+        let hostile = ssh("Hostile", "-oProxyCommand=x");
+        assert!(hostile.remote().is_err());
+        let wsl = Profile {
+            kind: ProfileKind::Wsl,
+            distribution: Some("Debian".to_owned()),
+            ..profile("Linux")
+        };
+        assert_eq!(
+            wsl.remote(),
+            Ok(Some(Remote::Wsl {
+                distribution: Some("Debian".to_owned())
+            }))
         );
     }
 }
