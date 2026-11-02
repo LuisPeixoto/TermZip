@@ -29,6 +29,7 @@ tauri.workspace = true
 tauri-plugin-clipboard-manager.workspace = true
 tauri-plugin-dialog.workspace = true
 termzip-core.workspace = true
+termzip-git.workspace = true
 termzip-plugin-api.workspace = true
 termzip-plugins.workspace = true
 termzip-pty.workspace = true

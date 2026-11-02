@@ -64,6 +64,9 @@ pub struct Settings {
     /// Whether TermZip may look at the plugin catalog on the network. It only does when asked to, and never
     /// at startup; with this off it never does.
     pub plugins_catalog: bool,
+    /// Show the git branch and state of the folder of the terminal in the status bar. It reads the repository on
+    /// disk with `git status` and never uses the network.
+    pub git_status: bool,
     /// The profile a new tab starts with; `None` is the built-in one.
     pub default_profile: Option<String>,
     /// Shortcut overrides, `action = "Cmd+Shift+D"`; an empty chord unbinds the action. Tables come
@@ -93,6 +96,7 @@ impl Default for Settings {
             working_directory: None,
             restore_session: true,
             plugins_catalog: true,
+            git_status: true,
             default_profile: None,
             keybindings: BTreeMap::new(),
             snippets: Vec::new(),
@@ -935,6 +939,23 @@ AWS_PROFILE = "work"
             "{text}"
         );
         assert_eq!(Settings::from_toml(&text), settings);
+    }
+
+    #[test]
+    fn the_git_status_is_on_by_default_and_a_config_from_before_it_gets_it() {
+        assert!(Settings::default().git_status);
+        assert!(Settings::from_toml("font_size = 15.0\n").git_status);
+    }
+
+    #[test]
+    fn the_git_status_can_be_turned_off_in_the_file_and_stays_off() {
+        let settings = Settings::from_toml("git_status = false\n");
+        assert!(!settings.git_status);
+
+        let text = toml::to_string_pretty(&settings).expect("settings must serialize");
+
+        assert!(text.contains("git_status = false"), "{text}");
+        assert!(!Settings::from_toml(&text).git_status);
     }
 
     #[test]

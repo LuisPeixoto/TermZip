@@ -19,6 +19,7 @@ export function defaultSettings(): Settings {
     workingDirectory: null,
     restoreSession: true,
     pluginsCatalog: true,
+    gitStatus: true,
     defaultProfile: null,
     keybindings: {},
     snippets: [],
