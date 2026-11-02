@@ -80,7 +80,7 @@ Memory counts the app and its web view together.
 measures the app (five runs, medians, on macOS and Linux). The `Smoke` workflow runs both on a macOS, a Linux and a
 Windows runner for every change to `main`, and fails only when a measurement is far past its budget: a shared runner is
 slower and noisier than the reference computer, so the headless numbers get a slack of 4 times and the app numbers on the
-macOS runner a slack of 10 (it starts the app cold: about 6 s to the first prompt). The check is there to catch a
+macOS runner a slack of 20 (it starts the app cold: 6 to 8 s to the first prompt). The check is there to catch a
 regression of an order of magnitude, not a slow afternoon.
 
 **Other systems, as the runners saw them** (one run each, so only the order of magnitude means anything):
