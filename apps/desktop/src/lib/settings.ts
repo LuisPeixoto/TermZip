@@ -19,6 +19,7 @@ export function defaultSettings(): Settings {
     workingDirectory: null,
     restoreSession: true,
     pluginsCatalog: true,
+    checkUpdatesOnLaunch: false,
     gitStatus: true,
     screenReader: false,
     defaultProfile: null,
