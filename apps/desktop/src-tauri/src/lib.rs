@@ -4,6 +4,7 @@ mod commands;
 mod flow;
 mod links;
 mod plugins;
+mod remote;
 mod sessions;
 mod snippets;
 mod tasks;
@@ -77,6 +78,7 @@ pub fn run() {
             commands::load_workspace,
             commands::save_workspace,
             commands::list_blocks,
+            remote::list_ssh_hosts,
             snippets::check_snippet,
             snippets::list_snippets,
             snippets::render_snippet,

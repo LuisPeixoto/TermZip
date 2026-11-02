@@ -4,6 +4,7 @@ mod paths;
 mod profile;
 mod settings;
 mod snippet;
+mod ssh_config;
 mod storage;
 mod text;
 mod theme;
@@ -21,6 +22,7 @@ pub use snippet::{
     MAX_SNIPPET_DESCRIPTION_CHARS, MAX_SNIPPET_FOLDER_BYTES, MAX_SNIPPET_NAME_CHARS, MAX_SNIPPETS,
     Parameter, Snippet, check_command, parameters, render, validate_snippets,
 };
+pub use ssh_config::{default_ssh_dir, parse_hosts, ssh_hosts};
 pub use storage::write_atomic;
 pub use text::{clean_typed, hides_or_reorders};
 pub use theme::{
