@@ -2,6 +2,7 @@
 
 mod commands;
 mod flow;
+mod git;
 mod links;
 mod plugins;
 mod remote;
@@ -78,6 +79,7 @@ pub fn run() {
             commands::load_workspace,
             commands::save_workspace,
             commands::list_blocks,
+            git::git_status,
             remote::list_ssh_hosts,
             snippets::check_snippet,
             snippets::list_snippets,
