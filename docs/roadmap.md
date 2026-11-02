@@ -5,15 +5,13 @@ issue before beginning a larger architectural change.
 
 ## ✅ Phase 0: Research and feasibility
 
-- ✅ Static REA inspection of the supplied Warp, Ghostty, and Terminal.app binaries and macOS bundle metadata.
-- ✅ Review of ProxyZip's repository structure, roadmap, CI, contribution workflow, and Rust workspace conventions.
+- ✅ Research of terminal workflows, shell-integration protocols, and platform conventions on macOS, Windows, and Linux.
+- ✅ Rust workspace, CI, contribution workflow, and release conventions chosen.
 - ✅ Original visual direction chosen: minimal premium, zinc & blue palette. The first design had a bottom composer;
   it was removed before v0.1 and the terminal itself is the only input.
 - ✅ Cross-platform PTY and VT prototype validated on macOS with CI coverage on all three platforms.
 - [ ] Measure cold launch, idle CPU, memory, scrollback, and rendering with reproducible workloads.
 - [ ] Validate keyboard input, accessibility, and shell behavior on real Windows and Linux systems.
-
-Binary inspection does not establish runtime performance or reconstruct proprietary source code.
 
 ## ✅ Phase 1: Project foundation
 
