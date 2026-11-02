@@ -4,6 +4,8 @@ import { LIMITS } from "./settings";
 /** Mirrors the limits in `profile.rs`; the backend still validates, these only give an earlier, kinder message. */
 export const MAX_PROFILES = 32;
 export const MAX_ENV_VARS = 64;
+export const MAX_FOLDERS = 16;
+export const MAX_FOLDER_BYTES = 1024;
 export const MAX_ENV_KEY_CHARS = 128;
 export const MAX_ENV_VALUE_BYTES = 4 * 1024;
 
@@ -68,6 +70,26 @@ export function formatEnv(env: Record<string, string>): string {
     .join("\n");
 }
 
+export type FoldersResult = { folders: string[] } | { error: string };
+
+/** Reads the folders field of the profile form: one folder per line, blank lines skipped. */
+export function parseFolders(text: string): FoldersResult {
+  const folders: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const folder = line.trim();
+    if (!folder) continue;
+    // eslint-disable-next-line no-control-regex
+    if (/[\u0000-\u001f\u007f]/.test(folder) || new TextEncoder().encode(folder).length > MAX_FOLDER_BYTES) {
+      return { error: `“${folder.slice(0, 40)}” is not a usable folder (at most ${MAX_FOLDER_BYTES} bytes, no control characters).` };
+    }
+    if (!folders.includes(folder)) folders.push(folder);
+    if (folders.length > MAX_FOLDERS) return { error: `At most ${MAX_FOLDERS} folders per profile.` };
+  }
+  return { folders };
+}
+
+export const formatFolders = (folders: readonly string[] | undefined): string => (folders ?? []).join("\n");
+
 export type FontSizeResult = { size: number | null } | { error: string };
 
 /** The font size field of the profile form: empty means "same as the app", otherwise a whole number in range. */
@@ -91,6 +113,8 @@ export function describeProfile(profile: Profile, themeNames: ReadonlyMap<string
   if (profile.fontSize) parts.push(`${profile.fontSize}px`);
   if (profile.fontFamily) parts.push(profile.fontFamily);
   if (profile.cursorStyle) parts.push(`${profile.cursorStyle} cursor`);
+  const folders = profile.folders?.length ?? 0;
+  if (folders > 0) parts.push(folders === 1 ? `for ${profile.folders?.[0]}` : `for ${folders} folders`);
   const variables = Object.keys(profile.env).length;
   if (variables > 0) parts.push(`${variables} variable${variables === 1 ? "" : "s"}`);
   return parts.length > 0 ? parts.join(" · ") : "Same as the built-in profile";
