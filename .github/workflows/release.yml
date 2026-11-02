@@ -151,27 +151,28 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
+      # Not `assets`: the repository has a folder of that name (the logo), which the checkout puts next to the files.
       - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir assets
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir release-files
       - name: Create latest.json for the updater
         run: |
           version="${GITHUB_REF_NAME#v}"
           # The notes of this version, from the changelog.
           awk -v v="$version" '/^## \[/ { if (found) exit; found = index($0, "[" v "]") > 0; next } found' CHANGELOG.md > notes.md
-          rm -f assets/latest.json
-          python3 tools/make-latest-json.py --version "$version" --notes-file notes.md --assets assets \
+          rm -f release-files/latest.json
+          python3 tools/make-latest-json.py --version "$version" --notes-file notes.md --assets release-files \
             --base-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME" > latest.json
-          cp latest.json assets/latest.json
+          cp latest.json release-files/latest.json
           gh release upload "$GITHUB_REF_NAME" latest.json --repo "$GITHUB_REPOSITORY" --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create SHA-256 manifest
         run: |
           # A re-run must not hash the manifest uploaded by a previous run.
-          rm -f assets/SHA256SUMS
-          (cd assets && sha256sum * > ../SHA256SUMS)
+          rm -f release-files/SHA256SUMS
+          (cd release-files && sha256sum * > ../SHA256SUMS)
       - name: Upload SHA-256 manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
