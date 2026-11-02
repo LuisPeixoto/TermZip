@@ -107,27 +107,37 @@ issue before beginning a larger architectural change.
 - [ ] Manual Windows validation of WSL profiles (starting a distribution, the list from `wsl.exe`) and of the other new
   screens on Windows and Linux; tracked as validation debt for Phase 7.
 
-## 📋 Phase 7: Stabilization · v1.0
+## ✅ Phase 7: Stabilization · v1.0
 
-- [ ] Documented performance budgets, measured with a reproducible bench mode and checked in CI.
-- [ ] Terminal conformance tests (xterm sequences, the PTY) and an accessibility pass: screen reader support, reduced
-  motion, contrast of every theme, and automated checks of the interface.
-- [ ] Signing wired for macOS and Windows behind repository secrets, an opt-in update check with signed updates, and
-  Homebrew, Scoop and Winget manifests.
-- [ ] A security pre-audit: supply-chain checks, fuzzing of every parser, a written review, and the scope for an
-  independent audit.
-- [ ] A smoke test that launches the built app on macOS, Windows and Linux in CI.
-- [ ] 1.0.0: what is promised to stay stable.
+- ✅ Performance budgets, measured with a reproducible bench mode (`TERMZIP_BENCH`) and `termzip-bench`, held in
+  `docs/performance-budgets.toml` and checked in CI. Found and fixed on the way: a flood now merges queued reads (79,000 to
+  200,000 lines per second, 1,048 to 611 MB). See [performance](performance.md#budgets).
+- ✅ Conformance: 21 xterm.js sequence tests and PTY conformance tests. Accessibility: a screen reader setting, reduced
+  motion, WCAG AA contrast of the interface in every theme, and axe-core checks of every screen (their findings fixed). See
+  [accessibility](accessibility.md).
+- ✅ Signing wired for macOS and Windows behind repository secrets, an update check that happens only on request with signed
+  updates (tested end to end, a tampered file refused), and a Homebrew tap, a Scoop bucket and Winget manifests. See
+  [updates](updates.md) and [distribution](distribution.md).
+- ✅ Security pre-audit: `cargo deny` and `npm audit` in CI, twelve fuzz targets, and a written review with the scope for an
+  independent audit. See [security review](security-review.md).
+- ✅ A `Smoke` workflow that launches the built app on macOS, Windows and Linux. It found three long-standing bugs on
+  Windows that no unit test could (a blank terminal, a PowerShell integration that recursed, and PowerShell blocks without
+  their command); the bench found a marker parser bug on large outputs. All fixed.
+- ✅ 1.0.0: what is promised to stay stable is in [stability](stability.md).
+- Deviations from the plan, for the record: the cask is one file for both Macs instead of one per architecture (Homebrew's
+  own style), the app budgets are checked with a wide slack on the CI runners (a runner starts the app cold), and the
+  Winget manifests are written but not submitted.
+- [ ] Manual validation by a person on Windows and Linux, and of screen reader support: the
+  [validation checklist](validation-checklist.md) is the debt 1.0 carries.
 
-After 1.0, and outside what one person on one computer can finish: the independent audit, notarization and Windows
-signing (they need certificates), interactive validation on real Windows and Linux machines, the Winget submission and
-Flathub.
+## After 1.0
 
-## Ideas
+Outside what one person on one computer can finish:
 
-Not planned yet; they move into a phase when someone needs them.
-
-- Follow the system's light and dark appearance automatically.
-- A theme editor inside TermZip, instead of export, edit, import.
-- Shortcuts per profile, and multi-step (chord sequence) shortcuts.
-- Persist the recently used commands of the palette between launches.
+- An **independent security audit** ([scope](security-review.md#for-an-independent-audit)).
+- **Notarization** (an Apple Developer ID) and **Windows signing** (Azure Trusted Signing): the workflow is ready and turns
+  on when the secrets exist ([distribution](distribution.md#signing-credentials)).
+- **Interactive validation** on real Windows and Linux computers, with a screen reader.
+- The **Winget** submission and **Flathub**.
+- Ideas, unscheduled: an `api = 2` for plugins if something needs it, announcing command blocks to screen readers, and a
+  faster flood on Windows.
