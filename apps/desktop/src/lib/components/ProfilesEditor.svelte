@@ -153,8 +153,8 @@
 </script>
 
 <div class="space-y-2">
-  <ul class="divide-y divide-line rounded-lg border border-line bg-panel-2" role="radiogroup" aria-label="Default profile">
-    <li class="flex items-center gap-2.5 px-3 py-2 text-[12px]">
+  <div class="divide-y divide-line rounded-lg border border-line bg-panel-2" role="radiogroup" aria-label="Default profile">
+    <div class="flex items-center gap-2.5 px-3 py-2 text-[12px]">
       <input
         type="radio"
         name="default-profile"
@@ -170,10 +170,10 @@
       {#if defaultProfile === null}
         <span class="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-medium text-accent">default</span>
       {/if}
-    </li>
+    </div>
 
     {#each profiles as profile (profile.id)}
-      <li class="flex items-center gap-2.5 px-3 py-2 text-[12px]">
+      <div class="flex items-center gap-2.5 px-3 py-2 text-[12px]">
         <input
           type="radio"
           name="default-profile"
@@ -204,9 +204,9 @@
         >
           <Icon name="trash" size={12} />
         </button>
-      </li>
+      </div>
     {/each}
-  </ul>
+  </div>
 
   {#if editing !== null}
     <div class="space-y-2.5 rounded-lg border border-accent/50 bg-panel-2 p-3">
