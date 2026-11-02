@@ -289,6 +289,23 @@ impl Sessions {
     }
 }
 
+/// The most output that is gathered into one event while more is waiting.
+const COALESCE_BYTES: usize = 64 * 1024;
+
+/// Adds to `chunk` the reads that are already waiting, up to [`COALESCE_BYTES`], in order. A flood leaves many reads
+/// of a few KiB queued, and each one used to be an event of its own (JSON, base64, a script run in the page), which
+/// is where the time went; sent together they cost a fraction. A single keystroke is alone in the queue and goes at
+/// once: nothing waits for more to arrive.
+fn gather(mut chunk: Vec<u8>, receiver: &Receiver<Vec<u8>>) -> Vec<u8> {
+    while chunk.len() < COALESCE_BYTES {
+        match receiver.try_recv() {
+            Ok(next) => chunk.extend_from_slice(&next),
+            Err(_) => break,
+        }
+    }
+    chunk
+}
+
 fn spawn_reader(
     events: Channel<SessionEvent>,
     handle: Arc<SessionHandle>,
@@ -304,6 +321,7 @@ fn spawn_reader(
                 }
                 match receiver.recv_timeout(EXIT_POLL) {
                     Ok(chunk) => {
+                        let chunk = gather(chunk, &receiver);
                         handle_chunk(&events, &handle, &chunk);
                         // Past the high-water mark this waits for the webview to catch up, which
                         // stops draining the PTY channel and so makes the shell block on write.
@@ -931,5 +949,125 @@ mod tests {
             blocks[0].truncated,
             "the output is longer than a block keeps"
         );
+    }
+
+    /// The output of every data event, in order.
+    fn output_of(collected: &Collected) -> (Vec<u8>, Vec<usize>) {
+        let events = collected.lock().unwrap();
+        let mut output = Vec::new();
+        let mut sizes = Vec::new();
+        for event in events.iter().filter(|event| event["type"] == "data") {
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(event["data"].as_str().unwrap())
+                .unwrap();
+            sizes.push(bytes.len());
+            output.extend(bytes);
+        }
+        (output, sizes)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_flood_arrives_whole_and_in_order() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        open(&sessions, channel, "seq 1 60000; exit 0\n");
+        assert!(wait_for_long(&collected, "exit"), "the flood did not end");
+        thread::sleep(Duration::from_millis(300));
+
+        let (output, sizes) = output_of(&collected);
+        let text = String::from_utf8_lossy(&output);
+        let expected: String = (1..=60_000u32).map(|n| format!("{n}\r\n")).collect();
+
+        assert!(
+            text.contains(&expected),
+            "the numbers are missing or out of order"
+        );
+        assert!(sizes.iter().all(|size| *size <= COALESCE_BYTES + 8192));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_keystroke_is_not_held_back_to_fill_a_batch() {
+        let sessions = Sessions::default();
+        let (channel, collected) = collecting_channel();
+        let info = open(&sessions, channel, "printf ready; cat\n");
+        let started = std::time::Instant::now();
+        while !String::from_utf8_lossy(&output_of(&collected).0).contains("ready") {
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "no prompt output"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        sessions.get(info.id).unwrap().write(b"q").unwrap();
+        let typed = std::time::Instant::now();
+        while !String::from_utf8_lossy(&output_of(&collected).0).contains('q') {
+            assert!(
+                typed.elapsed() < Duration::from_secs(2),
+                "the echo of a keystroke took too long"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert!(typed.elapsed() < Duration::from_millis(500));
+        sessions.destroy(info.id);
+    }
+
+    /// Like `wait_for`, for something that takes a while.
+    fn wait_for_long(collected: &Collected, kind: &str) -> bool {
+        for _ in 0..600 {
+            if collected
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| event["type"] == kind)
+            {
+                return true;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        false
+    }
+
+    fn queue(chunks: usize, size: usize) -> Receiver<Vec<u8>> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        for number in 0..chunks {
+            sender.send(vec![(number % 251) as u8; size]).unwrap();
+        }
+        receiver
+    }
+
+    #[test]
+    fn reads_that_are_waiting_are_gathered_into_one_chunk_in_order() {
+        let receiver = queue(100, 1000);
+
+        let gathered = gather(vec![255; 1000], &receiver);
+
+        // The first read, then the waiting ones in the order they came, until the limit is passed.
+        assert!(gathered.len() >= COALESCE_BYTES && gathered.len() < COALESCE_BYTES + 1000);
+        assert_eq!(gathered[0], 255);
+        assert_eq!(gathered[1000], 0);
+        assert_eq!(gathered[2000], 1);
+        // What was not taken is still there, next in line.
+        let rest = receiver.try_recv().unwrap();
+        assert_eq!(rest[0], ((gathered.len() / 1000 - 1) % 251) as u8);
+    }
+
+    #[test]
+    fn a_read_that_is_alone_is_returned_at_once() {
+        let receiver = queue(0, 0);
+
+        assert_eq!(gather(b"q".to_vec(), &receiver), b"q");
+    }
+
+    #[test]
+    fn a_big_first_read_takes_nothing_more() {
+        let receiver = queue(3, 10);
+
+        let gathered = gather(vec![1; COALESCE_BYTES], &receiver);
+
+        assert_eq!(gathered.len(), COALESCE_BYTES);
+        assert_eq!(receiver.try_iter().count(), 3);
     }
 }
