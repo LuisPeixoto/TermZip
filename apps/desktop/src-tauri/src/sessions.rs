@@ -31,6 +31,9 @@ pub struct SessionInfo {
     pub id: u32,
     pub shell: String,
     pub integrated: bool,
+    /// The profile chosen only because the shell started in a folder tied to it, so the interface can show the
+    /// look of that profile. `None` when a profile was asked for or none matched.
+    pub folder_profile: Option<String>,
 }
 
 /// Everything a session tells the webview, in order, on one channel. The
@@ -177,6 +180,7 @@ impl Sessions {
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "shell".to_owned()),
             integrated: launch.integrated,
+            folder_profile: None,
         };
 
         let parts = session.into_parts();

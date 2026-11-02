@@ -339,23 +339,33 @@ struct SessionStart {
     shell: Option<String>,
     working_directory: Option<String>,
     env: std::collections::BTreeMap<String, String>,
+    /// The profile that was chosen only because the folder the shell starts in is tied to it.
+    folder_profile: Option<String>,
 }
 
 /// `restored` is the folder a pane was in when the layout was saved: it wins while it still exists,
-/// otherwise the profile's own folder applies.
+/// otherwise the profile's own folder applies. When no profile was asked for, the profile tied to that folder
+/// (the most specific one) is used; a profile that was asked for, the built-in one included, is never replaced.
 fn resolve_start(
     settings: &termzip_core::Settings,
     profile_id: Option<&str>,
     restored: Option<&str>,
 ) -> SessionStart {
-    let launch = settings.launch_profile(profile_id);
     let restored = restored
         .filter(|directory| !directory.is_empty() && std::path::Path::new(directory).is_dir())
         .map(str::to_owned);
+    let folder_profile = match (profile_id, restored.as_deref()) {
+        (None, Some(directory)) => settings
+            .profile_for_folder(directory)
+            .map(|profile| profile.id.clone()),
+        _ => None,
+    };
+    let launch = settings.launch_profile(profile_id.or(folder_profile.as_deref()));
     SessionStart {
         shell: launch.shell,
         working_directory: restored.or(launch.working_directory),
         env: launch.env,
+        folder_profile,
     }
 }
 
@@ -377,7 +387,8 @@ pub fn create_session(
         restore_directory.as_deref(),
     );
     let integration_dir = termzip_core::integration_dir().map_err(|error| error.to_string())?;
-    sessions
+    let folder_profile = start.folder_profile.clone();
+    let mut info = sessions
         .create(
             on_event,
             SessionRequest {
@@ -389,7 +400,9 @@ pub fn create_session(
             },
             &integration_dir,
         )
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    info.folder_profile = folder_profile;
+    Ok(info)
 }
 
 /// Opens what was clicked in the terminal: a URL in the browser, a file in its default application.
@@ -585,5 +598,73 @@ mod tests {
             .unwrap()
             .into();
         assert_eq!(back.folders, profile.folders);
+    }
+
+    fn folder_settings(folder: &str) -> Settings {
+        let mut api = Profile {
+            name: "Api".to_owned(),
+            folders: vec![folder.to_owned()],
+            ..Profile::default()
+        };
+        api.env.insert("MODE".to_owned(), "api".to_owned());
+        Settings {
+            profiles: vec![api],
+            ..Settings::default()
+        }
+        .normalized()
+    }
+
+    #[test]
+    fn a_new_terminal_in_a_tied_folder_uses_its_profile() {
+        let here = std::env::temp_dir();
+        let start = resolve_start(
+            &folder_settings(here.to_str().unwrap()),
+            None,
+            here.to_str(),
+        );
+
+        assert_eq!(start.folder_profile.as_deref(), Some("api"));
+        assert_eq!(start.env.get("MODE").map(String::as_str), Some("api"));
+        assert_eq!(start.working_directory.as_deref(), here.to_str());
+    }
+
+    #[test]
+    fn a_profile_that_was_asked_for_is_never_replaced_by_the_folder() {
+        let here = std::env::temp_dir();
+        let settings = folder_settings(here.to_str().unwrap());
+
+        for asked in ["default", "api"] {
+            let start = resolve_start(&settings, Some(asked), here.to_str());
+            assert_eq!(start.folder_profile, None, "{asked}");
+        }
+        let built_in = resolve_start(&settings, Some("default"), here.to_str());
+        assert!(built_in.env.is_empty());
+    }
+
+    #[test]
+    fn a_folder_that_is_gone_or_unknown_chooses_no_profile() {
+        let here = std::env::temp_dir();
+        let settings = folder_settings(here.to_str().unwrap());
+
+        assert_eq!(
+            resolve_start(&settings, None, Some("/definitely/not/here")).folder_profile,
+            None
+        );
+        assert_eq!(resolve_start(&settings, None, None).folder_profile, None);
+        assert_eq!(
+            resolve_start(&settings, None, Some("")).folder_profile,
+            None
+        );
+    }
+
+    #[test]
+    fn a_folder_outside_every_tied_folder_chooses_no_profile() {
+        let settings = folder_settings("/definitely/not/here");
+        let here = std::env::temp_dir();
+
+        assert_eq!(
+            resolve_start(&settings, None, here.to_str()).folder_profile,
+            None
+        );
     }
 }
