@@ -1,0 +1,47 @@
+# Supply-chain checks: `cargo deny check` (CI runs it on every push and pull request).
+
+[graph]
+# The desktop shell and the example plugins are checked too; they are part of what ships.
+all-features = false
+
+[advisories]
+version = 2
+# Known vulnerabilities and unmaintained crates fail the check. An advisory that cannot be fixed is listed here with
+# the reason, never silently.
+ignore = [
+  # A compile-time macro helper that Tauri's GTK bindings use on Linux (gtk3-macros). It has no runtime code, and
+  # there is no safe upgrade until the GTK bindings move on.
+  { id = "RUSTSEC-2024-0370", reason = "build-time macro used by Tauri's GTK bindings on Linux; no safe upgrade" },
+]
+
+[licenses]
+version = 2
+# What TermZip may depend on. TermZip itself is MIT.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "MPL-2.0",
+  "CC0-1.0",
+  "0BSD",
+  "BSL-1.0",
+  # The data license of the root certificates in webpki-roots (the catalog's HTTPS).
+  "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+# `path` dependencies between our own crates are not wildcards.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
