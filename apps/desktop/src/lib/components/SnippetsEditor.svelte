@@ -199,7 +199,7 @@
     </button>
   {/if}
   <p class="text-[10.5px] text-faint">
-    Press {"{{name}}"} where a value goes, or {"{{name:default}}"} to start it filled in; write \{"{{"} for a literal
+    Write {"{{name}}"} where a value goes, or {"{{name:default}}"} to start it filled in; write \{"{{"} for a literal
     pair of braces. A snippet is typed at the prompt and never run: you read it, edit it and press Enter. Choose one
     from the command palette (the Insert a snippet shortcut lists only snippets).
   </p>
