@@ -64,8 +64,9 @@ pub struct Settings {
     /// Whether TermZip may look at the plugin catalog on the network. It only does when asked to, and never
     /// at startup; with this off it never does.
     pub plugins_catalog: bool,
-    /// Show the git branch and state of the folder of the terminal in the status bar. It reads the repository on
-    /// disk with `git status` and never uses the network.
+    /// Use git for the status bar (the branch and state of the folder of the terminal) and for the palette's
+    /// *Open the repository*. It reads the repository on disk and never uses the network; with this off, git is
+    /// never started.
     pub git_status: bool,
     /// The profile a new tab starts with; `None` is the built-in one.
     pub default_profile: Option<String>,
