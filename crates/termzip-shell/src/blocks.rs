@@ -146,9 +146,10 @@ impl BlockTracker {
                 self.cwd = Some(path.clone());
             }
             Marker::Command(text) => {
-                if let Some(running) = self.running.as_mut()
-                    && running.command.is_none()
-                {
+                // A shell that has no end-of-prompt marker (PowerShell reads the line in its line editor and
+                // reports it here) sends the command before anything else about the block.
+                let running = self.running.get_or_insert_with(Running::new);
+                if running.command.is_none() {
                     running.command = text.clone();
                 }
             }
@@ -241,6 +242,21 @@ mod tests {
         assert_eq!(blocks[0].exit_code, Some(0));
         assert!(blocks[0].duration_ms.is_some());
         assert_eq!(blocks[0].output.as_deref(), Some("log out"));
+    }
+
+    #[test]
+    fn a_command_reported_without_an_input_marker_still_names_its_block() {
+        // PowerShell: no 133;B; the line editor reports the text, then the command starts.
+        let mut parser = OscParser::new();
+        let mut tracker = BlockTracker::new();
+
+        let bytes = b"\x1b]133;A\x07\x1b]1337;CurrentDir=C:\\work\x07PS> \x1b]1337;CommandB64=MS4uMTA=\x07\x1b]133;C\x071\r\n2\r\n\x1b]133;D;0\x07";
+        feed(&mut parser, &mut tracker, bytes);
+
+        let blocks: Vec<_> = tracker.blocks().iter().cloned().collect();
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].command.as_deref(), Some("1..10"));
+        assert_eq!(blocks[0].output.as_deref(), Some("1\r\n2\r\n"));
     }
 
     #[test]
