@@ -3873,7 +3873,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "dirs 6.0.0",
  "plist",
@@ -3885,7 +3885,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-desktop"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3909,14 +3909,14 @@ dependencies = [
 
 [[package]]
 name = "termzip-git"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "termzip-plugin-api"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3925,7 +3925,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-plugin-sdk"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde_json",
  "termzip-plugin-api",
@@ -3933,7 +3933,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-plugins"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "minisign",
  "minisign-verify",
@@ -3953,7 +3953,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-pty"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "portable-pty",
@@ -3962,7 +3962,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-shell"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.22.1",
  "serde",
@@ -3970,7 +3970,7 @@ dependencies = [
 
 [[package]]
 name = "termzip-tasks"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
