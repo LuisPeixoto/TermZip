@@ -372,8 +372,8 @@ struct SessionStart {
 }
 
 /// `restored` is the folder a pane was in when the layout was saved: it wins while it still exists,
-/// otherwise the profile's own folder applies. When no profile was asked for, the profile tied to that folder
-/// (the most specific one) is used; a profile that was asked for, the built-in one included, is never replaced.
+/// otherwise the profile's own folder applies. When no profile was asked for, the profile tied to the folder the
+/// shell starts in (the restored one, else the default working folder; the most specific profile) is used; a profile that was asked for, the built-in one included, is never replaced.
 fn resolve_start(
     settings: &termzip_core::Settings,
     profile_id: Option<&str>,
@@ -382,11 +382,27 @@ fn resolve_start(
     let restored = restored
         .filter(|directory| !directory.is_empty() && std::path::Path::new(directory).is_dir())
         .map(str::to_owned);
-    let folder_profile = match (profile_id, restored.as_deref()) {
-        (None, Some(directory)) => settings
-            .profile_for_folder(directory)
-            .map(|profile| profile.id.clone()),
-        _ => None,
+    // The folder the shell is going to start in when no profile was asked for: the one the pane was in, else the
+    // working folder the default profile (or the built-in one) names. A remote default has none of this computer's.
+    let default_folder = || {
+        let launch = settings.launch_profile(None);
+        launch
+            .remote
+            .is_none()
+            .then_some(launch.working_directory)
+            .flatten()
+            .filter(|directory| std::path::Path::new(directory).is_dir())
+    };
+    let folder_profile = match profile_id {
+        None => restored
+            .clone()
+            .or_else(default_folder)
+            .and_then(|directory| {
+                settings
+                    .profile_for_folder(&directory)
+                    .map(|profile| profile.id.clone())
+            }),
+        Some(_) => None,
     };
     let launch = settings.launch_profile(profile_id.or(folder_profile.as_deref()));
     // The folder a pane was in is a folder of this computer. It means nothing on the other side of an SSH
@@ -783,5 +799,33 @@ mod tests {
 
         assert!(start.remote.is_none());
         assert!(start.problem.unwrap().contains("no usable host"));
+    }
+
+    #[test]
+    fn a_shell_that_starts_in_the_default_folder_gets_the_profile_tied_to_it() {
+        // The first tab of a launch has no restored folder: it starts in the working folder of the settings.
+        let here = std::env::temp_dir();
+        let folder = here.to_str().unwrap().replace('\\', "\\\\");
+        let settings = Settings::from_toml(&format!(
+            "working_directory = \"{folder}\"\n\n[[profiles]]\nname = \"Api\"\nfolders = [\"{folder}\"]\n"
+        ));
+
+        let start = resolve_start(&settings, None, None);
+
+        assert_eq!(start.folder_profile.as_deref(), Some("api"));
+        // A profile that is asked for still wins.
+        assert_eq!(
+            resolve_start(&settings, Some("default"), None).folder_profile,
+            None
+        );
+    }
+
+    #[test]
+    fn a_default_folder_that_does_not_exist_chooses_no_profile() {
+        let settings = Settings::from_toml(
+            "working_directory = \"/definitely/not/here\"\n\n[[profiles]]\nname = \"Api\"\nfolders = [\"/definitely/not/here\"]\n",
+        );
+
+        assert_eq!(resolve_start(&settings, None, None).folder_profile, None);
     }
 }
