@@ -201,6 +201,16 @@ impl Settings {
         validate_keybindings(&self.keybindings)
     }
 
+    /// The profile tied to the folder `path` is in, when there is one: of the profiles with a folder around
+    /// it, the one whose folder is deepest (the most specific), and the first of them when two tie.
+    pub fn profile_for_folder(&self, path: &str) -> Option<&Profile> {
+        self.profiles
+            .iter()
+            .filter_map(|profile| profile.folder_depth(path).map(|depth| (depth, profile)))
+            .reduce(|best, next| if next.0 > best.0 { next } else { best })
+            .map(|(_, profile)| profile)
+    }
+
     /// What a new session starts with. `requested` is a profile id; an unknown or missing one falls
     /// back to the default profile, and anything a profile leaves empty comes from the built-in one.
     pub fn launch_profile(&self, requested: Option<&str>) -> LaunchProfile {
@@ -765,5 +775,74 @@ AWS_PROFILE = "work"
             ..Settings::default()
         };
         assert!(settings.validate().unwrap_err().contains("In “Bad”"));
+    }
+
+    fn tied(name: &str, folders: &[&str]) -> Profile {
+        Profile {
+            name: name.to_owned(),
+            folders: folders.iter().map(|folder| (*folder).to_owned()).collect(),
+            ..Profile::default()
+        }
+    }
+
+    #[test]
+    fn a_folder_picks_the_most_specific_profile_tied_to_it() {
+        let settings = Settings {
+            profiles: vec![
+                tied("Everything", &["/srv"]),
+                tied("Api", &["/srv/work/api"]),
+                tied("Work", &["/srv/work"]),
+            ],
+            ..Settings::default()
+        }
+        .normalized();
+        let id = |path: &str| settings.profile_for_folder(path).map(|p| p.id.as_str());
+
+        assert_eq!(id("/srv/work/api/src"), Some("api"));
+        assert_eq!(id("/srv/work/web"), Some("work"));
+        assert_eq!(id("/srv/elsewhere"), Some("everything"));
+        assert_eq!(id("/home/me"), None);
+    }
+
+    #[test]
+    fn two_profiles_tied_to_the_same_folder_give_it_to_the_first() {
+        let settings = Settings {
+            profiles: vec![
+                tied("First", &["/srv/work"]),
+                tied("Second", &["/srv/work"]),
+            ],
+            ..Settings::default()
+        }
+        .normalized();
+
+        assert_eq!(
+            settings.profile_for_folder("/srv/work/x").unwrap().id,
+            "first"
+        );
+    }
+
+    #[test]
+    fn folders_survive_a_round_trip_through_toml_before_the_environment_table() {
+        let mut work = tied("Work", &["~/work", "/srv/work"]);
+        work.env.insert("MODE".to_owned(), "work".to_owned());
+        let settings = Settings {
+            profiles: vec![work],
+            ..Settings::default()
+        }
+        .normalized();
+
+        let text = toml::to_string_pretty(&settings).expect("folders must serialize");
+
+        assert!(
+            text.find("folders").unwrap() < text.find("[profiles.env]").unwrap(),
+            "{text}"
+        );
+        assert_eq!(Settings::from_toml(&text), settings);
+    }
+
+    #[test]
+    fn a_profile_from_before_folders_loads_without_any() {
+        let settings = Settings::from_toml("[[profiles]]\nname = \"Work\"\n");
+        assert!(settings.profiles[0].folders.is_empty());
     }
 }
