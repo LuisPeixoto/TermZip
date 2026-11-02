@@ -3,6 +3,7 @@ mod keybindings;
 mod profile;
 mod settings;
 mod storage;
+mod text;
 mod theme;
 mod workspace;
 
@@ -11,6 +12,7 @@ pub use keybindings::{MAX_KEYBINDINGS, normalize_chord, validate_keybindings};
 pub use profile::{DEFAULT_PROFILE_ID, LaunchProfile, Profile, slug, validate_profiles};
 pub use settings::{HOME_ENV, Settings, SettingsError, data_dir, integration_dir, settings_path};
 pub use storage::write_atomic;
+pub use text::{clean_typed, hides_or_reorders};
 pub use theme::{
     Chrome, Color, Colors, CustomThemes, DEFAULT_DARK_ID, DEFAULT_LIGHT_ID, MAX_CUSTOM_THEMES,
     MAX_THEME_BYTES, Theme, ThemeKind, built_in_theme, built_in_themes, delete_custom_theme_from,
