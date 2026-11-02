@@ -76,6 +76,7 @@ pub fn run() {
             commands::load_workspace,
             commands::save_workspace,
             commands::list_blocks,
+            snippets::check_snippet,
             snippets::list_snippets,
             snippets::render_snippet,
             themes::list_themes,
