@@ -28,17 +28,24 @@ const MAX_LINES: u64 = 50_000_000;
 pub const FILE_ENV: &str = "TERMZIP_BENCH";
 pub const EXIT_ENV: &str = "TERMZIP_BENCH_EXIT";
 pub const LINES_ENV: &str = "TERMZIP_BENCH_LINES";
+pub const COMMAND_ENV: &str = "TERMZIP_BENCH_COMMAND";
+/// What is typed by default: one number per line (`1..N` for PowerShell, which has no `seq`, is set with the variable).
+const DEFAULT_COMMAND: &str = "seq 1 {lines}";
+const MAX_COMMAND_CHARS: usize = 200;
 
 /// What the webview does in bench mode.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BenchPlan {
-    /// How many lines the flood command prints (`seq 1 N`).
+    /// How many lines the flood command prints.
     pub lines: u64,
+    /// The command to type, with `{lines}` already replaced.
+    pub command: String,
 }
 
 pub struct Bench {
     file: PathBuf,
+    command: String,
     exit: bool,
     lines: u64,
     started: Instant,
@@ -60,8 +67,13 @@ impl BenchState {
             .ok()
             .and_then(|value| value.parse::<u64>().ok())
             .map_or(DEFAULT_LINES, |lines| lines.clamp(1, MAX_LINES));
+        let template = std::env::var(COMMAND_ENV)
+            .ok()
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| DEFAULT_COMMAND.to_owned());
         Self(file.map(|file| Bench {
             file,
+            command: command_for(&template, lines),
             exit,
             lines,
             started,
@@ -70,9 +82,26 @@ impl BenchState {
     }
 }
 
+/// The command to type: the template with the number of lines put in. It is typed into a terminal and then run, so
+/// it is kept to one short line of printable characters; anything else falls back to the default.
+fn command_for(template: &str, lines: u64) -> String {
+    let command = template.replace("{lines}", &lines.to_string());
+    let safe = !command.is_empty()
+        && command.chars().count() <= MAX_COMMAND_CHARS
+        && !command.chars().any(char::is_control);
+    if safe {
+        command
+    } else {
+        DEFAULT_COMMAND.replace("{lines}", &lines.to_string())
+    }
+}
+
 impl Bench {
     fn plan(&self) -> BenchPlan {
-        BenchPlan { lines: self.lines }
+        BenchPlan {
+            lines: self.lines,
+            command: self.command.clone(),
+        }
     }
 
     /// Notes a milestone; returns the report when it was the last one.
@@ -144,6 +173,7 @@ mod tests {
     fn bench() -> Bench {
         Bench {
             file: PathBuf::from("unused.json"),
+            command: "seq 1 1000000".to_owned(),
             exit: false,
             lines: 1_000_000,
             started: Instant::now(),
@@ -210,6 +240,25 @@ mod tests {
         // Tests share the process environment, so only the absent case is checked here.
         if std::env::var_os(FILE_ENV).is_none() {
             assert!(BenchState::from_env().0.is_none());
+        }
+    }
+
+    #[test]
+    fn the_command_has_the_number_of_lines_put_in() {
+        assert_eq!(command_for("seq 1 {lines}", 500), "seq 1 500");
+        assert_eq!(command_for("1..{lines}", 7), "1..7");
+        assert_eq!(command_for("echo {lines} {lines}", 2), "echo 2 2");
+    }
+
+    #[test]
+    fn a_command_that_is_not_one_short_line_falls_back_to_the_default() {
+        for bad in [
+            "",
+            "a\nb",
+            "a\u{1b}[31m",
+            &"x".repeat(MAX_COMMAND_CHARS + 1),
+        ] {
+            assert_eq!(command_for(bad, 3), "seq 1 3", "{bad:?}");
         }
     }
 }
