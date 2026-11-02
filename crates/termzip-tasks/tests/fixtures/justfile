@@ -1,0 +1,25 @@
+set shell := ["bash", "-cu"]
+
+version := "0.1.0"
+export RUST_LOG := "info"
+
+alias b := build
+
+# Build the project.
+build profile="debug":
+    cargo build --profile {{profile}}
+
+# Run the tests.
+@test *args:
+    cargo test {{args}}
+
+[private]
+setup:
+    rustup component add clippy
+
+_cache-key:
+    echo {{version}}
+
+[no-cd]
+release version: build
+    ./release.sh {{version}}
