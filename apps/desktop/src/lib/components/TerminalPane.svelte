@@ -74,7 +74,7 @@
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
-    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing } = app.settings;
+    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing, screenReader } = app.settings;
     const family = fontFamily();
     if (!terminal || !look) return;
     const { fontSize, cursorStyle } = look;
@@ -85,6 +85,7 @@
     terminal.options.cursorBlink = cursorBlink;
     terminal.options.lineHeight = lineHeight;
     terminal.options.letterSpacing = letterSpacing;
+    terminal.options.screenReaderMode = screenReader;
     untrack(() => fit());
     requestAnimationFrame(() => fit());
   });
@@ -168,6 +169,7 @@
       lineHeight: settings.lineHeight,
       letterSpacing: settings.letterSpacing,
       scrollback: settings.scrollbackLines,
+      screenReaderMode: settings.screenReader,
       allowTransparency: app.translucent,
       theme: initial ? xtermTheme(initial.theme, app.translucent) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.
