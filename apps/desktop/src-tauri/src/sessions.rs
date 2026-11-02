@@ -896,4 +896,40 @@ mod tests {
         assert_eq!(exits.len(), 1, "the connection did not end: {text:?}");
         assert_eq!(exits[0]["code"], 0);
     }
+
+    #[test]
+    fn a_command_with_a_huge_output_still_reports_its_block() {
+        // `seq 1 200000`: 1.3 MB between the start and the end markers, in the chunks a PTY delivers. The end marker
+        // used to be dropped once the output had filled the parser's buffer, so the block never finished.
+        let (mut parser, mut tracker) = (OscParser::new(), BlockTracker::new());
+        let mut stream = Vec::new();
+        stream.extend_from_slice(
+            b"\x1b]133;A\x07$ \x1b]133;B\x07\x1b]1337;CommandB64=c2VxIDEgMjAwMDAw\x07\x1b]133;C\x07",
+        );
+        for number in 1..=200_000u32 {
+            stream.extend_from_slice(format!("{number}\r\n").as_bytes());
+        }
+        stream.extend_from_slice(b"\x1b]133;D;0\x07\x1b]133;A\x07$ \x1b]133;B\x07");
+
+        let mut blocks = Vec::new();
+        for chunk in stream.chunks(4096) {
+            for event in apply_chunk(&mut parser, &mut tracker, chunk) {
+                if let SessionEvent::Block { block } = event {
+                    blocks.push(block);
+                }
+            }
+        }
+
+        assert_eq!(
+            blocks.len(),
+            1,
+            "the block of the command was never reported"
+        );
+        assert_eq!(blocks[0].command.as_deref(), Some("seq 1 200000"));
+        assert_eq!(blocks[0].exit_code, Some(0));
+        assert!(
+            blocks[0].truncated,
+            "the output is longer than a block keeps"
+        );
+    }
 }
