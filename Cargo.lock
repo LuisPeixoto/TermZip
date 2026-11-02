@@ -3872,6 +3872,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "termzip-bench"
+version = "0.5.0"
+dependencies = [
+ "serde_json",
+ "termzip-core",
+ "termzip-git",
+ "termzip-pty",
+ "termzip-shell",
+ "termzip-tasks",
+ "toml 0.9.12+spec-1.1.0",
+]
+
+[[package]]
 name = "termzip-core"
 version = "0.5.0"
 dependencies = [
