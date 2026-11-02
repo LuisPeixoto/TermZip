@@ -292,12 +292,14 @@ impl Sessions {
 /// The most output that is gathered into one event while more is waiting.
 const COALESCE_BYTES: usize = 64 * 1024;
 
-/// Adds to `chunk` the reads that are already waiting, up to [`COALESCE_BYTES`], in order. A flood leaves many reads
+/// Adds to `chunk` the reads that are already waiting, in order, up to [`COALESCE_BYTES`] and never past what the
+/// flow control has room for (`room`), so gathering cannot push the unacknowledged output past its high-water mark. A flood leaves many reads
 /// of a few KiB queued, and each one used to be an event of its own (JSON, base64, a script run in the page), which
 /// is where the time went; sent together they cost a fraction. A single keystroke is alone in the queue and goes at
 /// once: nothing waits for more to arrive.
-fn gather(mut chunk: Vec<u8>, receiver: &Receiver<Vec<u8>>) -> Vec<u8> {
-    while chunk.len() < COALESCE_BYTES {
+fn gather(mut chunk: Vec<u8>, receiver: &Receiver<Vec<u8>>, room: usize) -> Vec<u8> {
+    let limit = COALESCE_BYTES.min(room);
+    while chunk.len() < limit {
         match receiver.try_recv() {
             Ok(next) => chunk.extend_from_slice(&next),
             Err(_) => break,
@@ -321,7 +323,7 @@ fn spawn_reader(
                 }
                 match receiver.recv_timeout(EXIT_POLL) {
                     Ok(chunk) => {
-                        let chunk = gather(chunk, &receiver);
+                        let chunk = gather(chunk, &receiver, handle.flow.room());
                         handle_chunk(&events, &handle, &chunk);
                         // Past the high-water mark this waits for the webview to catch up, which
                         // stops draining the PTY channel and so makes the shell block on write.
@@ -971,7 +973,7 @@ mod tests {
     fn a_flood_arrives_whole_and_in_order() {
         let sessions = Sessions::default();
         let (channel, collected) = collecting_channel();
-        open(&sessions, channel, "seq 1 60000; exit 0\n");
+        open(&sessions, channel, "seq 1 60000; sleep 1; exit 0\n");
         assert!(wait_for_long(&collected, "exit"), "the flood did not end");
         thread::sleep(Duration::from_millis(300));
 
@@ -1042,7 +1044,7 @@ mod tests {
     fn reads_that_are_waiting_are_gathered_into_one_chunk_in_order() {
         let receiver = queue(100, 1000);
 
-        let gathered = gather(vec![255; 1000], &receiver);
+        let gathered = gather(vec![255; 1000], &receiver, usize::MAX);
 
         // The first read, then the waiting ones in the order they came, until the limit is passed.
         assert!(gathered.len() >= COALESCE_BYTES && gathered.len() < COALESCE_BYTES + 1000);
@@ -1058,16 +1060,35 @@ mod tests {
     fn a_read_that_is_alone_is_returned_at_once() {
         let receiver = queue(0, 0);
 
-        assert_eq!(gather(b"q".to_vec(), &receiver), b"q");
+        assert_eq!(gather(b"q".to_vec(), &receiver, usize::MAX), b"q");
     }
 
     #[test]
     fn a_big_first_read_takes_nothing_more() {
         let receiver = queue(3, 10);
 
-        let gathered = gather(vec![1; COALESCE_BYTES], &receiver);
+        let gathered = gather(vec![1; COALESCE_BYTES], &receiver, usize::MAX);
 
         assert_eq!(gathered.len(), COALESCE_BYTES);
         assert_eq!(receiver.try_iter().count(), 3);
+    }
+
+    #[test]
+    fn gathering_stops_at_the_room_the_flow_control_has_left() {
+        let receiver = queue(100, 1000);
+
+        let gathered = gather(vec![255; 1000], &receiver, 5_000);
+
+        // It stops once it has what the room allows; the read that crosses the line is the last one taken.
+        assert!(
+            gathered.len() >= 5_000 && gathered.len() < 5_000 + 1000,
+            "{}",
+            gathered.len()
+        );
+        assert_eq!(
+            gather(vec![0; 10], &receiver, 0).len(),
+            10,
+            "no room, nothing is added"
+        );
     }
 }
