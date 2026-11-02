@@ -358,6 +358,8 @@ export const api = {
   listWslDistributions: () => invoke<string[]>("list_wsl_distributions"),
   /** The git state of a folder; `null` when it is in no repository or the setting is off. Read locally, never from the network. */
   gitStatus: (cwd: string | null) => invoke<GitStatus | null>("git_status", { cwd }),
+  /** The web page of the repository a folder is in (`https://host/owner/repo`), from its `origin`; `null` when there is none or git is off. */
+  repositoryPage: (cwd: string | null) => invoke<string | null>("repository_page", { cwd }),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */
   listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
