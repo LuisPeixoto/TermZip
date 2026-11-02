@@ -1,5 +1,6 @@
 mod appearance;
 mod keybindings;
+mod paths;
 mod profile;
 mod settings;
 mod snippet;
