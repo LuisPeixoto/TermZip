@@ -12,6 +12,8 @@ export interface Profile {
   fontSize?: number | null;
   fontFamily?: string | null;
   cursorStyle?: CursorStyle | null;
+  /** A new terminal started in one of these folders (or below) uses this profile when none was asked for. */
+  folders?: string[];
   env: Record<string, string>;
 }
 
