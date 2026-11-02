@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "./lib/api";
+  import { runBench } from "./lib/bench";
   import { app } from "./lib/stores/app.svelte";
   import { persistWorkspace, type Persistence } from "./lib/stores/persist.svelte";
   import { workspace } from "./lib/stores/workspace.svelte";
@@ -16,6 +17,17 @@
   import Toasts from "./lib/components/Toasts.svelte";
 
   onMount(() => {
+    // Bench mode asks the backend whether it is on, and in a normal run does nothing else.
+    void runBench({
+      plan: () => api.benchPlan(),
+      mark: (name) => api.benchMark(name),
+      pane: () => {
+        const pane = workspace.activePane;
+        return { cwd: pane.cwd, commands: pane.blocks.map((block) => block.command), write: (text) => pane.write(text) };
+      },
+      paint: () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    });
     let persistence: Persistence | undefined;
 
     void (async () => {
