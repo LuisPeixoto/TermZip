@@ -5,6 +5,7 @@ mod flow;
 mod links;
 mod plugins;
 mod sessions;
+mod snippets;
 mod themes;
 mod window;
 
@@ -75,6 +76,8 @@ pub fn run() {
             commands::load_workspace,
             commands::save_workspace,
             commands::list_blocks,
+            snippets::list_snippets,
+            snippets::render_snippet,
             themes::list_themes,
             themes::import_theme,
             themes::export_theme,

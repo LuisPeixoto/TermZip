@@ -18,6 +18,9 @@ export function runAction(shortcut: AppShortcut): void {
     case "commandPalette":
       app.togglePalette();
       break;
+    case "snippets":
+      app.toggleSnippets();
+      break;
     case "restart":
       window.dispatchEvent(new CustomEvent("termzip:restart"));
       break;
