@@ -25,6 +25,20 @@ export interface Snippet {
   folder: string | null;
 }
 
+/** A value a snippet asks for, with the one it starts with. */
+export interface SnippetParameter {
+  name: string;
+  default: string | null;
+}
+
+/** A snippet as the palette lists it: the folder is already applied, and the parameters are parsed. */
+export interface SnippetInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  parameters: SnippetParameter[];
+}
+
 export interface Settings {
   /** Whether the window is dark or light; each appearance has its own theme below. */
   theme: "dark" | "light";
@@ -295,6 +309,10 @@ export const api = {
   enablePlugin: (id: string) => invoke<Plugin>("enable_plugin", { id }),
   disablePlugin: (id: string) => invoke<void>("disable_plugin", { id }),
   uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
+  /** The snippets that apply in a folder, with what each one asks for. */
+  listSnippets: (cwd: string | null) => invoke<SnippetInfo[]>("list_snippets", { cwd }),
+  /** The text of a snippet with its values filled in. It never has a line break, so it cannot run by itself. */
+  renderSnippet: (id: string, values: Record<string, string>) => invoke<string>("render_snippet", { id, values }),
   /** Runs a command of a plugin from the terminal with this session; the answer comes on the plugin channel. */
   runPluginCommand: (plugin: string, command: string, cwd: string | null, session: number) =>
     invoke<void>("run_plugin_command", { plugin, command, cwd, session }),
