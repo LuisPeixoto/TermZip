@@ -15,6 +15,16 @@ export interface Profile {
   env: Record<string, string>;
 }
 
+/** A command to keep, with optional `{{parameters}}`; see docs/snippets.md. */
+export interface Snippet {
+  id: string;
+  name: string;
+  command: string;
+  description: string | null;
+  /** Offered only in this folder and below. */
+  folder: string | null;
+}
+
 export interface Settings {
   /** Whether the window is dark or light; each appearance has its own theme below. */
   theme: "dark" | "light";
@@ -37,6 +47,7 @@ export interface Settings {
   defaultProfile: string | null;
   /** `action: "Shift+Cmd+E"`; an empty chord unbinds the action. */
   keybindings: Record<string, string>;
+  snippets: Snippet[];
   profiles: Profile[];
 }
 

@@ -21,6 +21,7 @@ export function defaultSettings(): Settings {
     pluginsCatalog: true,
     defaultProfile: null,
     keybindings: {},
+    snippets: [],
     profiles: [],
   };
 }
