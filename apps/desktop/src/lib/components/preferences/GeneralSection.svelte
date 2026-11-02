@@ -9,7 +9,12 @@
   // Updates are looked for only when this button is pressed (or at startup, if the checkbox below is on).
   let update = $state<UpdateState>({ kind: "idle" });
 
+  const busy = $derived(update.kind === "checking" || update.kind === "installing");
+
   async function checkNow() {
+    // Not a disabled button: pressing it would make the button lose the keyboard, and the next Tab would start over
+    // from the top of the dialog.
+    if (busy) return;
     update = { kind: "checking" };
     try {
       update = found(await api.checkForUpdate());
@@ -19,6 +24,7 @@
   }
 
   async function install() {
+    if (busy) return;
     update = { kind: "installing" };
     try {
       // The app restarts when this succeeds.
@@ -104,8 +110,8 @@
       <span class="text-muted">TermZip <span class="mono text-fg">{app.version}</span></span>
       <button
         type="button"
-        class="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg hover:bg-hover disabled:opacity-50"
-        disabled={update.kind === "checking" || update.kind === "installing"}
+        class="rounded-md border border-line px-2.5 py-1 text-[11px] text-fg hover:bg-hover aria-disabled:opacity-50"
+        aria-disabled={busy}
         onclick={checkNow}
       >
         {update.kind === "checking" ? "Checking…" : "Check for updates"}
