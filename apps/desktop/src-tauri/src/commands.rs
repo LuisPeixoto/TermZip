@@ -80,6 +80,9 @@ pub struct ProfilePayload {
     pub font_size: Option<f32>,
     pub font_family: Option<String>,
     pub cursor_style: Option<termzip_core::CursorStyle>,
+    /// Missing from a profile the interface just created, so it is allowed to be absent.
+    #[serde(default)]
+    pub folders: Vec<String>,
     pub env: std::collections::BTreeMap<String, String>,
 }
 
@@ -94,6 +97,7 @@ impl From<termzip_core::Profile> for ProfilePayload {
             font_size: profile.font_size,
             font_family: profile.font_family,
             cursor_style: profile.cursor_style,
+            folders: profile.folders,
             env: profile.env,
         }
     }
@@ -110,6 +114,7 @@ impl From<ProfilePayload> for termzip_core::Profile {
             font_size: payload.font_size,
             font_family: payload.font_family,
             cursor_style: payload.cursor_style,
+            folders: payload.folders,
             env: payload.env,
         }
     }
@@ -555,5 +560,30 @@ mod tests {
         );
         let back: SettingsPayload = serde_json::from_value(json).unwrap();
         assert_eq!(back.into_raw().snippets, settings.snippets);
+    }
+
+    #[test]
+    fn a_profile_without_folders_from_the_interface_is_accepted() {
+        // A profile the dialog has just created has no `folders` key at all.
+        let profile: super::ProfilePayload = serde_json::from_str(
+            r#"{"id":"a","name":"A","shell":null,"workingDirectory":null,"env":{}}"#,
+        )
+        .unwrap();
+        assert!(profile.folders.is_empty());
+    }
+
+    #[test]
+    fn the_folders_of_a_profile_travel_through_the_payload() {
+        let profile = Profile {
+            name: "Work".to_owned(),
+            folders: vec!["~/work".to_owned()],
+            ..Profile::default()
+        };
+        let json = serde_json::to_value(super::ProfilePayload::from(profile.clone())).unwrap();
+        assert_eq!(json["folders"][0], "~/work");
+        let back: Profile = serde_json::from_value::<super::ProfilePayload>(json)
+            .unwrap()
+            .into();
+        assert_eq!(back.folders, profile.folders);
     }
 }

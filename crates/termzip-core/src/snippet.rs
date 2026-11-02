@@ -8,10 +8,10 @@
 //! (a Go template, a Helm chart) is written `\{{`.
 
 use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::paths::depth_if_inside;
 use crate::profile::slug;
 use crate::text::clean_typed;
 
@@ -162,16 +162,6 @@ pub fn render(snippet: &Snippet, values: &BTreeMap<String, String>) -> Result<St
     Ok(clean_typed(&out, MAX_SNIPPET_COMMAND_BYTES))
 }
 
-fn expand_home(folder: &str) -> std::path::PathBuf {
-    if let Some(rest) = folder.strip_prefix('~')
-        && (rest.is_empty() || rest.starts_with(['/', '\\']))
-        && let Some(home) = dirs::home_dir()
-    {
-        return home.join(rest.trim_start_matches(['/', '\\']));
-    }
-    Path::new(folder).to_path_buf()
-}
-
 impl Snippet {
     /// Whether the snippet is offered in `cwd`. A snippet without a folder is offered everywhere; one with a
     /// folder needs a known working directory inside it.
@@ -182,7 +172,7 @@ impl Snippet {
         let Some(cwd) = cwd else {
             return false;
         };
-        Path::new(cwd).starts_with(expand_home(folder))
+        depth_if_inside(folder, cwd).is_some()
     }
 }
 
@@ -468,15 +458,6 @@ mod tests {
         assert!(!s.applies_in(Some("/srv/application")));
         assert!(!s.applies_in(Some("/srv")));
         assert!(!s.applies_in(None));
-    }
-
-    #[test]
-    fn a_folder_may_start_with_the_home_folder() {
-        let Some(home) = dirs::home_dir() else { return };
-        let mut s = snippet("make");
-        s.folder = Some("~/work".to_owned());
-        assert!(s.applies_in(Some(home.join("work").join("x").to_str().unwrap())));
-        assert!(!s.applies_in(Some(home.join("other").to_str().unwrap())));
     }
 
     #[test]
