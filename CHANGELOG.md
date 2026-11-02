@@ -4,6 +4,61 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-02
+
+Stabilization: budgets, conformance, accessibility, updates, signing hooks, packages and a security review. What is
+promised to stay stable is in [docs/stability.md](docs/stability.md).
+
+### Added
+
+- **Updates on request**: *Check for updates* and *Install and restart* in Preferences → General, with release notes as
+  plain text and a signature check against the key built into the app. An optional check at startup, off by default
+  (`check_updates_on_launch`). Release builds publish signed update files and a `latest.json`.
+- **Screen reader support** (`screen_reader`, Preferences → Terminal) and **reduced motion**: no blink and no transitions
+  when the system asks for it.
+- **Packages**: a Homebrew tap (`brew install --cask luispeixoto/termzip/termzip`), a Scoop bucket and Winget manifests,
+  written from each release's `SHA256SUMS` by `tools/update-packages.sh`.
+- **Signing hooks** in the release workflow for an Apple Developer ID (with notarization) and Azure Trusted Signing, active
+  when the repository secrets exist.
+- **Performance budgets** in `docs/performance-budgets.toml`, `termzip-bench` for the headless parts, a bench mode of the
+  app (`TERMZIP_BENCH`) and `tools/measure-app.sh`.
+- **Tests**: 21 xterm.js conformance tests, PTY conformance tests, a contrast test of every theme, axe-core checks of every
+  screen, twelve fuzz targets (weekly and on demand) and a `Smoke` workflow that launches the built app on macOS, Windows
+  and Linux.
+- **Supply-chain checks** in CI (`cargo deny`, `npm audit`) and a [security review](docs/security-review.md).
+- Guides: stability, accessibility, updates, security review and a validation checklist.
+
+### Changed
+
+- A flood of output is sent in batches of up to 64 KiB instead of one read at a time: `seq 1 1000000` in a visible window
+  went from about 79,000 to about 200,000 lines per second, and memory after it from 1,048 to 611 MB.
+- Muted and faint text, the accent and the success, warning and error colors now meet 4.5:1 contrast on every surface in
+  every theme, including imported ones; text on accent buttons uses its own color.
+- The PowerShell integration reads the typed line through a PSReadLine handler on Enter (it replaces a custom Enter binding
+  set in a profile) and reports the command before it starts.
+- Supported versions: the latest 1.x release receives security fixes.
+
+### Fixed
+
+- A command with more than 64 KiB of output never finished its block: the marker parser lost track of a marker after a lot
+  of plain output.
+- On Windows the terminal could stay blank: the console's first question (the cursor position) was typed before the shell
+  was connected and was dropped. Input is now queued and sent when the session is ready.
+- PowerShell: the integration called itself through its own prompt and produced hundreds of empty blocks and no prompt.
+- PowerShell blocks had no command text.
+- The tabs and the default-profile list were exposed to assistive technology with roles that did not match their contents.
+- A test dependency (`happy-dom`) with a high advisory moved to a fixed version.
+
+### Known limits
+
+- Builds are not signed with an Apple or Windows certificate and macOS builds are not notarized, so the system warns on
+  first launch. Check the `SHA256SUMS` or use Homebrew or Scoop.
+- Windows and Linux have not been used interactively by a person for this release (CI and smoke runs only), and screen
+  reader support has not been tried with a real screen reader: see the [validation checklist](docs/validation-checklist.md).
+- A flood on Windows is much slower than on macOS and Linux (about 4,600 lines per second on a CI runner).
+- The Scoop manifest has not been run on Windows and the Winget manifests are not submitted.
+- No independent security audit has been done.
+
 ## [0.5.0] - 2026-11-02
 
 Developer workflows: snippets, the tasks of your project, SSH and WSL profiles, and git in the status bar.
