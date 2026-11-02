@@ -58,15 +58,19 @@ pub fn parse_budgets(text: &str) -> Result<BTreeMap<String, Budget>, String> {
 }
 
 /// Compares measurements with budgets. A metric with no measurement (the PTY on Windows, say) is left out.
-pub fn check(budgets: &BTreeMap<String, Budget>, metrics: &BTreeMap<String, f64>) -> Vec<Verdict> {
+pub fn check(
+    budgets: &BTreeMap<String, Budget>,
+    metrics: &BTreeMap<String, f64>,
+    slack: f64,
+) -> Vec<Verdict> {
     budgets
         .iter()
         .filter_map(|(name, budget)| {
             let value = *metrics.get(name)?;
             let met = budget.min.is_none_or(|min| value >= min)
                 && budget.max.is_none_or(|max| value <= max);
-            let acceptable = budget.min.is_none_or(|min| value >= min / SLACK)
-                && budget.max.is_none_or(|max| value <= max * SLACK);
+            let acceptable = budget.min.is_none_or(|min| value >= min / slack)
+                && budget.max.is_none_or(|max| value <= max * slack);
             Some(Verdict {
                 name: name.clone(),
                 value,
@@ -160,6 +164,7 @@ max = 50.5
         let verdicts = check(
             &parse_budgets(BUDGETS).unwrap(),
             &metrics(&[("rate", 150.0), ("time", 40.0)]),
+            SLACK,
         );
 
         assert!(
@@ -174,6 +179,7 @@ max = 50.5
         let verdicts = check(
             &parse_budgets(BUDGETS).unwrap(),
             &metrics(&[("rate", 70.0), ("time", 80.0)]),
+            SLACK,
         );
 
         for verdict in &verdicts {
@@ -187,6 +193,7 @@ max = 50.5
         let verdicts = check(
             &parse_budgets(BUDGETS).unwrap(),
             &metrics(&[("rate", 49.0), ("time", 102.0)]),
+            SLACK,
         );
 
         assert!(verdicts.iter().all(|verdict| !verdict.acceptable));
@@ -197,9 +204,27 @@ max = 50.5
         let verdicts = check(
             &parse_budgets(BUDGETS).unwrap(),
             &metrics(&[("rate", 50.0), ("time", 101.0)]),
+            SLACK,
         );
 
         assert!(verdicts.iter().all(|verdict| verdict.acceptable));
+    }
+
+    #[test]
+    fn a_wider_slack_accepts_what_the_default_refuses() {
+        let measured = metrics(&[("rate", 30.0), ("time", 150.0)]);
+        let budgets = parse_budgets(BUDGETS).unwrap();
+
+        assert!(
+            check(&budgets, &measured, SLACK)
+                .iter()
+                .all(|verdict| !verdict.acceptable)
+        );
+        assert!(
+            check(&budgets, &measured, 4.0)
+                .iter()
+                .all(|verdict| verdict.acceptable)
+        );
     }
 
     #[test]
@@ -207,6 +232,7 @@ max = 50.5
         let verdicts = check(
             &parse_budgets(BUDGETS).unwrap(),
             &metrics(&[("rate", 150.0)]),
+            SLACK,
         );
 
         assert_eq!(verdicts.len(), 1);
