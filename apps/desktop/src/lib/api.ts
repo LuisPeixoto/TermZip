@@ -39,6 +39,14 @@ export interface SnippetInfo {
   parameters: SnippetParameter[];
 }
 
+/** A command a project offers, as it is typed: `npm run build`, `cargo test`, `make lint`. */
+export interface TaskInfo {
+  /** The file or tool it comes from: `package.json`, `Cargo`, `Makefile`, `justfile` or `deno.json`. */
+  source: string;
+  name: string;
+  command: string;
+}
+
 export interface Settings {
   /** Whether the window is dark or light; each appearance has its own theme below. */
   theme: "dark" | "light";
@@ -309,6 +317,8 @@ export const api = {
   enablePlugin: (id: string) => invoke<Plugin>("enable_plugin", { id }),
   disablePlugin: (id: string) => invoke<void>("disable_plugin", { id }),
   uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
+  /** The tasks of the project a folder belongs to; empty when the folder is not known. */
+  listTasks: (cwd: string | null) => invoke<TaskInfo[]>("list_tasks", { cwd }),
   /** The snippets that apply in a folder, with what each one asks for. */
   listSnippets: (cwd: string | null) => invoke<SnippetInfo[]>("list_snippets", { cwd }),
   /** The text of a snippet with its values filled in. It never has a line break, so it cannot run by itself. */
