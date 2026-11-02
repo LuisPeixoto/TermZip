@@ -1,5 +1,6 @@
 //! TermZip desktop shell: a Tauri application that owns shell sessions.
 
+mod bench;
 mod commands;
 mod flow;
 mod git;
@@ -42,6 +43,8 @@ fn app_menu(handle: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri:
 }
 
 pub fn run() {
+    // First, so the bench clock starts with the process (it does nothing unless TERMZIP_BENCH is set).
+    let bench = bench::BenchState::from_env();
     // Plugins are told about every finished block of every session.
     let host = Arc::new(PluginHost::new());
     let sessions = Sessions::default();
@@ -58,6 +61,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(sessions)
+        .manage(bench)
         .manage(host)
         .setup(|app| {
             // Start the plugins the user approved before the first terminal opens.
@@ -65,6 +69,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            bench::bench_plan,
+            bench::bench_mark,
             commands::get_settings,
             commands::save_settings,
             commands::app_info,
