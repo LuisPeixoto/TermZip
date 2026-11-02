@@ -226,6 +226,28 @@ Link patterns apply to what the terminal shows, one line at a time (the first 8 
 Where two plugin patterns overlap the earlier match wins. Point at the text: it is underlined with a hint, and ⌘+click
 (Ctrl+click elsewhere) opens it. A pattern that would match every line is rejected when the plugin is installed.
 
+## The terminal stays blank on Windows
+
+On Windows the console asks the terminal for the cursor position first and waits for the answer. Before 1.0 that answer
+could be lost if it was typed before the shell was connected, and the terminal stayed blank. Update to 1.0 or later.
+
+## PowerShell blocks say "command not captured", or my Enter binding stopped working
+
+TermZip reads the typed line through a PSReadLine handler on Enter, set after your profile has run, so it replaces a custom
+Enter binding from the profile. If a block says "command not captured", something replaced the handler again or PSReadLine
+is not loaded. See [shell integration](shell-integration.md#what-integration-does-not-do).
+
+## An update will not install
+
+*The update did not pass its signature check*: the file does not match the key built into TermZip, so nothing was
+changed. Try again; if it repeats, download the release by hand and compare its `SHA256SUMS`. See [updates](updates.md).
+
+## macOS or Windows warns that the app is from an unidentified developer
+
+Releases are not yet signed with an Apple Developer ID or a Windows certificate. On macOS, right-click the app and choose
+Open (or allow it in System Settings → Privacy and Security). On Windows, SmartScreen's *More info → Run anyway*. Check
+the `SHA256SUMS` of the release, or install with Homebrew or Scoop, which check it for you.
+
 ## Linux: the app does not build or start
 
 TermZip needs the WebKitGTK packages: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, and `librsvg2-dev` to build,
