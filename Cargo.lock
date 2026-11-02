@@ -3907,6 +3907,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "termzip-git"
+version = "0.4.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "termzip-plugin-api"
 version = "0.4.0"
 dependencies = [

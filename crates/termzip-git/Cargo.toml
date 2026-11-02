@@ -1,0 +1,15 @@
+[package]
+name = "termzip-git"
+description = "The git branch and state of a folder, read locally for the status bar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[lints]
+workspace = true
