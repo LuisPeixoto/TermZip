@@ -104,9 +104,9 @@ jobs:
       - name: Check the app against the budgets (the reference system only)
         if: runner.os == 'macOS'
         env:
-          # A runner starts the app cold (about 6 s to the first prompt, against 0.6 s on the reference Mac), so this
-          # only guards against a change of an order of magnitude.
-          TERMZIP_BENCH_SLACK: "10"
+          # A runner starts the app cold (6 to 8 s to the first prompt, against 0.6 s on the reference Mac), so this
+          # only guards against a change of more than an order of magnitude.
+          TERMZIP_BENCH_SLACK: "20"
         run: cargo run --release -p termzip-bench -- check docs/performance-budgets.toml headless.json smoke-out/app.json
       - uses: actions/upload-artifact@v7
         if: always()
