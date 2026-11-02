@@ -79,6 +79,8 @@ export interface SessionInfo {
   id: number;
   shell: string;
   integrated: boolean;
+  /** The profile chosen only because the shell started in a folder tied to it; `null` otherwise. */
+  folderProfile?: string | null;
 }
 
 export interface ShellOption {

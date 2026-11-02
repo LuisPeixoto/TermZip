@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Profile } from "../src/lib/api";
-import { describeProfile, formatEnv, parseEnv, parseFontSize, slug, uniqueProfileId } from "../src/lib/profiles";
+import {
+  describeProfile,
+  formatEnv,
+  formatFolders,
+  parseEnv,
+  parseFolders,
+  parseFontSize,
+  slug,
+  uniqueProfileId,
+} from "../src/lib/profiles";
 
 /** The message parseEnv gives for text it refuses. */
 function errorOf(text: string): string {
@@ -101,5 +110,31 @@ describe("a profile's look", () => {
 
   it("says so when the theme of a profile is gone", () => {
     expect(describeProfile({ ...base, theme: "deleted" })).toBe("deleted (missing)");
+  });
+});
+
+describe("the folders of a profile", () => {
+  it("reads one folder per line, trimmed, without blanks or repeats", () => {
+    expect(parseFolders("")).toEqual({ folders: [] });
+    expect(parseFolders("  ~/work/api \n\n/srv/app\r\n~/work/api\n")).toEqual({ folders: ["~/work/api", "/srv/app"] });
+  });
+
+  it("refuses what the backend would refuse", () => {
+    expect("error" in parseFolders("/a\u0007b")).toBe(true);
+    expect("error" in parseFolders("x".repeat(1025))).toBe(true);
+    const many = Array.from({ length: 17 }, (_, n) => `/f${n}`).join("\n");
+    expect(parseFolders(many)).toEqual({ error: "At most 16 folders per profile." });
+    expect("folders" in parseFolders(Array.from({ length: 16 }, (_, n) => `/f${n}`).join("\n"))).toBe(true);
+  });
+
+  it("writes them back one per line, also for a profile that never had any", () => {
+    expect(formatFolders(["~/a", "/b"])).toBe("~/a\n/b");
+    expect(formatFolders(undefined)).toBe("");
+  });
+
+  it("shows in the list that a profile is tied to folders", () => {
+    const base: Profile = { id: "p", name: "P", shell: null, workingDirectory: null, env: {} };
+    expect(describeProfile({ ...base, folders: ["~/work/api"] })).toBe("for ~/work/api");
+    expect(describeProfile({ ...base, folders: ["/a", "/b"], env: { A: "1" } })).toBe("for 2 folders · 1 variable");
   });
 });

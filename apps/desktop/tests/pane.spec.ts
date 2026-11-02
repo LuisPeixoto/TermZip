@@ -31,6 +31,31 @@ describe("Pane", () => {
     vi.mocked(invoke).mockReset();
   });
 
+  it("takes the profile the backend chose for its folder, once its shell is up", () => {
+    const pane = new Pane("a");
+
+    pane.setSession({ id: 1, shell: "zsh", integrated: true, folderProfile: "api" });
+
+    expect(pane.profileId).toBe("api");
+  });
+
+  it("keeps the profile it was asked to start with", () => {
+    const pane = new Pane("a", "work");
+
+    pane.setSession({ id: 1, shell: "zsh", integrated: true, folderProfile: "api" });
+
+    expect(pane.profileId).toBe("work");
+  });
+
+  it("stays on the default profile when no folder chose one", () => {
+    const pane = new Pane("a");
+
+    pane.setSession({ id: 1, shell: "zsh", integrated: true, folderProfile: null });
+    expect(pane.profileId).toBeNull();
+    pane.setSession({ id: 2, shell: "zsh", integrated: true });
+    expect(pane.profileId).toBeNull();
+  });
+
   it("starts empty and remembers where it should start", () => {
     const pane = new Pane("a", "work", "/srv");
     expect(pane.profileId).toBe("work");

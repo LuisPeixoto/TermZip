@@ -16,8 +16,11 @@ export interface PaneController {
 /** One shell and everything the interface shows about it. */
 export class Pane {
   readonly id: string;
-  /** The profile this pane starts with; `null` is the default profile. */
-  profileId: string | null;
+  /**
+   * The profile this pane starts with; `null` is the default profile. Reactive: a pane that starts in a folder
+   * tied to a profile takes that profile once its shell is up, and its look follows.
+   */
+  profileId = $state<string | null>(null);
   /** Where the shell was when the layout was saved. Used for the first start only. */
   restoreDirectory: string | null;
 
@@ -74,6 +77,9 @@ export class Pane {
 
   setSession(info: SessionInfo): void {
     this.session = info;
+    // The backend chose a profile because of the folder the shell started in. The pane keeps it from now on, so
+    // its look is drawn and the layout is saved with it, and a split or a restart uses the same profile.
+    if (this.profileId === null && info.folderProfile) this.profileId = info.folderProfile;
   }
 
   markExited(code: number | null): void {

@@ -1,7 +1,16 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import type { CursorStyle, Profile } from "../api";
-  import { MAX_PROFILES, describeProfile, formatEnv, parseEnv, parseFontSize, uniqueProfileId } from "../profiles";
+  import {
+    MAX_PROFILES,
+    describeProfile,
+    formatEnv,
+    formatFolders,
+    parseEnv,
+    parseFolders,
+    parseFontSize,
+    uniqueProfileId,
+  } from "../profiles";
   import { themes } from "../stores/themes.svelte";
   import { groupThemes } from "../theme";
 
@@ -12,7 +21,7 @@
 
   // `null` is the list, `""` a new profile, anything else the id being edited.
   let editing = $state<string | null>(null);
-  const blankForm = { name: "", shell: "", workingDirectory: "", theme: "", fontSize: "", fontFamily: "", cursorStyle: "", env: "" };
+  const blankForm = { name: "", shell: "", workingDirectory: "", folders: "", theme: "", fontSize: "", fontFamily: "", cursorStyle: "", env: "" };
   let form = $state({ ...blankForm });
   const groups = $derived.by(() => {
     const { dark, light } = groupThemes(themes.entries);
@@ -46,6 +55,7 @@
       name: profile.name,
       shell: profile.shell ?? "",
       workingDirectory: profile.workingDirectory ?? "",
+      folders: formatFolders(profile.folders),
       theme: profile.theme ?? "",
       fontSize: profile.fontSize ? String(profile.fontSize) : "",
       fontFamily: profile.fontFamily ?? "",
@@ -67,6 +77,11 @@
       problem = parsed.error;
       return;
     }
+    const folders = parseFolders(form.folders);
+    if ("error" in folders) {
+      problem = folders.error;
+      return;
+    }
     const size = parseFontSize(form.fontSize);
     if ("error" in size) {
       problem = size.error;
@@ -76,6 +91,7 @@
       name,
       shell: form.shell.trim() || null,
       workingDirectory: form.workingDirectory.trim() || null,
+      folders: folders.folders,
       theme: form.theme || null,
       fontSize: size.size,
       fontFamily: form.fontFamily.trim() || null,
@@ -174,6 +190,20 @@
       <div>
         <label for="profile-directory" class={small}>Folder (empty: the built-in one)</label>
         <input id="profile-directory" type="text" bind:value={form.workingDirectory} class={field} />
+      </div>
+      <div>
+        <label for="profile-folders" class={small}>Use this profile in these folders, one per line (optional)</label>
+        <textarea
+          id="profile-folders"
+          rows="2"
+          spellcheck="false"
+          bind:value={form.folders}
+          class="{field} resize-y"
+          placeholder="~/work/api"
+        ></textarea>
+        <p class="mt-1 text-[10.5px] text-faint">
+          A new tab that starts in one of them, or below, uses this profile when you did not pick another.
+        </p>
       </div>
       <div class="grid grid-cols-2 gap-2.5">
         <div class="col-span-2">
