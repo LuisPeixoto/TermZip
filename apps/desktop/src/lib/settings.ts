@@ -21,6 +21,7 @@ export function defaultSettings(): Settings {
     pluginsCatalog: true,
     checkUpdatesOnLaunch: false,
     gitStatus: true,
+    screenReader: false,
     defaultProfile: null,
     keybindings: {},
     snippets: [],

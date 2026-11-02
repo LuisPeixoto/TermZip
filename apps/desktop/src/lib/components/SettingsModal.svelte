@@ -164,7 +164,7 @@
       </button>
       <button
         type="button"
-        class="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+        class="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-on-accent transition-opacity hover:opacity-90 disabled:opacity-40"
         disabled={saving}
         onclick={() => void save()}
       >

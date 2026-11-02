@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use serde_json::json;
-use termzip_bench::{check, parse_budgets, read_results};
+use termzip_bench::{SLACK, check, parse_budgets, read_results};
 
 /// Runs `work` this many times and keeps the median, so one slow run does not decide.
 const RUNS: usize = 5;
@@ -215,7 +215,14 @@ fn verify(budgets_path: &str, results: &[String]) -> ExitCode {
         }
     }
     let mut failed = false;
-    for verdict in check(&budgets, &metrics) {
+    // A shared two-core CI runner is much further from the reference hardware than 2x (Windows measures the block
+    // tracker at 260 MB/s against 738 here), so the smoke jobs widen the slack; a regression is still orders away.
+    let slack = std::env::var("TERMZIP_BENCH_SLACK")
+        .ok()
+        .and_then(|text| text.parse::<f64>().ok())
+        .filter(|slack| *slack >= 1.0)
+        .unwrap_or(SLACK);
+    for verdict in check(&budgets, &metrics, slack) {
         let limit = match (verdict.budget.min, verdict.budget.max) {
             (Some(min), _) => format!("at least {min}"),
             (_, Some(max)) => format!("at most {max}"),

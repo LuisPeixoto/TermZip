@@ -124,13 +124,24 @@ describe("an interface derived from the terminal colors", () => {
     });
   }
 
-  it("lets a theme override any token it wants", () => {
+  it("lets a theme override what it wants, as long as the text still reads", () => {
     const theme = builtIn("nord");
-    const tokens = chromeTokens({ ...theme, chrome: { panel: "#123456", err: "#ff0000" } });
+    const tokens = chromeTokens({ ...theme, chrome: { panel: "#123456", err: "#ffb3b3" } });
 
     expect(tokens["--panel"]).toBe("#123456");
-    expect(tokens["--err"]).toBe("#ff0000");
-    expect(tokens["--ok"]).not.toBe("#ff0000");
+    expect(tokens["--err"]).toBe("#ffb3b3");
+    expect(tokens["--ok"]).not.toBe("#ffb3b3");
+  });
+
+  it("makes an override that cannot be read readable instead of trusting it", () => {
+    const theme = builtIn("nord");
+    const tokens = chromeTokens({ ...theme, chrome: { err: "#ff0000", muted: "#333333", faint: "#2e3440" } });
+
+    for (const token of ["--err", "--muted", "--faint"]) {
+      expect(contrast(tokens[token], tokens["--bg"]), token).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(tokens[token], tokens["--panel-2"]), token).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(tokens["--err"]).not.toBe("#ff0000");
   });
 
   it("uses a translucent wash for an opaque selection color on the interface", () => {

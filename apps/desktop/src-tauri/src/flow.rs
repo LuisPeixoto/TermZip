@@ -59,6 +59,13 @@ impl FlowControl {
         self.relieved.notify_all();
     }
 
+    /// How many more bytes can be sent before the high-water mark. Zero when the mark is reached.
+    pub fn room(&self) -> usize {
+        self.pending
+            .lock()
+            .map_or(0, |pending| self.high.saturating_sub(*pending))
+    }
+
     /// Wakes a paused reader so it can notice that the session was destroyed.
     pub fn wake(&self) {
         self.relieved.notify_all();
@@ -188,5 +195,18 @@ mod tests {
         flow.sent(10);
         flow.acknowledge(1_000);
         assert_eq!(flow.pending(), 0);
+    }
+
+    #[test]
+    fn the_room_left_shrinks_as_bytes_are_sent_and_returns_when_they_are_acknowledged() {
+        let flow = FlowControl::new(1000, 100, Duration::from_secs(10));
+        assert_eq!(flow.room(), 1000);
+
+        flow.sent(600);
+        assert_eq!(flow.room(), 400);
+        flow.sent(700);
+        assert_eq!(flow.room(), 0);
+        flow.acknowledge(1000);
+        assert_eq!(flow.room(), 700);
     }
 }
