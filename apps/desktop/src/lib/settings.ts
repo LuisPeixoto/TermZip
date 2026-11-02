@@ -20,6 +20,7 @@ export function defaultSettings(): Settings {
     restoreSession: true,
     pluginsCatalog: true,
     gitStatus: true,
+    screenReader: false,
     defaultProfile: null,
     keybindings: {},
     snippets: [],

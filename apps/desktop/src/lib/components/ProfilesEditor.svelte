@@ -354,7 +354,7 @@
         </button>
         <button
           type="button"
-          class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90"
+          class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-on-accent hover:opacity-90"
           onclick={apply}
         >
           {editing === "" ? "Add profile" : "Update profile"}

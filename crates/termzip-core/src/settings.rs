@@ -68,6 +68,9 @@ pub struct Settings {
     /// *Open the repository*. It reads the repository on disk and never uses the network; with this off, git is
     /// never started.
     pub git_status: bool,
+    /// Make the terminal readable by a screen reader: xterm.js keeps an accessible copy of the screen and announces
+    /// new output. It costs speed on a flood, so it is off until asked for.
+    pub screen_reader: bool,
     /// The profile a new tab starts with; `None` is the built-in one.
     pub default_profile: Option<String>,
     /// Shortcut overrides, `action = "Cmd+Shift+D"`; an empty chord unbinds the action. Tables come
@@ -98,6 +101,7 @@ impl Default for Settings {
             restore_session: true,
             plugins_catalog: true,
             git_status: true,
+            screen_reader: false,
             default_profile: None,
             keybindings: BTreeMap::new(),
             snippets: Vec::new(),
@@ -985,5 +989,22 @@ AWS_PROFILE = "work"
                 .as_deref(),
             Some("/Users/me")
         );
+    }
+
+    #[test]
+    fn screen_reader_support_is_off_by_default_and_a_config_from_before_it_gets_that() {
+        assert!(!Settings::default().screen_reader);
+        assert!(!Settings::from_toml("font_size = 15.0\n").screen_reader);
+    }
+
+    #[test]
+    fn screen_reader_support_stays_on_once_turned_on() {
+        let settings = Settings::from_toml("screen_reader = true\n");
+        assert!(settings.screen_reader);
+
+        let text = toml::to_string_pretty(&settings).expect("settings must serialize");
+
+        assert!(text.contains("screen_reader = true"), "{text}");
+        assert!(Settings::from_toml(&text).screen_reader);
     }
 }

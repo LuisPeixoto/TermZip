@@ -221,7 +221,7 @@
                 <button
                   type="button"
                   class="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-opacity disabled:opacity-40 aria-disabled:opacity-40
-                    {action.enabled ? 'bg-accent text-white hover:opacity-90' : 'border border-line text-muted'}"
+                    {action.enabled ? 'bg-accent text-on-accent hover:opacity-90' : 'border border-line text-muted'}"
                   aria-disabled={!action.enabled || installing !== null}
                   onclick={() => {
                     if (action.enabled) void installFromCatalog(item);
@@ -363,7 +363,7 @@
                   </button>
                   <button
                     type="button"
-                    class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-40 aria-disabled:opacity-40"
+                    class="rounded-md bg-accent px-2.5 py-1 text-[11px] font-semibold text-on-accent hover:opacity-90 disabled:opacity-40 aria-disabled:opacity-40"
                     aria-disabled={busy}
                     onclick={(event) => void confirmOn(plugin, switchOf(event.currentTarget))}
                   >

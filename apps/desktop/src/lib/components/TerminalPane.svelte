@@ -11,11 +11,12 @@
   import { api, base64ToBytes, type SessionEvent, type Theme } from "../api";
   import { xtermTheme } from "../theme";
   import { app } from "../stores/app.svelte";
+  import { mayBlink, reducedMotion } from "../stores/motion.svelte";
   import { workspace } from "../stores/workspace.svelte";
   import type { Pane } from "../stores/pane.svelte";
   import { matchShortcut } from "../shortcuts";
   import { cellsToLine, columnsOf, findPathLinks, isOpenGesture } from "../terminal/links";
-  import { ACK_BATCH, AckBatcher } from "../flow";
+  import { ACK_BATCH, AckBatcher, InputQueue } from "../flow";
   import { fontStack } from "../terminal/font";
   import { paneSurface, resolvePaneLook } from "../paneLook";
   import { themes } from "../stores/themes.svelte";
@@ -64,6 +65,7 @@
   // Each shell gets a number; events of an older shell (a restart is in flight) are ignored.
   let generation = 0;
   // Tells the backend how much output has been drawn, so a flooding shell is paused, not the webview.
+  const pendingInput = new InputQueue();
   const acks = new AckBatcher(
     ACK_BATCH,
     (bytes) => {
@@ -74,7 +76,7 @@
 
   // Preferences apply to the live terminal; the buffer and the shell are left alone.
   $effect(() => {
-    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing } = app.settings;
+    const { scrollbackLines, cursorBlink, lineHeight, letterSpacing, screenReader } = app.settings;
     const family = fontFamily();
     if (!terminal || !look) return;
     const { fontSize, cursorStyle } = look;
@@ -82,9 +84,10 @@
     terminal.options.fontFamily = family;
     terminal.options.scrollback = scrollbackLines;
     terminal.options.cursorStyle = cursorStyle;
-    terminal.options.cursorBlink = cursorBlink;
+    terminal.options.cursorBlink = mayBlink(cursorBlink, reducedMotion.value);
     terminal.options.lineHeight = lineHeight;
     terminal.options.letterSpacing = letterSpacing;
+    terminal.options.screenReaderMode = screenReader;
     untrack(() => fit());
     requestAnimationFrame(() => fit());
   });
@@ -157,7 +160,7 @@
     const initial = look;
     terminal = new Terminal({
       convertEol: false,
-      cursorBlink: settings.cursorBlink,
+      cursorBlink: mayBlink(settings.cursorBlink, reducedMotion.value),
       cursorStyle: initial?.cursorStyle ?? settings.cursorStyle,
       // A pane that is not focused keeps an outline, so it is clear where the keyboard is not.
       cursorInactiveStyle: "outline",
@@ -168,6 +171,7 @@
       lineHeight: settings.lineHeight,
       letterSpacing: settings.letterSpacing,
       scrollback: settings.scrollbackLines,
+      screenReaderMode: settings.screenReader,
       allowTransparency: app.translucent,
       theme: initial ? xtermTheme(initial.theme, app.translucent) : undefined,
       // The search addon marks matches with decorations, which are still a proposed API.
@@ -308,6 +312,7 @@
     if (!terminal || disposed) return;
     const owner = ++generation;
     acks.reset();
+    pendingInput.clear();
     pane.begin();
     fit();
     const rows = Math.max(terminal.rows, 10);
@@ -330,6 +335,8 @@
       }
       pane.restoreDirectory = null; // only the first start goes back to where the pane was
       pane.setSession(info);
+      // What the terminal answered, or what was typed, before the id was known goes out now, in order.
+      for (const data of pendingInput.drain()) sendInput(data);
       acks.flush(); // output that arrived before the id was known
       if (!app.settingsOpen) terminal.focus();
     } catch (error) {
@@ -357,11 +364,18 @@
     }
   }
 
-  function onTerminalData(data: string): void {
+  function sendInput(data: string): void {
     if (!pane.session) return;
     void api.writeSession(pane.session.id, new TextEncoder().encode(data)).catch((error) => {
       app.toast("err", `Write failed: ${error}`);
     });
+  }
+
+  function onTerminalData(data: string): void {
+    // The shell's first output can ask the terminal a question (where is the cursor?) before the session id is
+    // known, and the shell waits for the answer: keep it until it can be sent.
+    if (!pane.session) pendingInput.push(data);
+    else sendInput(data);
   }
 
   function onCustomKey(event: KeyboardEvent): boolean {
