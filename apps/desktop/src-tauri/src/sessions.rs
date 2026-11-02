@@ -986,7 +986,23 @@ mod tests {
             .filter_map(|line| line.trim_matches('\r').parse().ok())
             .collect();
 
-        assert_eq!(numbers.len(), 60_000, "{} numbers arrived", numbers.len());
+        if numbers.len() != 60_000 {
+            let seen: std::collections::HashSet<u32> = numbers.iter().copied().collect();
+            let missing: Vec<u32> = (1..=60_000u32)
+                .filter(|n| !seen.contains(n))
+                .take(5)
+                .collect();
+            let text = String::from_utf8_lossy(&output);
+            let around = missing
+                .first()
+                .and_then(|n| text.find(&format!("{}\r\n", n - 1)))
+                .map(|at| text[at..(at + 40).min(text.len())].to_owned());
+            panic!(
+                "{} numbers arrived; the first missing are {missing:?}; around the first: {around:?}; the tail is {:?}",
+                numbers.len(),
+                &text[text.len().saturating_sub(60)..]
+            );
+        }
         assert!(
             numbers.iter().copied().eq(1..=60_000u32),
             "the numbers are out of order or repeated"
