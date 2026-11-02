@@ -81,6 +81,7 @@ pub fn run() {
             commands::list_blocks,
             git::git_status,
             remote::list_ssh_hosts,
+            remote::list_wsl_distributions,
             snippets::check_snippet,
             snippets::list_snippets,
             snippets::render_snippet,

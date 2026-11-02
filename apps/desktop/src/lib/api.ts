@@ -354,6 +354,8 @@ export const api = {
   uninstallPlugin: (id: string) => invoke<void>("uninstall_plugin", { id }),
   /** The `Host` aliases of `~/.ssh/config`, to offer when an SSH profile is made. Names only. */
   listSshHosts: () => invoke<string[]>("list_ssh_hosts"),
+  /** The installed WSL distributions; empty off Windows or when WSL is not set up. */
+  listWslDistributions: () => invoke<string[]>("list_wsl_distributions"),
   /** The git state of a folder; `null` when it is in no repository or the setting is off. Read locally, never from the network. */
   gitStatus: (cwd: string | null) => invoke<GitStatus | null>("git_status", { cwd }),
   /** The tasks of the project a folder belongs to; empty when the folder is not known. */

@@ -1,4 +1,5 @@
-//! What Preferences offers when a remote profile is made: the hosts of `~/.ssh/config`.
+//! What Preferences offers when a remote profile is made: the hosts of `~/.ssh/config` and the installed WSL
+//! distributions.
 
 use std::path::Path;
 
@@ -16,6 +17,73 @@ pub async fn list_ssh_hosts() -> Result<Vec<String>, String> {
     tauri::async_runtime::spawn_blocking(|| hosts_in(termzip_core::default_ssh_dir().as_deref()))
         .await
         .map_err(|error| format!("Could not read the SSH config: {error}"))
+}
+
+/// What `wsl.exe -l -q` prints, for the part of the answer that can be trusted: nothing unless the command
+/// succeeded within a few seconds. WSL exists on Windows only.
+#[cfg(windows)]
+fn run_wsl_list() -> Vec<u8> {
+    use std::io::Read;
+    use std::os::windows::process::CommandExt;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    /// Do not flash a console window.
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    const TIMEOUT: Duration = Duration::from_secs(3);
+
+    let Ok(mut child) = Command::new("wsl.exe")
+        .args(["-l", "-q"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+    else {
+        return Vec::new();
+    };
+    let Some(stdout) = child.stdout.take() else {
+        let _ = child.kill();
+        return Vec::new();
+    };
+    let reader = std::thread::spawn(move || {
+        let mut output = Vec::new();
+        let _ = stdout
+            .take(termzip_core::MAX_WSL_OUTPUT_BYTES as u64)
+            .read_to_end(&mut output);
+        output
+    });
+    let deadline = Instant::now() + TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let output = reader.join().unwrap_or_default();
+                return if status.success() { output } else { Vec::new() };
+            }
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
+            // Too slow, or it cannot be waited for: stop it, so no wsl.exe is left running.
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = reader.join();
+                return Vec::new();
+            }
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn run_wsl_list() -> Vec<u8> {
+    Vec::new()
+}
+
+/// The installed WSL distributions, for the distribution field of a WSL profile; none off Windows, or when WSL
+/// is not set up. Run on a blocking thread, with a timeout, because `wsl.exe` can take a moment to wake up.
+#[tauri::command]
+pub async fn list_wsl_distributions() -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(|| termzip_core::parse_distributions(&run_wsl_list()))
+        .await
+        .map_err(|error| format!("Could not list the WSL distributions: {error}"))
 }
 
 #[cfg(test)]
@@ -43,5 +111,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
 
         assert_eq!(hosts, ["build-box"]);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn wsl_has_no_distributions_off_windows() {
+        let list = tauri::async_runtime::block_on(list_wsl_distributions()).unwrap();
+        assert!(list.is_empty());
     }
 }
