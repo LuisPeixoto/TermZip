@@ -90,6 +90,29 @@ export function parseFolders(text: string): FoldersResult {
 
 export const formatFolders = (folders: readonly string[] | undefined): string => (folders ?? []).join("\n");
 
+export type PortResult = { port: number | null } | { error: string };
+
+/** The port field of an SSH profile: empty means "the one ssh would use", otherwise a whole number from 1 to 65535. */
+export function parsePort(text: string): PortResult {
+  const trimmed = text.trim();
+  if (!trimmed) return { port: null };
+  const port = Number(trimmed);
+  if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) return { error: "The port must be a whole number from 1 to 65535, or empty." };
+  return { port };
+}
+
+/** What a remote profile connects to, as a line: `ssh deploy@build-box:2222` or `WSL Ubuntu`. */
+export function describeRemote(profile: Profile): string | null {
+  switch (profile.kind ?? "local") {
+    case "ssh":
+      return `ssh ${profile.user ? `${profile.user}@` : ""}${profile.host || "(no host)"}${profile.port ? `:${profile.port}` : ""}`;
+    case "wsl":
+      return profile.distribution ? `WSL ${profile.distribution}` : "WSL (default distribution)";
+    default:
+      return null;
+  }
+}
+
 export type FontSizeResult = { size: number | null } | { error: string };
 
 /** The font size field of the profile form: empty means "same as the app", otherwise a whole number in range. */
@@ -107,8 +130,11 @@ export function parseFontSize(text: string): FontSizeResult {
 /** One line for the list: where the profile starts, how it looks, and how many variables it sets. */
 export function describeProfile(profile: Profile, themeNames: ReadonlyMap<string, string> = new Map()): string {
   const parts: string[] = [];
-  if (profile.shell) parts.push(profile.shell);
-  if (profile.workingDirectory) parts.push(profile.workingDirectory);
+  const remote = describeRemote(profile);
+  if (remote) parts.push(remote);
+  // The shell and the folder are of this computer: an SSH connection has neither, and WSL has only a folder.
+  if (!remote && profile.shell) parts.push(profile.shell);
+  if (profile.kind !== "ssh" && profile.workingDirectory) parts.push(profile.workingDirectory);
   if (profile.theme) parts.push(themeNames.get(profile.theme) ?? `${profile.theme} (missing)`);
   if (profile.fontSize) parts.push(`${profile.fontSize}px`);
   if (profile.fontFamily) parts.push(profile.fontFamily);
