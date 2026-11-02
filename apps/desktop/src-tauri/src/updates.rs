@@ -16,6 +16,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
 /// In a debug build only, the address of a `latest.json` to ask instead (to try updates against a local server).
+#[cfg(debug_assertions)]
 pub const ENDPOINT_ENV: &str = "TERMZIP_UPDATE_ENDPOINT";
 /// The release notes shown are cut at this many characters, and shown as plain text.
 const MAX_NOTES_CHARS: usize = 2000;
