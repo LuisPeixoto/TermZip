@@ -198,7 +198,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-termzip-plugin-sdk = { git = "https://github.com/LuisPeixoto/TermZip", tag = "v0.4.0" }
+termzip-plugin-sdk = { git = "https://github.com/LuisPeixoto/TermZip", tag = "v0.5.0" }
 
 [profile.release]
 opt-level = "s"
