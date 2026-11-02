@@ -56,6 +56,9 @@ jobs:
       - name: Measure the parts that handle a lot of data
         run: cargo run --release -p termzip-bench -- run --json headless.json
       - name: Check them against the budgets
+        env:
+          # The budgets are for the reference hardware; a shared runner is much slower, so only a large regression fails.
+          TERMZIP_BENCH_SLACK: "4"
         run: cargo run --release -p termzip-bench -- check docs/performance-budgets.toml headless.json
 
       - name: Run the app (Linux)
