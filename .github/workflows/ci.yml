@@ -75,6 +75,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Test the signing preparation of the release
         run: bash tools/test-prepare-signing.sh
+      - name: Test the package manifests
+        run: bash tools/test-update-packages.sh
       - name: Test the latest.json the updater reads
         run: python3 tools/test_make_latest_json.py
 

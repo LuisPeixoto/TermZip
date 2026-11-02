@@ -3,7 +3,8 @@
 # with them and fails only when one is more than twice as bad as its budget, because a shared CI runner is slower
 # and noisier than the reference computer. A budget is either `min` (a rate) or `max` (a time or a size).
 #
-# Measured with `cargo run --release -p termzip-bench -- run` on the reference hardware.
+# Measured with `cargo run --release -p termzip-bench -- run` on the reference hardware (the headless parts) and with
+# `tools/measure-app.sh` (the app). The reference hardware is a 2019-class Intel Mac with 32 GB.
 
 # --- the parts that handle a lot of data (termzip-bench) ---
 
@@ -27,3 +28,20 @@ max = 2
 
 [metrics.pty_mb_s]                 # what a real PTY carries to the reader (Unix only)
 min = 10
+
+# --- the running app (tools/measure-app.sh; the TERMZIP_BENCH report of the app) ---
+
+[metrics.app_launch_to_prompt_ms]  # from the start of the process to the first prompt
+max = 700
+
+[metrics.app_flood_lines_per_s]    # lines per second of `seq 1 N`, drawn in a visible window
+min = 180000
+
+[metrics.app_idle_cpu_percent]     # CPU of the app and its web view, a few seconds after the prompt
+max = 5
+
+[metrics.app_idle_memory_mb]       # memory of the app and its web view after the prompt
+max = 700
+
+[metrics.app_flood_memory_mb]      # the same, after the flood
+max = 700
