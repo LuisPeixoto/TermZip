@@ -9,6 +9,7 @@ mod storage;
 mod text;
 mod theme;
 mod workspace;
+mod wsl;
 
 pub use appearance::CursorStyle;
 pub use keybindings::{MAX_KEYBINDINGS, normalize_chord, validate_keybindings};
@@ -32,3 +33,4 @@ pub use theme::{
     save_custom_theme_to, themes_dir,
 };
 pub use workspace::{Direction, PaneNode, Tab, Workspace, workspace_path};
+pub use wsl::{MAX_WSL_OUTPUT_BYTES, parse_distributions};
