@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: LuisPeixoto.TermZip
+PackageVersion: 1.0.0
+PackageLocale: en-US
+Publisher: Luis Peixoto
+PublisherUrl: https://github.com/LuisPeixoto
+PackageName: TermZip
+PackageUrl: https://github.com/LuisPeixoto/TermZip
+License: MIT
+LicenseUrl: https://github.com/LuisPeixoto/TermZip/blob/v1.0.0/LICENSE
+ShortDescription: Terminal with command blocks, split panes and a WebAssembly plugin sandbox.
+Tags:
+  - terminal
+  - shell
+  - tauri
+ReleaseNotesUrl: https://github.com/LuisPeixoto/TermZip/releases/tag/v1.0.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
