@@ -3,77 +3,6 @@
 (function () {
   "use strict";
 
-  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  /* ---- the split-flap word ---- */
-  var ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-  function setLetter(tile, ch) {
-    var cells = tile.querySelectorAll(".half > i");
-    for (var i = 0; i < cells.length; i++) cells[i].textContent = ch;
-  }
-
-  // Flips one tile from `from` to `to`: the old top half falls, the new bottom half rises, like the real thing.
-  function flip(tile, from, to, ms) {
-    return new Promise(function (resolve) {
-      var top = tile.querySelector(".half.top");
-      var bottom = tile.querySelector(".half.bottom");
-      var topI = top.firstElementChild;
-      var bottomI = bottom.firstElementChild;
-      topI.textContent = to; // the half behind the falling flap already shows the new letter
-
-      var falling = top.cloneNode(true);
-      falling.classList.add("flap");
-      falling.firstElementChild.textContent = from;
-      var rising = bottom.cloneNode(true);
-      rising.classList.add("flap");
-      rising.firstElementChild.textContent = to;
-      tile.appendChild(falling);
-      tile.appendChild(rising);
-      rising.style.transform = "rotateX(90deg)";
-
-      var half = ms / 2;
-      var fall = falling.animate([{ transform: "rotateX(0deg)" }, { transform: "rotateX(-90deg)" }], { duration: half, easing: "ease-in", fill: "forwards" });
-      fall.onfinish = function () {
-        falling.remove();
-        var rise = rising.animate([{ transform: "rotateX(90deg)" }, { transform: "rotateX(0deg)" }], { duration: half, easing: "ease-out", fill: "forwards" });
-        rise.onfinish = function () {
-          bottomI.textContent = to;
-          rising.remove();
-          resolve();
-        };
-      };
-    });
-  }
-
-  function runFlaps() {
-    var board = document.querySelector(".flaps");
-    if (!board || reduced || !board.animate) return;
-    var tiles = board.querySelectorAll(".tile");
-    var finalWord = board.getAttribute("data-word") || "";
-    Array.prototype.forEach.call(tiles, function (tile, index) {
-      var target = tile.getAttribute("data-char");
-      var steps = 3 + (index % 3);
-      var current = " ";
-      setLetter(tile, current);
-      var chain = Promise.resolve();
-      chain = chain.then(function () {
-        return new Promise(function (r) { setTimeout(r, 120 + index * 110); });
-      });
-      for (var s = 0; s < steps; s++) {
-        (function (last) {
-          chain = chain.then(function () {
-            var next = last ? target : ALPHABET.charAt(Math.floor(Math.random() * ALPHABET.length));
-            var from = current;
-            current = next;
-            return flip(tile, from, next, last ? 220 : 130);
-          });
-        })(s === steps - 1);
-      }
-    });
-    void finalWord;
-  }
-
   /* ---- install tabs ---- */
   var tabs = Array.prototype.slice.call(document.querySelectorAll('.tabs [role="tab"]'));
   var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
@@ -109,6 +38,31 @@
         else if (event.key === "Home") to = tabs[0];
         else if (event.key === "End") to = tabs[tabs.length - 1];
         if (to) { event.preventDefault(); select(to.getAttribute("data-os"), true); }
+      });
+    });
+  }
+
+  /* ---- screenshot tabs ---- */
+  var showTabs = Array.prototype.slice.call(document.querySelectorAll(".show-tabs [role=\"tab\"]"));
+  var showPanels = Array.prototype.slice.call(document.querySelectorAll(".show-panel"));
+  function showSelect(name, focus) {
+    showTabs.forEach(function (tab) {
+      var on = tab.getAttribute("data-show") === name;
+      tab.setAttribute("aria-selected", on ? "true" : "false");
+      tab.tabIndex = on ? 0 : -1;
+      if (on && focus) tab.focus();
+    });
+    showPanels.forEach(function (panel) { panel.hidden = panel.getAttribute("data-show") !== name; });
+  }
+  if (showTabs.length) {
+    showSelect(showTabs[0].getAttribute("data-show"), false);
+    showTabs.forEach(function (tab, index) {
+      tab.addEventListener("click", function () { showSelect(tab.getAttribute("data-show"), false); });
+      tab.addEventListener("keydown", function (event) {
+        var to = null;
+        if (event.key === "ArrowRight") to = showTabs[(index + 1) % showTabs.length];
+        else if (event.key === "ArrowLeft") to = showTabs[(index - 1 + showTabs.length) % showTabs.length];
+        if (to) { event.preventDefault(); showSelect(to.getAttribute("data-show"), true); }
       });
     });
   }
@@ -190,5 +144,4 @@
   });
 
   offerLanguage();
-  runFlaps();
 })();

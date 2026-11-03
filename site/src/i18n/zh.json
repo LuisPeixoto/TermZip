@@ -8,7 +8,7 @@
   "meta_keywords": "终端， 终端模拟器， 命令行， shell, zsh, bash, fish, PowerShell, 命令块， 分屏， 标签页， 开源， Rust, Tauri, macOS, Windows, Linux",
   "og_title": "TermZip：把每条命令变成命令块的终端",
   "og_description": "真正的终端，旁边是已完成命令的列表，可以复制，也可以再次运行。免费、开源，不向任何地方发送数据。",
-  "og_image_alt": "出发信息牌上的 TermZip：翻页牌上拼出 TERMZIP 字样",
+  "og_image_alt": "紫色舞台上的终端：带命令块栏的 TermZip",
   "skip_link": "跳到正文",
   "nav_label": "主导航",
   "nav_features": "功能",
@@ -18,13 +18,8 @@
   "nav_github": "GitHub",
   "lang_label": "语言",
   "home_label": "TermZip 首页",
-  "board_title": "出发",
   "hero_h1": "把每条命令变成命令块的终端。",
   "hero_sub": "真正的终端，使用你自己的 shell、vim、tmux 和 SSH，旁边是已完成命令的列表，可以复制，也可以再次运行。免费、开源，不向任何地方发送数据。",
-  "board_col_command": "命令",
-  "board_col_status": "状态",
-  "board_col_time": "用时",
-  "board_caption": "这些行就是下方真实窗口里的命令块。",
   "departures": [
     {
       "cmd": "sleep 11",
@@ -87,7 +82,6 @@
       "lines": []
     }
   ],
-  "platform_title": "站台",
   "platform_alt": "使用 Dracula 主题的 TermZip：两个标签页、并排的两个窗格，以及带有“慢”标签、失败标签和通知的命令块栏",
   "platform_caption": "使用 Dracula 主题的真实应用：左侧是分屏窗格，右侧是命令块栏，一个插件标出了慢命令和失败。",
   "features_title": "它能做什么",
@@ -145,17 +139,20 @@
     {
       "img": "themes",
       "alt": "外观偏好设置，十二套主题以卡片显示，每套都用自己的颜色预览",
-      "caption": "十二套主题，保存前就能用各自的颜色预览。"
+      "caption": "十二套主题，保存前就能用各自的颜色预览。",
+      "label": "主题"
     },
     {
       "img": "palette-light",
       "alt": "在 Catppuccin Latte 主题上打开的命令面板，已按某个插件的命令筛选",
-      "caption": "命令面板：操作、标签页、配置文件、主题和插件命令。"
+      "caption": "命令面板：操作、标签页、配置文件、主题和插件命令。",
+      "label": "面板"
     },
     {
       "img": "plugin-catalog",
       "alt": "插件目录，列出四个已签名插件及各自请求的权限",
-      "caption": "已签名的插件目录。每个插件会先显示它请求的权限。"
+      "caption": "已签名的插件目录。每个插件会先显示它请求的权限。",
+      "label": "插件"
     }
   ],
   "privacy_title": "没有任何数据离开你的电脑",
@@ -243,8 +240,8 @@
       "a": "不能。插件是没有任何导入的 WebAssembly 文件，所以它没有任何可以调用外部的途径。它只能看到它请求的内容，而且你要先批准。"
     }
   ],
-  "cta_title": "登上第一班车。",
-  "cta_text": "安装 TermZip，打开终端，运行一条命令。",
+  "cta_title": "在 TermZip 里运行你的下一条命令。",
+  "cta_text": "安装它，打开终端，看每条命令变成命令块。",
   "footer_tagline": "用 Rust 编写的开源终端。",
   "footer_license": "MIT 许可证",
   "footer_docs": "文档",
@@ -258,5 +255,7 @@
     "es": "Esta página también está disponible en español.",
     "pt-br": "Esta página também está disponível em português.",
     "zh": "此页面也提供简体中文版本。"
-  }
+  },
+  "hero_cta_github": "在 GitHub 查看",
+  "chip_palette": "命令面板"
 }

@@ -20,23 +20,21 @@ CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacO
 LANGS = ["en", "es", "pt-br", "zh"]
 
 PAGE = """<!doctype html><html lang="{lang}"><meta charset="utf-8"><style>
-@font-face {{ font-family: BC; font-weight: 700; src: url("file://{fonts}/barlow-condensed-700.woff2"); }}
-@font-face {{ font-family: B; font-weight: 400; src: url("file://{fonts}/barlow-400.woff2"); }}
+@font-face {{ font-family: BR; font-weight: 800; src: url("file://{fonts}/bricolage-800.woff2"); }}
+@font-face {{ font-family: HG; font-weight: 500; src: url("file://{fonts}/hanken-500.woff2"); }}
 * {{ box-sizing: border-box; }}
-body {{ margin: 0; width: 1200px; height: 630px; background: #0b0d10; color: #ece9df; font-family: B, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; padding: 56px 64px; position: relative; overflow: hidden; }}
-.sign {{ font: 700 26px/1 BC, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #f4b63c; display: flex; gap: 20px; align-items: center; }}
-.sign i {{ flex: 1; height: 3px; background: repeating-linear-gradient(90deg, #f4b63c 0 12px, transparent 12px 20px); opacity: .55; }}
-.flaps {{ display: flex; justify-content: space-between; margin: 28px 0 36px; }}
-.t {{ width: 140px; height: 190px; border-radius: 10px; background: linear-gradient(#1d222a 50%, #11151a 50%); font: 700 158px/190px BC, sans-serif; text-align: center; position: relative; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }}
-.t::after {{ content: ""; position: absolute; left: 0; right: 0; top: 94px; height: 3px; background: #05070a; }}
-h1 {{ margin: 0; text-wrap: balance; font: 700 58px/1.08 BC, "PingFang SC", "Noto Sans SC", sans-serif; text-transform: uppercase; max-width: 1000px; }}
-.url {{ position: absolute; right: 64px; bottom: 44px; font: 700 28px/1 BC, sans-serif; letter-spacing: .12em; color: #8d929b; text-transform: uppercase; }}
-.bar {{ position: absolute; left: 0; right: 0; bottom: 0; height: 12px; background: #2a62f0; }}
+body {{ margin: 0; width: 1200px; height: 630px; background: #5a47f5; color: #fff; font-family: HG, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif; padding: 64px 72px; position: relative; overflow: hidden; }}
+.c1 {{ position: absolute; width: 520px; height: 520px; border-radius: 50%; background: #5edac8; right: -140px; bottom: -220px; }}
+.c2 {{ position: absolute; width: 360px; height: 360px; border-radius: 50%; border: 34px solid rgba(255,255,255,.16); right: 140px; top: -150px; }}
+.brand {{ position: relative; display: flex; align-items: center; gap: 16px; font: 800 38px/1 BR, sans-serif; }}
+.mark {{ width: 52px; height: 52px; border-radius: 15px; background: #10131b; display: grid; place-items: center; font: 800 26px/1 BR, sans-serif; color: #5edac8; }}
+h1 {{ position: relative; margin: 56px 0 0; max-width: 900px; font: 800 70px/1.04 BR, "PingFang SC", "Noto Sans SC", sans-serif; letter-spacing: -0.03em; text-wrap: balance; }}
+.url {{ position: absolute; left: 72px; bottom: 56px; font: 500 28px/1 HG, sans-serif; opacity: .85; }}
 </style><body>
-<div class="sign"><span>{board}</span><i></i></div>
-<div class="flaps">{tiles}</div>
+<div class="c1"></div><div class="c2"></div>
+<div class="brand"><span class="mark">&gt;_</span>TermZip</div>
 <h1>{title}</h1>
-<div class="url">termzip</div><div class="bar"></div></body></html>"""
+<div class="url">luispeixoto.github.io/TermZip</div></body></html>"""
 
 
 def main():
@@ -49,8 +47,6 @@ def main():
             page = PAGE.format(
                 lang=strings["html_lang"],
                 fonts=os.path.join(SRC, "fonts"),
-                board=html.escape(strings["board_title"]),
-                tiles="".join(f'<div class="t">{c}</div>' for c in "TERMZIP"),
                 title=html.escape(strings["og_title"]),
             )
             path = os.path.join(work, f"{lang}.html")

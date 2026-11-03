@@ -215,6 +215,9 @@ def build_page(template, lang, version, all_strings, asset_version):
     for index, item in enumerate(strings["installs"]):
         installs.append({**item, "selected": "true" if index == 0 else "false", "tabindex": "0" if index == 0 else "-1"})
     og_image = f"{SITE_URL}/img/og-{lang}.png"
+    # Each feature knows which drawn fragment of the interface sits in its tile.
+    ids = ["blocks", "tabs", "terminal", "plugins", "snippets", "ssh", "themes", "shape", "accessible"]
+    features = [{**item, "id": ids[i], "is_" + ids[i]: True} for i, item in enumerate(strings["features"])]
     scope = {
         **strings,
         "lang": lang,
@@ -225,7 +228,8 @@ def build_page(template, lang, version, all_strings, asset_version):
         "home_href": base + page_path(lang),
         "alternates": alternates,
         "installs": installs,
-        "word": list(WORD),
+        "features": features,
+        "first": strings["departures"][0],
         "og_image": og_image,
         "asset_version": asset_version,
         "jsonld": json_ld(strings, lang, version),
