@@ -1,0 +1,262 @@
+{
+  "lang_name": "简体中文",
+  "html_lang": "zh-CN",
+  "hreflang": "zh-CN",
+  "og_locale": "zh_CN",
+  "meta_title": "TermZip：带命令块的开源终端",
+  "meta_description": "TermZip 是适用于 macOS、Windows 和 Linux 的免费开源终端。每条命令都成为可复制、可重跑的命令块。标签页、分屏、插件，无遥测。",
+  "meta_keywords": "终端， 终端模拟器， 命令行， shell, zsh, bash, fish, PowerShell, 命令块， 分屏， 标签页， 开源， Rust, Tauri, macOS, Windows, Linux",
+  "og_title": "TermZip：把每条命令变成命令块的终端",
+  "og_description": "真正的终端，旁边是已完成命令的列表，可以复制，也可以再次运行。免费、开源，不向任何地方发送数据。",
+  "og_image_alt": "出发信息牌上的 TermZip：翻页牌上拼出 TERMZIP 字样",
+  "skip_link": "跳到正文",
+  "nav_label": "主导航",
+  "nav_features": "功能",
+  "nav_privacy": "隐私",
+  "nav_install": "安装",
+  "nav_faq": "常见问题",
+  "nav_github": "GitHub",
+  "lang_label": "语言",
+  "home_label": "TermZip 首页",
+  "board_title": "出发",
+  "hero_h1": "把每条命令变成命令块的终端。",
+  "hero_sub": "真正的终端，使用你自己的 shell、vim、tmux 和 SSH，旁边是已完成命令的列表，可以复制，也可以再次运行。免费、开源，不向任何地方发送数据。",
+  "board_col_command": "命令",
+  "board_col_status": "状态",
+  "board_col_time": "用时",
+  "board_caption": "这些行就是下方真实窗口里的命令块。",
+  "departures": [
+    {
+      "cmd": "sleep 11",
+      "status": "ok",
+      "kind": "ok",
+      "time": "11.0 s",
+      "tag": "慢"
+    },
+    {
+      "cmd": "ls /nope",
+      "status": "exit 2",
+      "kind": "fail",
+      "time": "27 ms",
+      "tag": ""
+    },
+    {
+      "cmd": "printf PASS web build",
+      "status": "ok",
+      "kind": "ok",
+      "time": "19 ms",
+      "tag": ""
+    },
+    {
+      "cmd": "cd /tmp/termzip-demo/web",
+      "status": "ok",
+      "kind": "ok",
+      "time": "26 ms",
+      "tag": ""
+    }
+  ],
+  "install_title": "安装 TermZip",
+  "install_sub": "版本 {{version}}，MIT 许可证。每个系统一条命令。",
+  "install_tabs_label": "选择你的系统",
+  "install_copy": "复制",
+  "install_copied": "已复制",
+  "install_releases": "在 GitHub 下载全部版本",
+  "install_unsigned": "构建尚未使用 Apple 或 Windows 证书签名，因此系统首次打开时可能会提示。每个版本都会公布 SHA-256 校验值。",
+  "installs": [
+    {
+      "id": "macos",
+      "label": "macOS",
+      "note": "Homebrew。支持 Apple 芯片和 Intel。",
+      "lines": [
+        "brew install --cask luispeixoto/termzip/termzip"
+      ]
+    },
+    {
+      "id": "windows",
+      "label": "Windows",
+      "note": "Scoop。或下载安装程序。",
+      "lines": [
+        "scoop bucket add termzip https://github.com/LuisPeixoto/scoop-termzip",
+        "scoop install termzip"
+      ]
+    },
+    {
+      "id": "linux",
+      "label": "Linux",
+      "note": "在发布页面下载 AppImage、.deb 或 .rpm。",
+      "lines": []
+    }
+  ],
+  "platform_title": "站台",
+  "platform_alt": "使用 Dracula 主题的 TermZip：两个标签页、并排的两个窗格，以及带有“慢”标签、失败标签和通知的命令块栏",
+  "platform_caption": "使用 Dracula 主题的真实应用：左侧是分屏窗格，右侧是命令块栏，一个插件标出了慢命令和失败。",
+  "features_title": "它能做什么",
+  "features_intro": "以下内容全部包含在 1.0 中，有测试验证，并有文档说明。",
+  "features_docs": "文档",
+  "features": [
+    {
+      "name": "命令块",
+      "text": "使用 zsh、bash、fish 或 PowerShell 时，每条完成的命令都会成为一个命令块，包含退出码、用时、目录和带颜色的输出。可以复制，也可以一键重跑。",
+      "link": "shell-integration.md"
+    },
+    {
+      "name": "标签页与分屏",
+      "text": "一个窗口里有多个 shell，可向右或向下分屏，拖动调整大小。下次启动时布局会恢复：只保存结构，从不保存输出。",
+      "link": "tabs-and-panes.md"
+    },
+    {
+      "name": "真正的终端",
+      "text": "vim、htop、tmux、SSH 和各种 REPL 与在别处一样运行。可搜索历史输出，安全地点击链接，而且点击永远不会启动程序。",
+      "link": "terminal-compatibility.md"
+    },
+    {
+      "name": "插件",
+      "text": "小型 WebAssembly 文件可以添加命令面板命令、命令块标签和状态栏项目。插件无法访问你的文件、网络或其他程序。",
+      "link": "plugins.md"
+    },
+    {
+      "name": "片段与任务",
+      "text": "保存带 {{值}} 的命令，并在命令面板中找到项目的脚本（package.json、Cargo、Makefile、justfile）。它们只会被输入出来供你查看，TermZip 从不替你按回车。",
+      "link": "snippets.md"
+    },
+    {
+      "name": "SSH 与 WSL",
+      "text": "打开即已连接的标签页，使用你自己的代理和 ~/.ssh/config。TermZip 不保存任何密钥、密码或身份文件。",
+      "link": "ssh-and-wsl.md"
+    },
+    {
+      "name": "十二套主题",
+      "text": "Dracula、Nord、Catppuccin、Gruvbox、Tokyo Night 等，为整个窗口换色。可直接导入 iTerm2、Windows Terminal、Ghostty、Kitty 和 Alacritty 的主题。",
+      "link": "themes.md"
+    },
+    {
+      "name": "随你定制",
+      "text": "重新绑定每个快捷键，把配置文件关联到文件夹，调整光标、间距和窗口模糊。git 分支和状态显示在状态栏中，也可以关闭。",
+      "link": "keyboard.md"
+    },
+    {
+      "name": "无障碍",
+      "text": "可选的屏幕阅读器支持，系统要求减少动效时不再有动画，所有主题中的界面颜色都满足 WCAG AA 对比度。",
+      "link": "accessibility.md"
+    }
+  ],
+  "gallery_title": "近距离看看",
+  "gallery": [
+    {
+      "img": "themes",
+      "alt": "外观偏好设置，十二套主题以卡片显示，每套都用自己的颜色预览",
+      "caption": "十二套主题，保存前就能用各自的颜色预览。"
+    },
+    {
+      "img": "palette-light",
+      "alt": "在 Catppuccin Latte 主题上打开的命令面板，已按某个插件的命令筛选",
+      "caption": "命令面板：操作、标签页、配置文件、主题和插件命令。"
+    },
+    {
+      "img": "plugin-catalog",
+      "alt": "插件目录，列出四个已签名插件及各自请求的权限",
+      "caption": "已签名的插件目录。每个插件会先显示它请求的权限。"
+    }
+  ],
+  "privacy_title": "没有任何数据离开你的电脑",
+  "privacy_intro": "TermZip 没有账号，也没有遥测。这些是可以核实的事实，而不是承诺。",
+  "privacy_rows": [
+    {
+      "label": "遥测",
+      "value": "无"
+    },
+    {
+      "label": "账号",
+      "value": "无"
+    },
+    {
+      "label": "网络",
+      "value": "仅在你点击按钮时使用"
+    },
+    {
+      "label": "更新",
+      "value": "已签名，且仅在你要求时安装"
+    },
+    {
+      "label": "插件",
+      "value": "沙盒运行，无文件、网络或进程权限"
+    },
+    {
+      "label": "安全评审",
+      "value": "已有书面评审、12 个模糊测试目标，尚无独立审计"
+    }
+  ],
+  "privacy_link": "阅读安全评审",
+  "perf_title": "实测，而非宣称",
+  "perf_intro": "在 32 GB 内存的 Intel Mac 上的发布版本。这些预算在持续集成中检查。",
+  "perf_col_measure": "指标",
+  "perf_col_budget": "预算",
+  "perf_col_measured": "实测",
+  "perf_rows": [
+    {
+      "label": "启动到首个提示符",
+      "budget": "不超过 700 毫秒",
+      "measured": "578 毫秒"
+    },
+    {
+      "label": "海量输出（seq）",
+      "budget": "至少每秒 180,000 行",
+      "measured": "每秒 200,000 行"
+    },
+    {
+      "label": "空闲时的处理器占用",
+      "budget": "不超过 5 %",
+      "measured": "2.5 %"
+    },
+    {
+      "label": "含 Web 视图的内存",
+      "budget": "不超过 700 MB",
+      "measured": "611 MB"
+    }
+  ],
+  "perf_note": "在海量输出时 Windows 更慢;所有数据与限制请见性能指南。",
+  "perf_link": "性能指南",
+  "faq_title": "常见问题",
+  "faq": [
+    {
+      "q": "TermZip 是免费的吗？",
+      "a": "是的。TermZip 以 MIT 许可证开源，没有账号，也没有付费版本。"
+    },
+    {
+      "q": "支持哪些系统？",
+      "a": "macOS（Apple 芯片和 Intel）、Windows 和 Linux。发布版本包含 dmg、安装程序和 msi、AppImage、deb 和 rpm。"
+    },
+    {
+      "q": "TermZip 会把我的数据发到某个地方吗？",
+      "a": "不会。没有遥测，也没有账号。只有当你点击按钮时才会使用网络：加载插件目录、安装插件或检查更新。"
+    },
+    {
+      "q": "它是真正的终端，还是另一种 shell？",
+      "a": "是真正的终端。它在真实的伪终端中运行你自己的 shell，所以 vim、tmux、SSH 和你的行编辑器都照常工作。命令块是叠加在上面的，支持 zsh、bash、fish 和 PowerShell。"
+    },
+    {
+      "q": "为什么打开时系统会提示警告？",
+      "a": "发布版本目前尚未使用 Apple 或 Windows 证书签名。请核对每个版本公布的 SHA-256 校验值，或使用 Homebrew、Scoop 安装，它们会替你校验。"
+    },
+    {
+      "q": "插件能读取我的文件或访问互联网吗？",
+      "a": "不能。插件是没有任何导入的 WebAssembly 文件，所以它没有任何可以调用外部的途径。它只能看到它请求的内容，而且你要先批准。"
+    }
+  ],
+  "cta_title": "登上第一班车。",
+  "cta_text": "安装 TermZip，打开终端，运行一条命令。",
+  "footer_tagline": "用 Rust 编写的开源终端。",
+  "footer_license": "MIT 许可证",
+  "footer_docs": "文档",
+  "footer_releases": "版本",
+  "footer_changelog": "更新日志",
+  "footer_security": "安全",
+  "footer_languages": "语言",
+  "offer_label": "此页面也提供你的语言版本：",
+  "offer_dismiss": "关闭",
+  "offers": {
+    "es": "Esta página también está disponible en español.",
+    "pt-br": "Esta página também está disponível em português.",
+    "zh": "此页面也提供简体中文版本。"
+  }
+}

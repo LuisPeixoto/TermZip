@@ -19,6 +19,7 @@
 </p>
 
 <p align="center">
+  <a href="https://luispeixoto.github.io/TermZip/">Website</a> ·
   <a href="#getting-started">Getting started</a> ·
   <a href="docs/roadmap.md">Roadmap</a> ·
   <a href="docs/architecture.md">Architecture</a> ·

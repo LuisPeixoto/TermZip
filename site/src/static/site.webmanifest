@@ -1,0 +1,10 @@
+{
+  "name": "TermZip",
+  "short_name": "TermZip",
+  "description": "An open-source terminal with command blocks.",
+  "start_url": ".",
+  "display": "browser",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }]
+}

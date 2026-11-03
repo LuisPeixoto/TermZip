@@ -1,0 +1,262 @@
+{
+  "lang_name": "Español",
+  "html_lang": "es",
+  "hreflang": "es",
+  "og_locale": "es_ES",
+  "meta_title": "TermZip: terminal de código abierto con bloques",
+  "meta_description": "TermZip es una terminal gratuita y de código abierto para macOS, Windows y Linux. Cada comando es un bloque que puedes copiar y repetir. Pestañas y paneles.",
+  "meta_keywords": "terminal, emulador de terminal, línea de comandos, shell, zsh, bash, fish, PowerShell, bloques de comandos, paneles divididos, pestañas, código abierto, Rust, Tauri, macOS, Windows, Linux",
+  "og_title": "TermZip: la terminal que convierte cada comando en un bloque",
+  "og_description": "Una terminal de verdad con una columna de comandos terminados que puedes copiar y volver a ejecutar. Gratuita, de código abierto y no envía nada a ningún sitio.",
+  "og_image_alt": "TermZip en un panel de salidas: las letras TERMZIP en fichas de panel mecánico",
+  "skip_link": "Saltar al contenido",
+  "nav_label": "Principal",
+  "nav_features": "Funciones",
+  "nav_privacy": "Privacidad",
+  "nav_install": "Instalar",
+  "nav_faq": "Preguntas",
+  "nav_github": "GitHub",
+  "lang_label": "Idioma",
+  "home_label": "TermZip, inicio",
+  "board_title": "Salidas",
+  "hero_h1": "La terminal que convierte cada comando en un bloque.",
+  "hero_sub": "Una terminal de verdad con tu propio shell, vim, tmux y SSH, y una columna de comandos terminados que puedes copiar y ejecutar de nuevo. Gratuita, de código abierto y no envía nada a ningún sitio.",
+  "board_col_command": "Comando",
+  "board_col_status": "Estado",
+  "board_col_time": "Tiempo",
+  "board_caption": "Estas filas son los bloques de comandos de la ventana real que aparece debajo.",
+  "departures": [
+    {
+      "cmd": "sleep 11",
+      "status": "ok",
+      "kind": "ok",
+      "time": "11,0 s",
+      "tag": "lento"
+    },
+    {
+      "cmd": "ls /nope",
+      "status": "exit 2",
+      "kind": "fail",
+      "time": "27 ms",
+      "tag": ""
+    },
+    {
+      "cmd": "printf PASS web build",
+      "status": "ok",
+      "kind": "ok",
+      "time": "19 ms",
+      "tag": ""
+    },
+    {
+      "cmd": "cd /tmp/termzip-demo/web",
+      "status": "ok",
+      "kind": "ok",
+      "time": "26 ms",
+      "tag": ""
+    }
+  ],
+  "install_title": "Instala TermZip",
+  "install_sub": "Versión {{version}}, licencia MIT. Un comando por sistema.",
+  "install_tabs_label": "Elige tu sistema",
+  "install_copy": "Copiar",
+  "install_copied": "Copiado",
+  "install_releases": "Todas las descargas en GitHub",
+  "install_unsigned": "Las compilaciones aún no están firmadas con un certificado de Apple o Windows, así que el sistema puede avisarte al abrirlas por primera vez. Cada versión publica sus sumas SHA-256.",
+  "installs": [
+    {
+      "id": "macos",
+      "label": "macOS",
+      "note": "Homebrew. Apple silicon e Intel.",
+      "lines": [
+        "brew install --cask luispeixoto/termzip/termzip"
+      ]
+    },
+    {
+      "id": "windows",
+      "label": "Windows",
+      "note": "Scoop. O descarga el instalador.",
+      "lines": [
+        "scoop bucket add termzip https://github.com/LuisPeixoto/scoop-termzip",
+        "scoop install termzip"
+      ]
+    },
+    {
+      "id": "linux",
+      "label": "Linux",
+      "note": "AppImage, .deb y .rpm en la página de versiones.",
+      "lines": []
+    }
+  ],
+  "platform_title": "Andén",
+  "platform_alt": "TermZip con el tema Dracula: dos pestañas, dos paneles lado a lado y la columna de bloques de comandos con una etiqueta de lento, una de fallo y una notificación",
+  "platform_caption": "La aplicación real con el tema Dracula: paneles divididos a la izquierda, la columna de bloques a la derecha y un plugin que marca el comando lento y el fallo.",
+  "features_title": "Qué hace",
+  "features_intro": "Todo lo que sigue está en la 1.0, comprobado con pruebas y documentado.",
+  "features_docs": "Documentación",
+  "features": [
+    {
+      "name": "Bloques de comandos",
+      "text": "Con zsh, bash, fish o PowerShell, cada comando terminado se vuelve un bloque con su código de salida, duración, carpeta y salida en color. Cópialo o ejecútalo de nuevo con un clic.",
+      "link": "shell-integration.md"
+    },
+    {
+      "name": "Pestañas y paneles",
+      "text": "Varios shells en una ventana, divididos a la derecha o abajo y redimensionables arrastrando. Tu disposición vuelve en el próximo arranque: solo la estructura, nunca la salida.",
+      "link": "tabs-and-panes.md"
+    },
+    {
+      "name": "Una terminal de verdad",
+      "text": "vim, htop, tmux, SSH y los REPL funcionan como en cualquier sitio. Busca en el historial, abre enlaces con seguridad, y un clic nunca puede iniciar un programa.",
+      "link": "terminal-compatibility.md"
+    },
+    {
+      "name": "Plugins",
+      "text": "Pequeños archivos WebAssembly añaden comandos a la paleta, etiquetas a los bloques y elementos a la barra de estado. Un plugin no tiene forma de llegar a tus archivos, a la red ni a otros programas.",
+      "link": "plugins.md"
+    },
+    {
+      "name": "Fragmentos y tareas",
+      "text": "Guarda comandos con {{valores}} y encuentra los scripts de tu proyecto (package.json, Cargo, Makefile, justfile) en la paleta. Se escriben para que los leas; TermZip nunca pulsa Intro.",
+      "link": "snippets.md"
+    },
+    {
+      "name": "SSH y WSL",
+      "text": "Una pestaña que se abre ya conectada, con tu propio agente y ~/.ssh/config. TermZip no guarda ninguna clave, contraseña ni archivo de identidad.",
+      "link": "ssh-and-wsl.md"
+    },
+    {
+      "name": "Doce temas",
+      "text": "Dracula, Nord, Catppuccin, Gruvbox, Tokyo Night y más, que recolorean toda la ventana. Importa temas de iTerm2, Windows Terminal, Ghostty, Kitty y Alacritty tal cual.",
+      "link": "themes.md"
+    },
+    {
+      "name": "A tu medida",
+      "text": "Reasigna cada atajo, asocia un perfil a una carpeta, ajusta cursor, espaciado y desenfoque. La rama y el estado de git están en la barra de estado y se pueden desactivar.",
+      "link": "keyboard.md"
+    },
+    {
+      "name": "Accesible",
+      "text": "Compatibilidad opcional con lectores de pantalla, sin movimiento cuando tu sistema lo pide y todos los colores de la interfaz con contraste WCAG AA en cada tema.",
+      "link": "accessibility.md"
+    }
+  ],
+  "gallery_title": "Míralo de cerca",
+  "gallery": [
+    {
+      "img": "themes",
+      "alt": "Las preferencias de Apariencia con los doce temas como tarjetas, cada una con vista previa en sus propios colores",
+      "caption": "Doce temas, cada uno con vista previa en sus colores antes de guardar."
+    },
+    {
+      "img": "palette-light",
+      "alt": "La paleta de comandos abierta sobre el tema Catppuccin Latte, filtrada a los comandos de un plugin",
+      "caption": "La paleta de comandos: acciones, pestañas, perfiles, temas y comandos de plugins."
+    },
+    {
+      "img": "plugin-catalog",
+      "alt": "El catálogo de plugins con cuatro plugins firmados y los permisos que pide cada uno",
+      "caption": "Un catálogo de plugins firmado. Cada plugin muestra primero los permisos que pide."
+    }
+  ],
+  "privacy_title": "Nada sale de tu equipo",
+  "privacy_intro": "TermZip no tiene cuentas ni telemetría. Son hechos que puedes comprobar, no promesas.",
+  "privacy_rows": [
+    {
+      "label": "Telemetría",
+      "value": "Ninguna"
+    },
+    {
+      "label": "Cuentas",
+      "value": "Ninguna"
+    },
+    {
+      "label": "Red",
+      "value": "Solo cuando pulsas un botón"
+    },
+    {
+      "label": "Actualizaciones",
+      "value": "Firmadas, y solo se instalan cuando lo pides"
+    },
+    {
+      "label": "Plugins",
+      "value": "En sandbox, sin archivos, red ni procesos"
+    },
+    {
+      "label": "Seguridad",
+      "value": "Revisión escrita, 12 objetivos de fuzzing, aún sin auditoría independiente"
+    }
+  ],
+  "privacy_link": "Lee la revisión de seguridad",
+  "perf_title": "Medido, no prometido",
+  "perf_intro": "Versión de lanzamiento en un Mac Intel con 32 GB. Los presupuestos se comprueban en la integración continua.",
+  "perf_col_measure": "Medida",
+  "perf_col_budget": "Presupuesto",
+  "perf_col_measured": "Medido",
+  "perf_rows": [
+    {
+      "label": "Primer prompt tras abrir",
+      "budget": "como máximo 700 ms",
+      "measured": "578 ms"
+    },
+    {
+      "label": "Salida de una avalancha (seq)",
+      "budget": "al menos 180.000 líneas/s",
+      "measured": "200.000 líneas/s"
+    },
+    {
+      "label": "Procesador en reposo",
+      "budget": "como máximo 5 %",
+      "measured": "2,5 %"
+    },
+    {
+      "label": "Memoria con la vista web",
+      "budget": "como máximo 700 MB",
+      "measured": "611 MB"
+    }
+  ],
+  "perf_note": "Windows es más lento con una gran avalancha de salida; consulta la guía de rendimiento para todas las cifras y límites.",
+  "perf_link": "Guía de rendimiento",
+  "faq_title": "Preguntas",
+  "faq": [
+    {
+      "q": "¿TermZip es gratis?",
+      "a": "Sí. TermZip es de código abierto con licencia MIT, sin cuentas y sin nivel de pago."
+    },
+    {
+      "q": "¿En qué sistemas funciona?",
+      "a": "macOS (Apple silicon e Intel), Windows y Linux. Las versiones incluyen un dmg, un instalador y un msi, un AppImage, un deb y un rpm."
+    },
+    {
+      "q": "¿TermZip envía mis datos a algún sitio?",
+      "a": "No. No hay telemetría ni cuenta. Usa la red solo cuando pulsas un botón: cargar el catálogo de plugins, instalar un plugin o buscar una actualización."
+    },
+    {
+      "q": "¿Es una terminal de verdad o un tipo distinto de shell?",
+      "a": "De verdad. Ejecuta tu propio shell en un pseudoterminal real, así que vim, tmux, SSH y tu editor de línea funcionan igual. Los bloques se añaden encima, para zsh, bash, fish y PowerShell."
+    },
+    {
+      "q": "¿Por qué mi sistema me avisa al abrirlo?",
+      "a": "Las versiones aún no están firmadas con un certificado de Apple o Windows. Comprueba las sumas SHA-256 publicadas con cada versión, o instala con Homebrew o Scoop, que las comprueban por ti."
+    },
+    {
+      "q": "¿Pueden los plugins leer mis archivos o usar internet?",
+      "a": "No. Un plugin es un archivo WebAssembly sin importaciones, así que no tiene con qué llamar al exterior. Solo ve lo que pidió, y tú lo apruebas antes."
+    }
+  ],
+  "cta_title": "Sube al primer tren.",
+  "cta_text": "Instala TermZip, abre una terminal y ejecuta un comando.",
+  "footer_tagline": "Una terminal de código abierto escrita en Rust.",
+  "footer_license": "Licencia MIT",
+  "footer_docs": "Documentación",
+  "footer_releases": "Versiones",
+  "footer_changelog": "Cambios",
+  "footer_security": "Seguridad",
+  "footer_languages": "Idiomas",
+  "offer_label": "Esta página también está disponible en tu idioma:",
+  "offer_dismiss": "Cerrar",
+  "offers": {
+    "es": "Esta página también está disponible en español.",
+    "pt-br": "Esta página também está disponível em português.",
+    "zh": "此页面也提供简体中文版本。"
+  }
+}
