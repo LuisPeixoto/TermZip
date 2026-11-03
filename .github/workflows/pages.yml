@@ -1,0 +1,57 @@
+name: Website
+
+# Builds site/ into one page per language and publishes it with GitHub Pages. Runs when the site or its builder change,
+# and on demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "tools/build-site.py"
+      - "tools/test_build_site.py"
+      - "Cargo.toml"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "tools/build-site.py"
+      - "tools/test_build_site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the website
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test the build (every language complete, SEO tags, links, images)
+        run: python3 tools/test_build_site.py
+      - name: Build for the Pages address
+        run: SITE_URL="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}" python3 tools/build-site.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    name: Publish
+    # Only the main branch publishes; a pull request just proves that the site builds.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
