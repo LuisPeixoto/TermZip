@@ -10,6 +10,7 @@
 //! it asks is fixed in the configuration (the latest release of this project on GitHub).
 
 use std::sync::Mutex;
+use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, State};
@@ -81,7 +82,15 @@ fn explain(error: &tauri_plugin_updater::Error) -> String {
     explain_text(&error.to_string())
 }
 
+/// How long asking the update server may take. Without a limit a connection that never answers leaves the button on
+/// "Checking…" until the system gives up, a minute or more later.
+const CHECK_TIMEOUT: Duration = Duration::from_secs(20);
+/// How long downloading the update file may take once the person asked for it.
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
 fn updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, String> {
+    #[cfg_attr(not(debug_assertions), allow(unused_mut))]
+    let mut builder = app.updater_builder().timeout(CHECK_TIMEOUT);
     #[cfg(debug_assertions)]
     if let Ok(endpoint) = std::env::var(ENDPOINT_ENV)
         && !endpoint.is_empty()
@@ -89,14 +98,11 @@ fn updater(app: &AppHandle) -> Result<tauri_plugin_updater::Updater, String> {
         let url = endpoint
             .parse()
             .map_err(|_| format!("{ENDPOINT_ENV} is not an address."))?;
-        return app
-            .updater_builder()
+        builder = builder
             .endpoints(vec![url])
-            .map_err(|error| error.to_string())?
-            .build()
-            .map_err(|error| error.to_string());
+            .map_err(|error| error.to_string())?;
     }
-    app.updater().map_err(|error| error.to_string())
+    builder.build().map_err(|error| error.to_string())
 }
 
 /// Asks the update server whether a newer version exists. `None` when this one is the newest.
@@ -105,10 +111,14 @@ pub async fn check_for_update(
     app: AppHandle,
     state: State<'_, UpdateState>,
 ) -> Result<Option<UpdateInfo>, String> {
-    let found = updater(&app)?
+    let mut found = updater(&app)?
         .check()
         .await
         .map_err(|error| explain(&error))?;
+    // The short limit was for the question; the file itself may be large and the connection slow.
+    if let Some(update) = found.as_mut() {
+        update.timeout = Some(DOWNLOAD_TIMEOUT);
+    }
     let info = found.as_ref().map(info_of);
     *state
         .0
@@ -173,6 +183,12 @@ mod tests {
     }
 
     #[test]
+    fn the_check_is_short_and_the_download_is_not() {
+        assert!(CHECK_TIMEOUT <= Duration::from_secs(30));
+        assert!(DOWNLOAD_TIMEOUT >= Duration::from_secs(10 * 60));
+    }
+
+    #[test]
     fn what_the_updater_says_becomes_a_sentence_a_person_can_act_on() {
         let signature = explain_text("Signature verification failed");
         assert!(
@@ -182,6 +198,8 @@ mod tests {
         assert!(
             explain_text("error sending request for url (https://x)").contains("Could not reach")
         );
+        // What the time limit of the check produces.
+        assert!(explain_text("operation timed out").contains("Could not reach"));
         assert!(
             explain_text("Could not fetch a valid release JSON from the remote")
                 .contains("no usable information")
