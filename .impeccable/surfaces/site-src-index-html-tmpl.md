@@ -6,21 +6,21 @@ related_targets: []
 ---
 
 ## Scope and visitor mode
-Persuade. The TermZip landing page, four languages (en, es, pt-br, zh), one page each.
+Persuade. The TermZip landing page in four languages (en, es, pt-br, zh). Redesign: the departure board is discarded as a cliché developer look and is the anti-reference.
 
 ## Audience, job, action, proof, constraints
-Developers and curious terminal users deciding in seconds. Action: copy the install command for their system. Proof: the real app screenshots, the measured numbers of docs/performance.md, the facts of PRODUCT.md. No invented users, stars or comparisons; say unsigned builds plainly.
+Developers and curious terminal users deciding in seconds. Action: copy the install command. Proof: real screenshots, measured numbers (docs/performance.md), the facts of PRODUCT.md. Nothing invented; unsigned builds stated plainly.
 
 ## Chosen direction
-The Departure Board (station split-flap board and enamel signs). Memorable moment: the letters of TERMZIP flip into place, then the command rows below depart with real statuses.
+The category standard, played straight at full fidelity, held to the craft level of Raycast and Arc (the user's choice): a clean product page with one bold brand-colour stage, large radii, product UI drawn as live HTML, keycaps, a bento of capabilities. Memorable moment: the app floats on a violet stage with a real command-block card and a palette keycap hint overlapping its edge.
 
 ## Direction contract
-THESIS: every command is a departure that left on time or failed; the page is a board of departures with the real app as the platform. It refuses the centred headline over a row of equal cards.
-OWN-WORLD: matte black board, flap-white letters in a strict cell grid, amber for what is active, a blue enamel sign for the install action; engraved-caps labels, rows ruled like a timetable; recognizable with all text removed.
-STORY: the visitor sees a real terminal with command blocks, believes it (real screenshots, real numbers, nothing sent anywhere), and copies the install command.
-FIRST VIEWPORT: full-width black board; top row a flap line spelling TERMZIP with the one-sentence hook; below, four departure rows (command, status, time, exit code); to the right a blue platform sign with the install command per OS and a copy button; the real app window below the fold line as the platform.
-FORM: Departure Board, list position 4 of 7, seed: 965a1789238a491a.
+THESIS: show the product, not a theme: a confident bright page where the real app sits on one saturated brand stage and every capability is a small drawn piece of the real interface. Refuses the dark centred hero over a row of identical icon cards.
+OWN-WORLD: warm paper neutrals (#f6f4ef), ink (#16141f), one committed brand violet field (#5a47f5) with the mark's teal (#5edac8) as the success colour; 28-32px radii, pill buttons, keycaps, bento tiles of different sizes each holding a drawn UI fragment.
+STORY: the visitor sees a real terminal with blocks, believes it (real screenshots, real numbers, nothing sent anywhere), and copies the install command.
+FIRST VIEWPORT: top pill nav with language switcher; left a large two-line headline, one sentence and the install pill (system tabs, command, copy); right and below a violet stage holding the real app screenshot with a floating command-block card and a command-palette keycap chip.
+FORM: category standard, record: user chose canon with Raycast and Arc as the bar; seed: 965a1789238a491a (re-roll 1, bolder).
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
 
 ## Unresolved
-Social image per language is generated from the board look; Chinese typography fallback stack.
+Social cards regenerated in the new look; CJK fallback stack.
