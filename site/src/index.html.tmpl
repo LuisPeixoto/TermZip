@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="{{html_lang}}" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{meta_title}}</title>
+  <meta name="description" content="{{meta_description}}">
+  <meta name="keywords" content="{{meta_keywords}}">
+  <meta name="author" content="Luis Peixoto">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="theme-color" content="#0b0d10">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="{{canonical}}">
+  {% for alt in alternates %}<link rel="alternate" hreflang="{{alt.hreflang}}" href="{{alt.href}}">
+  {% endfor %}<link rel="alternate" hreflang="x-default" href="{{default_href}}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TermZip">
+  <meta property="og:title" content="{{og_title}}">
+  <meta property="og:description" content="{{og_description}}">
+  <meta property="og:url" content="{{canonical}}">
+  <meta property="og:locale" content="{{og_locale}}">
+  {% for alt in alternates %}{% if alt.other %}<meta property="og:locale:alternate" content="{{alt.og_locale}}">
+  {% endif %}{% endfor %}<meta property="og:image" content="{{og_image}}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{{og_image_alt}}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{og_title}}">
+  <meta name="twitter:description" content="{{og_description}}">
+  <meta name="twitter:image" content="{{og_image}}">
+  <meta name="twitter:image:alt" content="{{og_image_alt}}">
+
+  <link rel="icon" href="{{base}}/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="{{base}}/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="{{base}}/apple-touch-icon.png">
+  <link rel="manifest" href="{{base}}/site.webmanifest">
+  <link rel="preload" href="{{base}}/fonts/barlow-condensed-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{base}}/fonts/jetbrains-mono-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{base}}/styles.css?v={{asset_version}}">
+  <script>document.documentElement.className = "js";</script>
+  <script type="application/ld+json">{{{jsonld}}}</script>
+</head>
+<body data-offers="{{offers_json}}" data-lang="{{lang}}">
+  <a class="skip" href="#content">{{skip_link}}</a>
+
+  <header class="site-top">
+    <div class="wrap top-row">
+      <a class="brand" href="{{home_href}}" aria-label="{{home_label}}">
+        <img src="{{base}}/favicon.svg" width="32" height="32" alt="" decoding="async">
+        <span>TermZip</span>
+      </a>
+      <nav class="nav" aria-label="{{nav_label}}">
+        <a href="#features">{{nav_features}}</a>
+        <a href="#privacy">{{nav_privacy}}</a>
+        <a href="#install">{{nav_install}}</a>
+        <a href="#faq">{{nav_faq}}</a>
+        <a href="https://github.com/LuisPeixoto/TermZip" rel="noopener">{{nav_github}}</a>
+      </nav>
+      <nav class="langs" aria-label="{{lang_label}}">
+        {% for alt in alternates %}<a href="{{alt.href}}" lang="{{alt.html_lang}}" hreflang="{{alt.hreflang}}"{% if alt.current %} aria-current="true"{% endif %}>{{alt.name}}</a>
+        {% endfor %}
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="board" aria-labelledby="hero-title">
+      <div class="wrap">
+        <p class="board-sign"><span>{{board_title}}</span><span class="board-sign-rule" aria-hidden="true"></span></p>
+
+        <div class="flaps" aria-hidden="true" data-word="TERMZIP">
+          {% for ch in word %}<span class="tile" data-char="{{ch}}"><span class="half top"><i>{{ch}}</i></span><span class="half bottom"><i>{{ch}}</i></span></span>{% endfor %}
+        </div>
+
+        <div class="board-grid">
+          <div class="board-main">
+          <h1 id="hero-title" class="hero-h1">{{hero_h1}}</h1>
+          <p class="hero-sub">{{hero_sub}}</p>
+          <div class="departures">
+            <table>
+              <caption>{{board_caption}}</caption>
+              <thead>
+                <tr><th scope="col">{{board_col_command}}</th><th scope="col">{{board_col_status}}</th><th scope="col">{{board_col_time}}</th></tr>
+              </thead>
+              <tbody>
+                {% for d in departures %}<tr class="row-{{d.kind}}">
+                  <th scope="row"><code>{{d.cmd}}</code>{% if d.tag %}<span class="tag">{{d.tag}}</span>{% endif %}</th>
+                  <td><span class="status status-{{d.kind}}">{{d.status}}</span></td>
+                  <td class="num">{{d.time}}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          </div>
+
+          <aside class="sign" id="install" aria-labelledby="install-title">
+            <h2 id="install-title">{{install_title}}</h2>
+            <p class="sign-sub">{{install_sub}}</p>
+            <div class="tabs" role="tablist" aria-label="{{install_tabs_label}}">
+              {% for i in installs %}<button type="button" role="tab" id="tab-{{i.id}}" aria-controls="panel-{{i.id}}" aria-selected="{{i.selected}}" tabindex="{{i.tabindex}}" data-os="{{i.id}}">{{i.label}}</button>
+              {% endfor %}
+            </div>
+            {% for i in installs %}<div class="panel" role="tabpanel" id="panel-{{i.id}}" aria-labelledby="tab-{{i.id}}" data-os="{{i.id}}">
+              <p class="panel-note">{{i.note}}</p>
+              {% for line in i.lines %}<div class="cmd">
+                <code>{{line}}</code>
+                <button type="button" class="copy" data-copy="{{line}}" data-done="{{install_copied}}">{{install_copy}}</button>
+              </div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+            <p class="sign-links"><a href="https://github.com/LuisPeixoto/TermZip/releases/latest" rel="noopener">{{install_releases}}</a></p>
+            <p class="sign-warn">{{install_unsigned}}</p>
+            <p class="copied" role="status" aria-live="polite"></p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="platform" aria-labelledby="platform-title">
+      <div class="wrap">
+        <h2 id="platform-title" class="plate">{{platform_title}}</h2>
+        <figure class="shot">
+          <img src="{{base}}/img/dracula-1600.jpg" srcset="{{base}}/img/dracula-800.jpg 800w, {{base}}/img/dracula-1600.jpg 1600w" sizes="(min-width: 1240px) 1200px, 94vw" width="1600" height="1058" alt="{{platform_alt}}" decoding="async" fetchpriority="high">
+          <figcaption>{{platform_caption}}</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="features" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <h2 id="features-title" class="plate">{{features_title}}</h2>
+        <p class="lead">{{features_intro}}</p>
+        <dl class="timetable">
+          {% for f in features %}<div class="tt-row">
+            <dt>{{f.name}}</dt>
+            <dd>{{f.text}}</dd>
+            <dd class="tt-link"><a href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/{{f.link}}" rel="noopener">{{features_docs}}<span class="sr"> · {{f.name}}</span></a></dd>
+          </div>
+          {% endfor %}
+        </dl>
+      </div>
+    </section>
+
+    <section class="gallery" aria-labelledby="gallery-title">
+      <div class="wrap">
+        <h2 id="gallery-title" class="plate">{{gallery_title}}</h2>
+        <div class="gallery-grid">
+          {% for g in gallery %}<figure class="shot">
+            <img src="{{base}}/img/{{g.img}}-1600.jpg" srcset="{{base}}/img/{{g.img}}-800.jpg 800w, {{base}}/img/{{g.img}}-1600.jpg 1600w" sizes="(min-width: 960px) 380px, 94vw" width="1600" height="1058" alt="{{g.alt}}" loading="lazy" decoding="async">
+            <figcaption>{{g.caption}}</figcaption>
+          </figure>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+      <div class="wrap two">
+        <div>
+          <h2 id="privacy-title" class="plate">{{privacy_title}}</h2>
+          <p class="lead">{{privacy_intro}}</p>
+          <p><a class="textlink" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/security-review.md" rel="noopener">{{privacy_link}}</a></p>
+        </div>
+        <dl class="facts">
+          {% for r in privacy_rows %}<div class="fact"><dt>{{r.label}}</dt><dd>{{r.value}}</dd></div>
+          {% endfor %}
+        </dl>
+      </div>
+    </section>
+
+    <section class="perf" aria-labelledby="perf-title">
+      <div class="wrap two">
+        <div>
+          <h2 id="perf-title" class="plate">{{perf_title}}</h2>
+          <p class="lead">{{perf_intro}}</p>
+          <p class="note">{{perf_note}}</p>
+          <p><a class="textlink" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/performance.md" rel="noopener">{{perf_link}}</a></p>
+        </div>
+        <table class="measures">
+          <thead><tr><th scope="col">{{perf_col_measure}}</th><th scope="col">{{perf_col_budget}}</th><th scope="col">{{perf_col_measured}}</th></tr></thead>
+          <tbody>
+            {% for r in perf_rows %}<tr><th scope="row">{{r.label}}</th><td class="num">{{r.budget}}</td><td class="num lit">{{r.measured}}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="faq" id="faq" aria-labelledby="faq-title">
+      <div class="wrap narrow">
+        <h2 id="faq-title" class="plate">{{faq_title}}</h2>
+        {% for item in faq %}<details>
+          <summary>{{item.q}}</summary>
+          <p>{{item.a}}</p>
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="cta" aria-labelledby="cta-title">
+      <div class="wrap">
+        <h2 id="cta-title">{{cta_title}}</h2>
+        <p>{{cta_text}}</p>
+        <a class="button" href="#install">{{nav_install}}</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p class="foot-brand"><strong>TermZip</strong> {{version}}<br>{{footer_tagline}}</p>
+      <nav aria-label="{{footer_docs}}">
+        <a href="https://github.com/LuisPeixoto/TermZip" rel="noopener">GitHub</a>
+        <a href="https://github.com/LuisPeixoto/TermZip/tree/main/docs" rel="noopener">{{footer_docs}}</a>
+        <a href="https://github.com/LuisPeixoto/TermZip/releases" rel="noopener">{{footer_releases}}</a>
+        <a href="https://github.com/LuisPeixoto/TermZip/blob/main/CHANGELOG.md" rel="noopener">{{footer_changelog}}</a>
+        <a href="https://github.com/LuisPeixoto/TermZip/blob/main/SECURITY.md" rel="noopener">{{footer_security}}</a>
+        <a href="https://github.com/LuisPeixoto/TermZip/blob/main/LICENSE" rel="noopener">{{footer_license}}</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script src="{{base}}/main.js?v={{asset_version}}" defer></script>
+</body>
+</html>
