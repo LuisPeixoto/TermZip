@@ -12,3 +12,6 @@ Thumbs.db
 
 # Rendered by tools/update-packages.sh
 /packaging/_out/
+
+# Built website
+/site/dist/
