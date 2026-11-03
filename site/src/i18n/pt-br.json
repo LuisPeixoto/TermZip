@@ -8,7 +8,7 @@
   "meta_keywords": "terminal, emulador de terminal, linha de comando, shell, zsh, bash, fish, PowerShell, blocos de comandos, painéis divididos, abas, open source, Rust, Tauri, macOS, Windows, Linux",
   "og_title": "TermZip: o terminal que transforma cada comando em um bloco",
   "og_description": "Um terminal de verdade com uma coluna de comandos concluídos que você copia e executa de novo. Gratuito, open source e não envia nada a lugar nenhum.",
-  "og_image_alt": "TermZip em um painel de partidas: as letras TERMZIP em fichas de painel mecânico",
+  "og_image_alt": "Um terminal sobre um palco violeta: TermZip com a coluna de blocos de comandos",
   "skip_link": "Ir para o conteúdo",
   "nav_label": "Principal",
   "nav_features": "Recursos",
@@ -18,13 +18,8 @@
   "nav_github": "GitHub",
   "lang_label": "Idioma",
   "home_label": "TermZip, início",
-  "board_title": "Partidas",
   "hero_h1": "O terminal que transforma cada comando em um bloco.",
   "hero_sub": "Um terminal de verdade com o seu shell, vim, tmux e SSH, e uma coluna de comandos concluídos que você copia e executa de novo. Gratuito, open source e não envia nada a lugar nenhum.",
-  "board_col_command": "Comando",
-  "board_col_status": "Status",
-  "board_col_time": "Tempo",
-  "board_caption": "Estas linhas são os blocos de comandos da janela real mostrada abaixo.",
   "departures": [
     {
       "cmd": "sleep 11",
@@ -87,7 +82,6 @@
       "lines": []
     }
   ],
-  "platform_title": "Plataforma",
   "platform_alt": "TermZip com o tema Dracula: duas abas, dois painéis lado a lado e a coluna de blocos de comandos com um rótulo de lento, um de falha e uma notificação",
   "platform_caption": "O aplicativo real com o tema Dracula: painéis divididos à esquerda, a coluna de blocos à direita e um plugin marcando o comando lento e a falha.",
   "features_title": "O que ele faz",
@@ -145,17 +139,20 @@
     {
       "img": "themes",
       "alt": "As preferências de Aparência com os doze temas em cartões, cada um pré-visualizado nas próprias cores",
-      "caption": "Doze temas, cada um pré-visualizado nas suas cores antes de salvar."
+      "caption": "Doze temas, cada um pré-visualizado nas suas cores antes de salvar.",
+      "label": "Temas"
     },
     {
       "img": "palette-light",
       "alt": "A paleta de comandos aberta sobre o tema Catppuccin Latte, filtrada pelos comandos de um plugin",
-      "caption": "A paleta de comandos: ações, abas, perfis, temas e comandos de plugins."
+      "caption": "A paleta de comandos: ações, abas, perfis, temas e comandos de plugins.",
+      "label": "Paleta"
     },
     {
       "img": "plugin-catalog",
       "alt": "O catálogo de plugins com quatro plugins assinados e as permissões que cada um pede",
-      "caption": "Um catálogo de plugins assinado. Cada plugin mostra antes as permissões que pede."
+      "caption": "Um catálogo de plugins assinado. Cada plugin mostra antes as permissões que pede.",
+      "label": "Plugins"
     }
   ],
   "privacy_title": "Nada sai do seu computador",
@@ -243,8 +240,8 @@
       "a": "Não. Um plugin é um arquivo WebAssembly sem importações, então não tem com o que chamar o exterior. Ele só vê o que pediu, e você aprova antes."
     }
   ],
-  "cta_title": "Embarque no primeiro trem.",
-  "cta_text": "Instale o TermZip, abra um terminal e execute um comando.",
+  "cta_title": "Execute seu próximo comando no TermZip.",
+  "cta_text": "Instale, abra um terminal e veja cada comando virar um bloco.",
   "footer_tagline": "Um terminal open source escrito em Rust.",
   "footer_license": "Licença MIT",
   "footer_docs": "Documentação",
@@ -258,5 +255,7 @@
     "es": "Esta página también está disponible en español.",
     "pt-br": "Esta página também está disponível em português.",
     "zh": "此页面也提供简体中文版本。"
-  }
+  },
+  "hero_cta_github": "Ver no GitHub",
+  "chip_palette": "Paleta de comandos"
 }
