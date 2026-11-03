@@ -8,8 +8,8 @@
   <meta name="keywords" content="{{meta_keywords}}">
   <meta name="author" content="Luis Peixoto">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-  <meta name="theme-color" content="#0b0d10">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#f6f4ef">
+  <meta name="color-scheme" content="light">
   <link rel="canonical" href="{{canonical}}">
   {% for alt in alternates %}<link rel="alternate" hreflang="{{alt.hreflang}}" href="{{alt.href}}">
   {% endfor %}<link rel="alternate" hreflang="x-default" href="{{default_href}}">
@@ -35,8 +35,8 @@
   <link rel="icon" href="{{base}}/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="{{base}}/apple-touch-icon.png">
   <link rel="manifest" href="{{base}}/site.webmanifest">
-  <link rel="preload" href="{{base}}/fonts/barlow-condensed-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="{{base}}/fonts/jetbrains-mono-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{base}}/fonts/bricolage-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{base}}/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{base}}/styles.css?v={{asset_version}}">
   <script>document.documentElement.className = "js";</script>
   <script type="application/ld+json">{{{jsonld}}}</script>
@@ -45,9 +45,9 @@
   <a class="skip" href="#content">{{skip_link}}</a>
 
   <header class="site-top">
-    <div class="wrap top-row">
+    <div class="pill-nav">
       <a class="brand" href="{{home_href}}" aria-label="{{home_label}}">
-        <img src="{{base}}/favicon.svg" width="32" height="32" alt="" decoding="async">
+        <img src="{{base}}/favicon.svg" width="30" height="30" alt="" decoding="async">
         <span>TermZip</span>
       </a>
       <nav class="nav" aria-label="{{nav_label}}">
@@ -55,7 +55,6 @@
         <a href="#privacy">{{nav_privacy}}</a>
         <a href="#install">{{nav_install}}</a>
         <a href="#faq">{{nav_faq}}</a>
-        <a href="https://github.com/LuisPeixoto/TermZip" rel="noopener">{{nav_github}}</a>
       </nav>
       <nav class="langs" aria-label="{{lang_label}}">
         {% for alt in alternates %}<a href="{{alt.href}}" lang="{{alt.html_lang}}" hreflang="{{alt.hreflang}}"{% if alt.current %} aria-current="true"{% endif %}>{{alt.name}}</a>
@@ -65,93 +64,112 @@
   </header>
 
   <main id="content">
-    <section class="board" aria-labelledby="hero-title">
-      <div class="wrap">
-        <p class="board-sign"><span>{{board_title}}</span><span class="board-sign-rule" aria-hidden="true"></span></p>
-
-        <div class="flaps" aria-hidden="true" data-word="TERMZIP">
-          {% for ch in word %}<span class="tile" data-char="{{ch}}"><span class="half top"><i>{{ch}}</i></span><span class="half bottom"><i>{{ch}}</i></span></span>{% endfor %}
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero-copy">
+        <div class="hero-text">
+          <h1 id="hero-title">{{hero_h1}}</h1>
+          <p class="hero-sub">{{hero_sub}}</p>
         </div>
 
-        <div class="board-grid">
-          <div class="board-main">
-          <h1 id="hero-title" class="hero-h1">{{hero_h1}}</h1>
-          <p class="hero-sub">{{hero_sub}}</p>
-          <div class="departures">
-            <table>
-              <caption>{{board_caption}}</caption>
-              <thead>
-                <tr><th scope="col">{{board_col_command}}</th><th scope="col">{{board_col_status}}</th><th scope="col">{{board_col_time}}</th></tr>
-              </thead>
-              <tbody>
-                {% for d in departures %}<tr class="row-{{d.kind}}">
-                  <th scope="row"><code>{{d.cmd}}</code>{% if d.tag %}<span class="tag">{{d.tag}}</span>{% endif %}</th>
-                  <td><span class="status status-{{d.kind}}">{{d.status}}</span></td>
-                  <td class="num">{{d.time}}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+        <div class="install" id="install" aria-labelledby="install-title">
+          <h2 id="install-title" class="sr">{{install_title}}</h2>
+          <div class="tabs" role="tablist" aria-label="{{install_tabs_label}}">
+            {% for i in installs %}<button type="button" role="tab" id="tab-{{i.id}}" aria-controls="panel-{{i.id}}" aria-selected="{{i.selected}}" tabindex="{{i.tabindex}}" data-os="{{i.id}}">{{i.label}}</button>
+            {% endfor %}
           </div>
-          </div>
-
-          <aside class="sign" id="install" aria-labelledby="install-title">
-            <h2 id="install-title">{{install_title}}</h2>
-            <p class="sign-sub">{{install_sub}}</p>
-            <div class="tabs" role="tablist" aria-label="{{install_tabs_label}}">
-              {% for i in installs %}<button type="button" role="tab" id="tab-{{i.id}}" aria-controls="panel-{{i.id}}" aria-selected="{{i.selected}}" tabindex="{{i.tabindex}}" data-os="{{i.id}}">{{i.label}}</button>
-              {% endfor %}
-            </div>
-            {% for i in installs %}<div class="panel" role="tabpanel" id="panel-{{i.id}}" aria-labelledby="tab-{{i.id}}" data-os="{{i.id}}">
-              <p class="panel-note">{{i.note}}</p>
-              {% for line in i.lines %}<div class="cmd">
-                <code>{{line}}</code>
-                <button type="button" class="copy" data-copy="{{line}}" data-done="{{install_copied}}">{{install_copy}}</button>
-              </div>
-              {% endfor %}
+          {% for i in installs %}<div class="panel" role="tabpanel" id="panel-{{i.id}}" aria-labelledby="tab-{{i.id}}" data-os="{{i.id}}">
+            {% for line in i.lines %}<div class="cmd">
+              <code><span class="prompt" aria-hidden="true">$</span>{{line}}</code>
+              <button type="button" class="copy" data-copy="{{line}}" data-done="{{install_copied}}">{{install_copy}}</button>
             </div>
             {% endfor %}
-            <p class="sign-links"><a href="https://github.com/LuisPeixoto/TermZip/releases/latest" rel="noopener">{{install_releases}}</a></p>
-            <p class="sign-warn">{{install_unsigned}}</p>
-            <p class="copied" role="status" aria-live="polite"></p>
-          </aside>
+            <p class="panel-note">{{i.note}}</p>
+          </div>
+          {% endfor %}
+          <p class="install-meta">{{install_sub}} <a href="https://github.com/LuisPeixoto/TermZip/releases/latest" rel="noopener">{{install_releases}}</a>
+            · <a href="https://github.com/LuisPeixoto/TermZip" rel="noopener">{{hero_cta_github}}</a></p>
+          <p class="install-warn">{{install_unsigned}}</p>
+          <p class="copied" role="status" aria-live="polite"></p>
         </div>
       </div>
-    </section>
 
-    <section class="platform" aria-labelledby="platform-title">
       <div class="wrap">
-        <h2 id="platform-title" class="plate">{{platform_title}}</h2>
-        <figure class="shot">
-          <img src="{{base}}/img/dracula-1600.jpg" srcset="{{base}}/img/dracula-800.jpg 800w, {{base}}/img/dracula-1600.jpg 1600w" sizes="(min-width: 1240px) 1200px, 94vw" width="1600" height="1058" alt="{{platform_alt}}" decoding="async" fetchpriority="high">
-          <figcaption>{{platform_caption}}</figcaption>
-        </figure>
+        <div class="stage">
+          <span class="shape shape-a" aria-hidden="true"></span>
+          <span class="shape shape-b" aria-hidden="true"></span>
+          <figure class="stage-shot">
+            <img src="{{base}}/img/dracula-1600.jpg" srcset="{{base}}/img/dracula-800.jpg 800w, {{base}}/img/dracula-1600.jpg 1600w" sizes="(min-width: 1240px) 1100px, 92vw" width="1600" height="1058" alt="{{platform_alt}}" decoding="async" fetchpriority="high">
+            <figcaption class="sr">{{platform_caption}}</figcaption>
+          </figure>
+          <div class="chip chip-block" aria-hidden="true">
+            <code>{{first.cmd}}</code>{% if first.tag %}<span class="tag">{{first.tag}}</span>{% endif %}<span class="ok">{{first.status}}</span><span class="num">{{first.time}}</span>
+          </div>
+          <div class="chip chip-key" aria-hidden="true">
+            <span class="keys"><kbd>&#8679;</kbd><kbd>&#8984;</kbd><kbd>P</kbd></span><span>{{chip_palette}}</span>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="features" id="features" aria-labelledby="features-title">
       <div class="wrap">
-        <h2 id="features-title" class="plate">{{features_title}}</h2>
-        <p class="lead">{{features_intro}}</p>
-        <dl class="timetable">
-          {% for f in features %}<div class="tt-row">
-            <dt>{{f.name}}</dt>
-            <dd>{{f.text}}</dd>
-            <dd class="tt-link"><a href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/{{f.link}}" rel="noopener">{{features_docs}}<span class="sr"> · {{f.name}}</span></a></dd>
-          </div>
+        <header class="sec-head">
+          <h2 id="features-title">{{features_title}}</h2>
+          <p class="lead">{{features_intro}}</p>
+        </header>
+        <div class="bento">
+          {% for f in features %}<article class="tile tile-{{f.id}}">
+            <div class="tile-text">
+              <h3>{{f.name}}</h3>
+              <p>{{f.text}}</p>
+              <a class="more" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/{{f.link}}" rel="noopener">{{features_docs}}<span class="sr"> · {{f.name}}</span> <span aria-hidden="true">&rarr;</span></a>
+            </div>
+            {% if f.is_blocks %}<div class="mock mock-blocks" aria-hidden="true">
+              {% for d in departures %}<div class="blockcard"><code>{{d.cmd}}</code>{% if d.tag %}<span class="tag">{{d.tag}}</span>{% endif %}<span class="{{d.kind}}">{{d.status}}</span><span class="num">{{d.time}}</span></div>
+              {% endfor %}
+            </div>{% endif %}
+            {% if f.is_tabs %}<div class="mock mock-tabs" aria-hidden="true">
+              <div class="win"><div class="win-bar"><span class="on">web</span><span>docs</span><span>+</span></div>
+                <div class="win-body"><div class="pane"><i></i><i></i><i class="w60"></i></div><div class="pane"><i></i><i class="w40"></i></div><div class="pane wide"><i class="w70"></i><i></i></div></div></div>
+            </div>{% endif %}
+            {% if f.is_terminal %}<div class="mock mock-term" aria-hidden="true"><code><b>$</b> vim notes.md</code><code><b>$</b> tmux attach</code><code><b>$</b> ssh dev</code></div>{% endif %}
+            {% if f.is_plugins %}<div class="mock mock-perms" aria-hidden="true">
+              <div class="perm on"><span>blocks</span><i></i></div><div class="perm"><span>output</span><i></i></div><div class="perm on"><span>type</span><i></i></div><div class="perm"><span>open</span><i></i></div>
+              <p>.wasm &middot; 0 imports</p>
+            </div>{% endif %}
+            {% if f.is_snippets %}<div class="mock mock-tasks" aria-hidden="true"><div><span>build</span><em>Makefile</em></div><div><span>test</span><em>package.json</em></div><div><span>dev</span><em>justfile</em></div></div>{% endif %}
+            {% if f.is_ssh %}<div class="mock mock-ssh" aria-hidden="true"><code>ssh -- prod-api</code><span class="conn"><i></i>~/.ssh/config</span></div>{% endif %}
+            {% if f.is_themes %}<div class="mock mock-themes" aria-hidden="true">
+              <span style="--bg:#282a36;--ac:#bd93f9"></span><span style="--bg:#2e3440;--ac:#88c0d0"></span><span style="--bg:#1e1e2e;--ac:#cba6f7"></span><span style="--bg:#282828;--ac:#fabd2f"></span>
+              <span style="--bg:#1a1b26;--ac:#7aa2f7"></span><span style="--bg:#282c34;--ac:#61afef"></span><span style="--bg:#191724;--ac:#ebbcba"></span><span style="--bg:#eff1f5;--ac:#8839ef"></span>
+            </div>{% endif %}
+            {% if f.is_shape %}<div class="mock mock-keys" aria-hidden="true">
+              <div><span class="keys"><kbd>&#8679;</kbd><kbd>&#8984;</kbd><kbd>P</kbd></span><em>{{chip_palette}}</em></div>
+              <div><span class="keys"><kbd>&#8984;</kbd><kbd>F</kbd></span><em>Find</em></div>
+              <div><span class="keys"><kbd>&#8984;</kbd><kbd>B</kbd></span><em>Blocks</em></div>
+              <div><span class="keys"><kbd>&#8984;</kbd><kbd>,</kbd></span><em>Preferences</em></div>
+            </div>{% endif %}
+            {% if f.is_accessible %}<div class="mock mock-aa" aria-hidden="true"><span class="aa">Aa</span><span class="ratio">AA &middot; 4.5:1</span></div>{% endif %}
+          </article>
           {% endfor %}
-        </dl>
+        </div>
       </div>
     </section>
 
-    <section class="gallery" aria-labelledby="gallery-title">
+    <section class="showcase" aria-labelledby="gallery-title">
       <div class="wrap">
-        <h2 id="gallery-title" class="plate">{{gallery_title}}</h2>
-        <div class="gallery-grid">
-          {% for g in gallery %}<figure class="shot">
-            <img src="{{base}}/img/{{g.img}}-1600.jpg" srcset="{{base}}/img/{{g.img}}-800.jpg 800w, {{base}}/img/{{g.img}}-1600.jpg 1600w" sizes="(min-width: 960px) 380px, 94vw" width="1600" height="1058" alt="{{g.alt}}" loading="lazy" decoding="async">
+        <header class="sec-head">
+          <h2 id="gallery-title">{{gallery_title}}</h2>
+        </header>
+        <div class="show">
+          <div class="show-tabs" role="tablist" aria-label="{{gallery_title}}">
+            {% for g in gallery %}<button type="button" role="tab" id="stab-{{g.img}}" aria-controls="spanel-{{g.img}}" aria-selected="false" tabindex="-1" data-show="{{g.img}}">{{g.label}}</button>
+            {% endfor %}
+          </div>
+          {% for g in gallery %}<div class="show-panel" role="tabpanel" id="spanel-{{g.img}}" aria-labelledby="stab-{{g.img}}" data-show="{{g.img}}"><figure>
+            <img src="{{base}}/img/{{g.img}}-1600.jpg" srcset="{{base}}/img/{{g.img}}-800.jpg 800w, {{base}}/img/{{g.img}}-1600.jpg 1600w" sizes="(min-width: 1240px) 1100px, 92vw" width="1600" height="1058" alt="{{g.alt}}" loading="lazy" decoding="async">
             <figcaption>{{g.caption}}</figcaption>
-          </figure>
+          </figure></div>
           {% endfor %}
         </div>
       </div>
@@ -160,12 +178,12 @@
     <section class="privacy" id="privacy" aria-labelledby="privacy-title">
       <div class="wrap two">
         <div>
-          <h2 id="privacy-title" class="plate">{{privacy_title}}</h2>
+          <h2 id="privacy-title">{{privacy_title}}</h2>
           <p class="lead">{{privacy_intro}}</p>
-          <p><a class="textlink" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/security-review.md" rel="noopener">{{privacy_link}}</a></p>
+          <p><a class="textlink" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/security-review.md" rel="noopener">{{privacy_link}} <span aria-hidden="true">&rarr;</span></a></p>
         </div>
         <dl class="facts">
-          {% for r in privacy_rows %}<div class="fact"><dt>{{r.label}}</dt><dd>{{r.value}}</dd></div>
+          {% for r in privacy_rows %}<div class="fact"><dt>{{r.label}}</dt><dd><span class="check" aria-hidden="true"></span>{{r.value}}</dd></div>
           {% endfor %}
         </dl>
       </div>
@@ -174,10 +192,10 @@
     <section class="perf" aria-labelledby="perf-title">
       <div class="wrap two">
         <div>
-          <h2 id="perf-title" class="plate">{{perf_title}}</h2>
+          <h2 id="perf-title">{{perf_title}}</h2>
           <p class="lead">{{perf_intro}}</p>
           <p class="note">{{perf_note}}</p>
-          <p><a class="textlink" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/performance.md" rel="noopener">{{perf_link}}</a></p>
+          <p><a class="textlink" href="https://github.com/LuisPeixoto/TermZip/blob/main/docs/performance.md" rel="noopener">{{perf_link}} <span aria-hidden="true">&rarr;</span></a></p>
         </div>
         <table class="measures">
           <thead><tr><th scope="col">{{perf_col_measure}}</th><th scope="col">{{perf_col_budget}}</th><th scope="col">{{perf_col_measured}}</th></tr></thead>
@@ -191,7 +209,7 @@
 
     <section class="faq" id="faq" aria-labelledby="faq-title">
       <div class="wrap narrow">
-        <h2 id="faq-title" class="plate">{{faq_title}}</h2>
+        <h2 id="faq-title">{{faq_title}}</h2>
         {% for item in faq %}<details>
           <summary>{{item.q}}</summary>
           <p>{{item.a}}</p>
@@ -202,9 +220,12 @@
 
     <section class="cta" aria-labelledby="cta-title">
       <div class="wrap">
-        <h2 id="cta-title">{{cta_title}}</h2>
-        <p>{{cta_text}}</p>
-        <a class="button" href="#install">{{nav_install}}</a>
+        <div class="cta-card">
+          <span class="shape shape-a" aria-hidden="true"></span>
+          <h2 id="cta-title">{{cta_title}}</h2>
+          <p>{{cta_text}}</p>
+          <a class="btn" href="#install">{{nav_install}}</a>
+        </div>
       </div>
     </section>
   </main>
