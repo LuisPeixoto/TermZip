@@ -4,6 +4,20 @@ Notable changes to TermZip are documented here.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-03
+
+### Added
+
+- A website at https://luispeixoto.github.io/TermZip/ in English, Spanish, Brazilian Portuguese and Chinese, built from
+  `site/` and published with GitHub Pages.
+
+### Fixed
+
+- *Check for updates* gives up after 20 seconds with "Could not reach the update server" instead of staying on
+  "Checking…" when the connection to the server stalls. Downloading an update that was found has its own 30 minute limit.
+- `SHA256SUMS` of a release no longer lists the repository's own `assets/` files (the release workflow downloaded the
+  release into a folder of that name).
+
 ## [1.0.0] - 2026-11-02
 
 Stabilization: budgets, conformance, accessibility, updates, signing hooks, packages and a security review. What is

@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: LuisPeixoto.TermZip
+PackageVersion: 1.0.0
+InstallerType: nsis
+Scope: user
+InstallerSwitches:
+  Silent: /S
+  SilentWithProgress: /S
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/LuisPeixoto/TermZip/releases/download/v1.0.0/TermZip_1.0.0_x64-setup.exe
+    InstallerSha256: A0178081A36D62F517F8CA36F38125878213B14C76617325B885F5BB6CFBA1E8
+ReleaseDate: 2026-11-02
+ManifestType: installer
+ManifestVersion: 1.6.0
