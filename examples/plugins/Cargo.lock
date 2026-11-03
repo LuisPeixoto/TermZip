@@ -116,14 +116,14 @@ dependencies = [
 
 [[package]]
 name = "termzip-plugin-api"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "termzip-plugin-sdk"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "serde_json",
  "termzip-plugin-api",
