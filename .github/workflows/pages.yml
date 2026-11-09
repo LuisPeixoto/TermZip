@@ -36,7 +36,7 @@ jobs:
         run: python3 tools/test_build_site.py
       - name: Build for the Pages address
         run: SITE_URL="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}" python3 tools/build-site.py
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site/dist
 
